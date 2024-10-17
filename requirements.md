@@ -34,3 +34,7 @@ When moving up (2.3) or down (2.4) cursor stays on the column the movement start
 #### 2.5.1 When chaning row cursor stays on a column movement started from (origin column)
 #### 2.5.2 If new row line width is smaller than origin column, cursor stays on the last column
 #### 2.5.3 If vertical movements are chained, origin column is kept from the first movement
+
+### 2.5 Window shift on vertical movement
+When cursor exceeds window boundries window frame must shift so that show line cursor is on.
+

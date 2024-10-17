@@ -20,45 +20,46 @@ func main() {
 		log.Fatalf("%+v", err)
 	}
 
-	buf := bufferFromFile(filename, []byte("\r\n"))
+	buffer := bufferFromFile(filename, []byte("\r\n"))
+	window := windowFromBuffer(buffer)
 
-	defer quit(screen, buf)
-	for !buf.quiting {
-		drawWindow(screen, buf)
-		handleEvents(screen.PollEvent(), buf)
+	defer quit(screen)
+	for !buffer.quiting {
+		drawWindow(screen, window)
+		handleEvents(screen.PollEvent(), window)
 	}
 }
 
-func drawWindow(screen tcell.Screen, buf *Buffer) {
+func drawWindow(screen tcell.Screen, window *Window) {
 	screen.Clear()
-	drawCharachters(screen, buf)
-	s.ShowCursor(buf.cursor.column, buf.cursor.row)
-	// drawHighlighted(screen, buf)
+	drawCharachters(screen, window)
+	screen.ShowCursor(window.cursor.column, window.cursor.row)
+	// drawHighlighted(screen, window)
 	screen.Show()
 }
 
-func drawCharachters(s tcell.Screen, buf *Buffer) {
+func drawCharachters(s tcell.Screen, window *Window) {
 	lineStart := 0
-	for y, line := range buf.lines {
+	for y, line := range window.buffer.lines {
 		for x := 0; x < line.width; x++ {
 			i := lineStart + x
-			s.SetContent(x, y, rune(buf.content[i]), nil, tcell.StyleDefault)
+			s.SetContent(x, y, rune(window.buffer.content[i]), nil, tcell.StyleDefault)
 		}
-		lineStart += line.width + len(buf.newLineSeq)
+		lineStart += line.width + len(window.buffer.newLineSeq)
 	}
 }
 
-func handleEvents(ev tcell.Event, buf *Buffer) {
+func handleEvents(ev tcell.Event, window *Window) {
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
-		buf.quiting = ev.Key() == tcell.KeyCtrlC
-		// handleInsertModeEvents(buf, ev)
-		handleNormalModeEvents(buf, ev)
-		// handleVisualModeEvents(buf, ev)
+		window.buffer.quiting = ev.Key() == tcell.KeyCtrlC
+		// handleInsertModeEvents(window, ev)
+		handleNormalModeEvents(window, ev)
+		// handleVisualModeEvents(window, ev)
 	}
 }
 
-func quit(screen tcell.Screen, buf *Buffer) {
+func quit(screen tcell.Screen) {
 	maybePanic := recover()
 	screen.Fini()
 	if maybePanic != nil {
@@ -66,7 +67,7 @@ func quit(screen tcell.Screen, buf *Buffer) {
 	}
 }
 
-func handleNormalModeEvents(buf *Buffer, ev *tcell.EventKey) {
+func handleNormalModeEvents(window *Window, ev *tcell.EventKey) {
 	// if buf.mode != NormalMode {
 	// 	return
 	// }
@@ -83,13 +84,13 @@ func handleNormalModeEvents(buf *Buffer, ev *tcell.EventKey) {
 		// case 'v':
 		// 	enterVisualMode(buf)
 		case 'h':
-			buf.cursorLeft()
+			window.cursorLeft()
 		case 'j':
-			buf.cursorDown()
+			window.cursorDown()
 		case 'k':
-			buf.cursorUp()
+			window.cursorUp()
 		case 'l':
-			buf.cursorRight()
+			window.cursorRight()
 		}
 	}
 }
