@@ -20,32 +20,17 @@ func main() {
 		log.Fatalf("%+v", err)
 	}
 
+	width, height := screen.Size()
 	buffer := bufferFromFile(filename, []byte("\r\n"))
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, width, height)
 
 	defer quit(screen)
 	for !buffer.quiting {
-		drawWindow(screen, window)
+		screen.Clear()
+		window.draw(screen)
+		screen.Show()
+
 		handleEvents(screen.PollEvent(), window)
-	}
-}
-
-func drawWindow(screen tcell.Screen, window *Window) {
-	screen.Clear()
-	drawCharachters(screen, window)
-	screen.ShowCursor(window.cursor.column, window.cursor.row)
-	// drawHighlighted(screen, window)
-	screen.Show()
-}
-
-func drawCharachters(s tcell.Screen, window *Window) {
-	lineStart := 0
-	for y, line := range window.buffer.lines {
-		for x := 0; x < line.width; x++ {
-			i := lineStart + x
-			s.SetContent(x, y, rune(window.buffer.content[i]), nil, tcell.StyleDefault)
-		}
-		lineStart += line.width + len(window.buffer.newLineSeq)
 	}
 }
 
