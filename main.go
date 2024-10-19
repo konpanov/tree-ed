@@ -89,8 +89,8 @@ func handleInsertModeEvents(window *Window, ev *tcell.EventKey) {
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		window.switchToNormal()
-	// case tcell.KeyBS:
-	// 	removeUnderCursor(window)
+	case tcell.KeyBS:
+		window.remove()
 	// case tcell.KeyEnter:
 	// 	splitLineUnderCursor(window)
 	case tcell.KeyRune:

@@ -54,6 +54,15 @@ func (window *Window) draw(screen tcell.Screen) {
 				i := lineStart + x
 				screen.SetContent(x, y-window.topLine, rune(window.buffer.content[i]), nil, tcell.StyleDefault)
 			}
+			// for x := line.width; x < line.width+len(window.buffer.newLineSeq); x++ {
+			// 	i := lineStart + x
+			// 	if window.buffer.content[i] == '\r' {
+			// 		screen.SetContent(x, y-window.topLine, 'R', nil, tcell.StyleDefault)
+			// 	}
+			// 	if window.buffer.content[i] == '\n' {
+			// 		screen.SetContent(x, y-window.topLine, 'N', nil, tcell.StyleDefault)
+			// 	}
+			// }
 		}
 		lineStart += line.width + len(window.buffer.newLineSeq)
 	}
@@ -68,6 +77,9 @@ func (window *Window) switchToNormal() {
 
 func (window *Window) cursorRight() {
 	lineWidth := window.buffer.lines[window.cursor.row].width
+	if lineWidth == 0{
+		return
+	}
 	if window.mode == NormalMode && window.cursor.column+1 == lineWidth {
 		return
 	}
@@ -128,4 +140,38 @@ func (window *Window) insert(value byte) {
 	)
 	window.buffer.content[window.cursor.index] = value
 	window.buffer.lines[window.cursor.row].width++
+}
+
+func (window *Window) remove() {
+	if window.cursor.index == 0 {
+		return
+	}
+	if window.cursor.column == 0 {
+		thisLineWidth := window.buffer.lines[window.cursor.row].width
+		prevLineWidth := window.buffer.lines[window.cursor.row-1].width
+		newLineSeqLen := len(window.buffer.newLineSeq)
+
+		window.buffer.content = append(
+			window.buffer.content[:window.cursor.index-newLineSeqLen],
+			window.buffer.content[window.cursor.index:]...,
+		)
+		window.buffer.lines[window.cursor.row-1].width += thisLineWidth
+		window.buffer.lines = append(
+			window.buffer.lines[:window.cursor.row],
+			window.buffer.lines[window.cursor.row+1:]...,
+		)
+
+		window.cursor.row--
+		window.cursor.column = prevLineWidth
+		window.cursor.index -= newLineSeqLen
+		window.cursor.originColumn = window.cursor.column
+	} else {
+		window.buffer.content = append(
+			window.buffer.content[:window.cursor.index-1],
+			window.buffer.content[window.cursor.index:]...,
+		)
+		window.buffer.lines[window.cursor.row].width--
+		window.cursorLeft()
+
+	}
 }
