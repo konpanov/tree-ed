@@ -4,6 +4,14 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+type WindowMode int
+
+const (
+	NormalMode WindowMode = iota
+	InsertMode WindowMode = iota
+	// VisualMode WindowMode = iota
+)
+
 type WindowCursor struct {
 	index        int
 	row          int
@@ -12,6 +20,7 @@ type WindowCursor struct {
 }
 
 type Window struct {
+	mode          WindowMode
 	buffer        *Buffer
 	cursor        *WindowCursor
 	topLine       int // TODO: Should it be in WindowCursor?
@@ -20,6 +29,7 @@ type Window struct {
 
 func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 	return &Window{
+		mode:    NormalMode,
 		buffer:  buffer,
 		cursor:  &WindowCursor{0, 0, 0, 0},
 		topLine: 0,
@@ -30,6 +40,13 @@ func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 
 func (window *Window) draw(screen tcell.Screen) {
 	lineStart := 0
+	switch window.mode {
+	case NormalMode:
+		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+	case InsertMode:
+		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
+	}
+
 	screen.ShowCursor(window.cursor.column, window.cursor.row-window.topLine)
 	for y, line := range window.buffer.lines {
 		if y >= window.topLine && y < window.topLine+window.height {
@@ -42,9 +59,19 @@ func (window *Window) draw(screen tcell.Screen) {
 	}
 }
 
+func (window *Window) switchToInsert() {
+	window.mode = InsertMode
+}
+func (window *Window) switchToNormal() {
+	window.mode = NormalMode
+}
+
 func (window *Window) cursorRight() {
 	lineWidth := window.buffer.lines[window.cursor.row].width
-	if window.cursor.column+1 == lineWidth {
+	if window.mode == NormalMode && window.cursor.column+1 == lineWidth {
+		return
+	}
+	if window.mode == InsertMode && window.cursor.column == lineWidth {
 		return
 	}
 	window.cursor.index++
@@ -69,11 +96,10 @@ func (window *Window) cursorDown() {
 	thisLineWidth := window.buffer.lines[window.cursor.row].width - 1
 	nextLineWidth := window.buffer.lines[window.cursor.row+1].width - 1
 
-	window.cursor.index -= window.cursor.column
+	window.cursor.index -= window.cursor.column - 1
 	window.cursor.index += thisLineWidth + len(window.buffer.newLineSeq)
 	window.cursor.column = max(min(window.cursor.originColumn, nextLineWidth), 0)
 	window.cursor.row += 1
-	window.cursor.index += window.cursor.column
 	window.cursor.index += window.cursor.column
 	window.topLine = max(window.topLine+window.height-1, window.cursor.row) - window.height + 1
 }
@@ -90,7 +116,16 @@ func (window *Window) cursorUp() {
 
 	window.cursor.index -= window.cursor.column
 	window.cursor.column = max(min(window.cursor.originColumn, prevLineWidth), 0)
-	window.cursor.index += window.cursor.column
+	window.cursor.index += window.cursor.column - 1
 
 	window.topLine = min(window.topLine, window.cursor.row)
+}
+
+func (window *Window) insert(value byte) {
+	window.buffer.content = append(
+		window.buffer.content[:window.cursor.index+1],
+		window.buffer.content[window.cursor.index:]...,
+	)
+	window.buffer.content[window.cursor.index] = value
+	window.buffer.lines[window.cursor.row].width++
 }

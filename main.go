@@ -38,7 +38,7 @@ func handleEvents(ev tcell.Event, window *Window) {
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
 		window.buffer.quiting = ev.Key() == tcell.KeyCtrlC
-		// handleInsertModeEvents(window, ev)
+		handleInsertModeEvents(window, ev)
 		handleNormalModeEvents(window, ev)
 		// handleVisualModeEvents(window, ev)
 	}
@@ -53,21 +53,23 @@ func quit(screen tcell.Screen) {
 }
 
 func handleNormalModeEvents(window *Window, ev *tcell.EventKey) {
-	// if buf.mode != NormalMode {
-	// 	return
-	// }
+	if window.mode != NormalMode {
+		return
+	}
 	switch ev.Key() {
 	// case tcell.KeyCtrlS:
-	// 	writeFile(buf)
+	// 	writeFile(window)
 	case tcell.KeyRune:
 		switch ev.Rune() {
-		// case 'i':
-		// 	enterInsertMode(buf)
-		// case 'a':
-		// 	enterInsertMode(buf)
-		// 	cursorRight(buf)
+		case 'i':
+			window.switchToInsert()
+		case 'a':
+			window.switchToInsert()
+			window.cursorRight()
 		// case 'v':
-		// 	enterVisualMode(buf)
+		// 	enterVisualMode(window)
+
+		//TODO: add some timeout?
 		case 'h':
 			window.cursorLeft()
 		case 'j':
@@ -77,5 +79,22 @@ func handleNormalModeEvents(window *Window, ev *tcell.EventKey) {
 		case 'l':
 			window.cursorRight()
 		}
+	}
+}
+
+func handleInsertModeEvents(window *Window, ev *tcell.EventKey) {
+	if window.mode != InsertMode {
+		return
+	}
+	switch ev.Key() {
+	case tcell.KeyEsc:
+		window.switchToNormal()
+	// case tcell.KeyBS:
+	// 	removeUnderCursor(window)
+	// case tcell.KeyEnter:
+	// 	splitLineUnderCursor(window)
+	case tcell.KeyRune:
+		window.insert(byte(ev.Rune()))
+		window.cursorRight()
 	}
 }
