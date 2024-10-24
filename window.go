@@ -9,7 +9,7 @@ type WindowMode int
 const (
 	NormalMode WindowMode = iota
 	InsertMode WindowMode = iota
-	// VisualMode WindowMode = iota
+	VisualMode WindowMode = iota
 )
 
 type WindowCursor struct {
@@ -23,48 +23,87 @@ type Window struct {
 	mode          WindowMode
 	buffer        *Buffer
 	cursor        *WindowCursor
+	secondCursor  *WindowCursor
 	topLine       int // TODO: Should it be in WindowCursor?
 	width, height int
 }
 
 func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 	return &Window{
-		mode:    NormalMode,
-		buffer:  buffer,
-		cursor:  &WindowCursor{0, 0, 0, 0},
-		topLine: 0,
-		width:   width,
-		height:  height,
+		mode:         NormalMode,
+		buffer:       buffer,
+		cursor:       &WindowCursor{0, 0, 0, 0},
+		secondCursor: &WindowCursor{0, 0, 0, 0},
+		topLine:      0,
+		width:        width,
+		height:       height,
 	}
 }
 
 func (window *Window) draw(screen tcell.Screen) {
-	lineStart := 0
 	switch window.mode {
 	case NormalMode:
+		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+	case VisualMode:
 		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
 	case InsertMode:
 		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
 	}
-
 	screen.ShowCursor(window.cursor.column, window.cursor.row-window.topLine)
+	window.drawText(screen)
+	if window.mode == VisualMode {
+		window.drawSelection(screen, window.cursor, window.secondCursor)
+	}
+}
+
+func (window *Window) drawText(screen tcell.Screen) {
+	lineStart := 0
 	for y, line := range window.buffer.lines {
 		if y >= window.topLine && y < window.topLine+window.height {
 			for x := 0; x < line.width; x++ {
 				i := lineStart + x
-				screen.SetContent(x, y-window.topLine, rune(window.buffer.content[i]), nil, tcell.StyleDefault)
+				char := rune(window.buffer.content[i])
+				style := tcell.StyleDefault
+				screen.SetContent(x, y-window.topLine, char, nil, style)
 			}
-			// for x := line.width; x < line.width+len(window.buffer.newLineSeq); x++ {
-			// 	i := lineStart + x
-			// 	if window.buffer.content[i] == '\r' {
-			// 		screen.SetContent(x, y-window.topLine, 'R', nil, tcell.StyleDefault)
-			// 	}
-			// 	if window.buffer.content[i] == '\n' {
-			// 		screen.SetContent(x, y-window.topLine, 'N', nil, tcell.StyleDefault)
-			// 	}
-			// }
+			// window.DEBUGdrawRN(screen, lineStart, y, line)
 		}
 		lineStart += line.width + len(window.buffer.newLineSeq)
+	}
+}
+
+func (window *Window) drawSelection(screen tcell.Screen, a *WindowCursor, b *WindowCursor) {
+	start := a
+	end := b
+	if a.index > b.index {
+		start, end = end, start
+	}
+	lineStart := 0
+	for y, line := range window.buffer.lines {
+		if y >= start.row && y <= end.row {
+			for x := 0; x < line.width; x++ {
+				i := lineStart + x
+				if i != window.cursor.index && start.index <= i && i <= end.index {
+					char := rune(window.buffer.content[i])
+					style := tcell.StyleDefault.Reverse(true)
+					screen.SetContent(x, y-window.topLine, char, nil, style)
+				}
+			}
+			// window.DEBUGdrawRN(screen, lineStart, y, line)
+		}
+		lineStart += line.width + len(window.buffer.newLineSeq)
+	}
+}
+
+func (window *Window) DEBUGdrawRN(screen tcell.Screen, lineStart int, y int, line BufferLine) {
+	for x := line.width; x < line.width+len(window.buffer.newLineSeq); x++ {
+		i := lineStart + x
+		if window.buffer.content[i] == '\r' {
+			screen.SetContent(x, y-window.topLine, 'R', nil, tcell.StyleDefault)
+		}
+		if window.buffer.content[i] == '\n' {
+			screen.SetContent(x, y-window.topLine, 'N', nil, tcell.StyleDefault)
+		}
 	}
 }
 
@@ -75,9 +114,14 @@ func (window *Window) switchToNormal() {
 	window.mode = NormalMode
 }
 
+func (window *Window) switchToVisual() {
+	window.mode = VisualMode
+	*window.secondCursor = *window.cursor
+}
+
 func (window *Window) cursorRight() {
 	lineWidth := window.buffer.lines[window.cursor.row].width
-	if lineWidth == 0{
+	if lineWidth == 0 {
 		return
 	}
 	if window.mode == NormalMode && window.cursor.column+1 == lineWidth {
