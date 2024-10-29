@@ -2,7 +2,10 @@ module tree-runner
 
 go 1.21.1
 
-require github.com/gdamore/tcell/v2 v2.7.4
+require (
+	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
+)
 
 require (
 	github.com/gdamore/encoding v1.0.0 // indirect

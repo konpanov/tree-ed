@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// aaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 func main() {
 	filename := "main.go"
 	if len(os.Args) >= 2 {
@@ -41,6 +42,7 @@ func handleEvents(ev tcell.Event, window *Window) bool {
 		return (handleInsertModeEvents(window, ev) ||
 			handleNormalModeEvents(window, ev) ||
 			handleVisualModeEvents(window, ev) ||
+			handleTreeModeEvents(window, ev) ||
 			false)
 	}
 	return false
@@ -75,6 +77,9 @@ func handleNormalModeEvents(window *Window, ev *tcell.EventKey) bool {
 			return true
 		case 'v':
 			window.switchToVisual()
+			return true
+		case 't':
+			window.switchToTree()
 			return true
 		}
 	}
@@ -124,6 +129,36 @@ func handleVisualModeEvents(window *Window, ev *tcell.EventKey) bool {
 			return true
 		case 'v':
 			window.switchToNormal()
+			return true
+		}
+	}
+	return false
+}
+
+func handleTreeModeEvents(window *Window, ev *tcell.EventKey) bool {
+	if window.mode != TreeMode {
+		return false
+	}
+	switch ev.Key() {
+	case tcell.KeyEsc:
+		window.switchToNormal()
+		return true
+	case tcell.KeyRune:
+		switch ev.Rune() {
+		case 't':
+			window.switchToNormal()
+			return true
+		case 'k':
+			window.nodeUp()
+			return true
+		case 'j':
+			window.nodeDown()
+			return true
+		case 'l':
+			window.nodeRight()
+			return true
+		case 'h':
+			window.nodeLeft()
 			return true
 		}
 	}

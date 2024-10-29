@@ -1,16 +1,20 @@
 package main
 
 import (
+	"context"
 	"github.com/gdamore/tcell/v2"
+
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/golang"
 )
 
 type WindowMode int
 
 const (
-	NormalMode     WindowMode = iota
-	InsertMode     WindowMode = iota
-	VisualMode     WindowMode = iota
-	VisualTreeMode WindowMode = iota
+	NormalMode WindowMode = iota
+	InsertMode WindowMode = iota
+	VisualMode WindowMode = iota
+	TreeMode   WindowMode = iota
 )
 
 type WindowCursor struct {
@@ -27,9 +31,16 @@ type Window struct {
 	secondCursor  *WindowCursor
 	topLine       int // TODO: Should it be in WindowCursor?
 	width, height int
+	parser        *sitter.Parser
+	tree          *sitter.Tree
+	node          *sitter.Node
 }
 
 func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
+	parser := sitter.NewParser()
+	parser.SetLanguage(golang.GetLanguage())
+	tree, _ := parser.ParseCtx(context.Background(), nil, buffer.content)
+	rootNode := tree.RootNode()
 	return &Window{
 		mode:         NormalMode,
 		buffer:       buffer,
@@ -38,6 +49,9 @@ func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 		topLine:      0,
 		width:        width,
 		height:       height,
+		parser:       parser,
+		tree:         tree,
+		node:         rootNode,
 	}
 }
 
@@ -57,6 +71,14 @@ func (window *Window) draw(screen tcell.Screen) {
 		screen.HideCursor()
 		window.drawText(screen, windowStartIndex)
 		window.drawSelection(screen, windowStartIndex, window.cursor.index, window.secondCursor.index)
+	case TreeMode:
+		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+		screen.HideCursor()
+
+		start := int(window.node.StartByte())
+		end := int(window.node.EndByte())
+		window.drawText(screen, windowStartIndex)
+		window.drawSelection(screen, windowStartIndex, start, end)
 	case InsertMode:
 		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
 		screen.ShowCursor(window.cursor.column, window.cursor.row-window.topLine)
@@ -121,6 +143,48 @@ func (window *Window) switchToVisual() {
 	*window.secondCursor = *window.cursor
 }
 
+func (window *Window) switchToTree() {
+	window.mode = TreeMode
+}
+
+func (window *Window) nodeUp() {
+	if window.node.Equal(window.tree.RootNode()) {
+		return
+	}
+	window.node = window.node.Parent()
+	startPoint := window.node.StartPoint()
+	window.topLine = min(window.topLine, int(startPoint.Row))
+}
+
+func (window *Window) nodeDown() {
+	if window.node.ChildCount() == 0 {
+		return
+	}
+	window.node = window.node.Child(0)
+	endPoint := window.node.EndPoint()
+	window.topLine = max(window.topLine+window.height-1, int(endPoint.Row)) - window.height + 1
+}
+
+func (window *Window) nodeRight() {
+	sibling := window.node.NextSibling()
+	if sibling == nil {
+		return
+	}
+	window.node = sibling
+	endPoint := window.node.EndPoint()
+	window.topLine = max(window.topLine+window.height-1, int(endPoint.Row)) - window.height + 1
+}
+
+func (window *Window) nodeLeft() {
+	sibling := window.node.PrevSibling()
+	if sibling == nil {
+		return
+	}
+	window.node = sibling
+	startPoint := window.node.StartPoint()
+	window.topLine = min(window.topLine, int(startPoint.Row))
+}
+
 func (window *Window) cursorRight() {
 	lineWidth := window.buffer.lines[window.cursor.row].width
 	if lineWidth == 0 {
@@ -136,6 +200,7 @@ func (window *Window) cursorRight() {
 	window.cursor.index++
 	window.cursor.column++
 	window.cursor.originColumn = window.cursor.column
+
 }
 
 func (window *Window) cursorLeft() {
