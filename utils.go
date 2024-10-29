@@ -4,7 +4,6 @@ import (
 	"os"
 )
 
-
 func readFile(filename string) string {
 	dat, err := os.ReadFile(filename)
 	if err != nil {
@@ -12,7 +11,6 @@ func readFile(filename string) string {
 	}
 	return string(dat[:len(dat)-2])
 }
-
 
 func matchBytes(a []byte, b []byte) bool {
 	for i := 0; i < min(len(a), len(b)); i++ {
