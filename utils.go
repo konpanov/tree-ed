@@ -1,15 +1,21 @@
 package main
 
 import (
-	"os"
+	"runtime"
 )
 
-func readFile(filename string) string {
-	dat, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
+const (
+	NewLineWindows string = "\r\n"
+	NewLineUnix    string = "\n"
+)
+
+func getSystemNewLine() []byte {
+	switch runtime.GOOS {
+	case "windows":
+		return []byte(NewLineWindows)
+	default:
+		return []byte(NewLineUnix)
 	}
-	return string(dat[:len(dat)-2])
 }
 
 func matchBytes(a []byte, b []byte) bool {
@@ -19,4 +25,8 @@ func matchBytes(a []byte, b []byte) bool {
 		}
 	}
 	return true
+}
+
+func isInRange(value int, start int, end int) bool {
+	return start <= value && value <= end
 }

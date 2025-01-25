@@ -1,13 +1,30 @@
 package main
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"log"
 	"os"
+	"runtime/pprof"
+
+	"github.com/gdamore/tcell/v2"
 )
 
-// aaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaasdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 func main() {
+	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer f.Close()
+	log.SetOutput(f)
+	log.Println("Log file initiated.")
+
+	f, err = os.Create("cpuprofile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+	log.Println("Cpu profile initiated")
+
 	filename := "main.go"
 	if len(os.Args) >= 2 {
 		filename = os.Args[1]
@@ -22,7 +39,8 @@ func main() {
 	}
 
 	width, height := screen.Size()
-	buffer := bufferFromFile(filename, []byte("\n"))
+
+	buffer := bufferFromFile(filename, getSystemNewLine())
 	window := windowFromBuffer(buffer, width, height)
 
 	defer quit(screen)
@@ -36,8 +54,10 @@ func main() {
 }
 
 func handleEvents(ev tcell.Event, window *Window) bool {
+	log.Println("[MODE: " + modeToString(window.mode) + "]")
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
+		log.Println("Registered key: ", tcell.KeyNames[ev.Key()])
 		window.buffer.quiting = ev.Key() == tcell.KeyCtrlC
 		return (handleInsertModeEvents(window, ev) ||
 			handleNormalModeEvents(window, ev) ||
@@ -90,18 +110,19 @@ func handleInsertModeEvents(window *Window, ev *tcell.EventKey) bool {
 	if window.mode != InsertMode {
 		return false
 	}
+	log.Println("Handling insert mode events")
 	switch ev.Key() {
 	case tcell.KeyEsc:
 		window.switchToNormal()
 		return true
-	case tcell.KeyBS:
+	case tcell.KeyBackspace:
+	case tcell.KeyBackspace2:
 		window.remove()
 		return true
-	// case tcell.KeyEnter:
-	// 	splitLineUnderCursor(window)
+	case tcell.KeyEnter:
+		window.insert(getSystemNewLine())
 	case tcell.KeyRune:
-		window.insert(byte(ev.Rune()))
-		window.cursorRight()
+		window.insert([]byte{byte(ev.Rune())})
 		return true
 	}
 	return false
@@ -166,20 +187,19 @@ func handleTreeModeEvents(window *Window, ev *tcell.EventKey) bool {
 }
 
 func handleNormalMovements(window *Window, ev *tcell.EventKey) bool {
-	//TODO: add some timeout?
 	if ev.Key() == tcell.KeyRune {
 		switch ev.Rune() {
 		case 'h':
-			window.cursorLeft()
+			window.moveCursor(Left)
 			return true
 		case 'j':
-			window.cursorDown()
+			window.moveCursor(Down)
 			return true
 		case 'k':
-			window.cursorUp()
+			window.moveCursor(Up)
 			return true
 		case 'l':
-			window.cursorRight()
+			window.moveCursor(Right)
 			return true
 		}
 	}
