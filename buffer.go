@@ -65,3 +65,16 @@ func (buffer *Buffer) erease(from int, to int) {
 	buffer.content = append(buffer.content[:from], buffer.content[to+1:]...)
 	buffer.update()
 }
+
+func (buffer *Buffer) coordinates(index int) (int, int) {
+	for y, line := range buffer.lines {
+		if line.end >= index {
+			return y, index - line.start
+		}
+	}
+	return -1, -1
+}
+
+func (buffer *Buffer) index(y int, x int) int {
+	return buffer.lines[y].start + x
+}

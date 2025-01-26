@@ -98,63 +98,65 @@ func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 	}
 }
 
+func colorNode(styles []tcell.Style, node *sitter.Node) {
+	for i := 0; i < int(node.ChildCount()); i++ {
+		start := int(node.Child(i).StartByte())
+		styles[start] = styles[start].Background(tcell.ColorDarkGray)
+	}
+}
+
 func (window *Window) draw(screen tcell.Screen) {
 	normalStyle := tcell.StyleDefault
 	selectStyle := tcell.StyleDefault.Reverse(true)
+
 	selectStart, selectEnd := window.cursor.index, window.secondCursor.index
 	if window.mode == TreeMode {
+		log.Println(window.node.String())
+		log.Println(window.node.Content(window.buffer.content))
 		selectStart = int(window.node.StartByte())
-		selectEnd = int(window.node.EndByte())
+		selectEnd = int(window.node.EndByte()) - 1
 	}
-	selectStart, selectEnd = min(selectStart, selectEnd), max(selectStart, selectEnd)
+	selectStart, selectEnd = order(selectStart, selectEnd)
+
+	styles := []tcell.Style{}
+	for range window.buffer.content {
+		styles = append(styles, normalStyle)
+	}
+	if window.mode == TreeMode {
+		if window.node != window.tree.RootNode() {
+			colorNode(styles, window.node.Parent())
+		}
+	}
+
+	if window.mode == TreeMode || window.mode == VisualMode {
+		screen.HideCursor()
+		for i := selectStart; i <= selectEnd; i++ {
+			styles[i] = selectStyle
+		}
+	} else if window.mode == NormalMode {
+		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+		y, x := window.buffer.coordinates(window.cursor.index)
+		screen.ShowCursor(x, y)
+	} else if window.mode == InsertMode {
+		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
+		y, x := window.buffer.coordinates(window.cursor.index)
+		screen.ShowCursor(x, y)
+	}
 
 	for y, line := range window.buffer.lines[window.topLine:] {
-		if line.start == line.end {
-			if line.start == window.cursor.index {
-				switch window.mode {
-				case NormalMode:
-					screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
-					screen.ShowCursor(0, y)
-				case InsertMode:
-					screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-					screen.ShowCursor(0, y)
-				default:
-					screen.HideCursor()
-				}
+		end := line.end
+		start := min(line.start+window.leftColumn, end)
+		if window.mode == InsertMode || window.mode == TreeMode {
+			end++
+		}
+		for x, value := range window.buffer.content[start:end] {
+			index := start + x
+			if value == '\r' {
+				value = ' '
+			} else if value == '\n' {
+				value = ' '
 			}
-		} else {
-			end := line.end
-			start := min(line.start+window.leftColumn, end)
-			if window.mode == InsertMode {
-				end++
-			}
-			for x, value := range window.buffer.content[start:end] {
-				style := normalStyle
-				index := start + x
-				switch window.mode {
-				case NormalMode:
-					if window.cursor.index == index {
-						screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
-						screen.ShowCursor(x, y)
-					}
-				case InsertMode:
-					if window.cursor.index == index {
-						screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-						screen.ShowCursor(x, y)
-					}
-				case TreeMode, VisualMode:
-					if isInRange(index, selectStart, selectEnd) {
-						style = selectStyle
-					}
-					screen.HideCursor()
-				}
-				if value == '\r' {
-					value = 'R'
-				} else if value == '\n' {
-					value = 'N'
-				}
-				screen.SetContent(x, y, rune(value), nil, style)
-			}
+			screen.SetContent(x, y, rune(value), nil, styles[min(index, len(styles)-1)])
 		}
 	}
 }

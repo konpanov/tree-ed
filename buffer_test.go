@@ -84,3 +84,17 @@ func TestEreaseLine(t *testing.T) {
 	buffer.erease(line.start, line.end)
 	assertBytesEqual(t, []byte("abc\nghi"), buffer.content)
 }
+
+func TestCoordinates(t *testing.T) {
+	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
+	y, x := buffer.coordinates(6)
+	assertIntEqual(t, y, 1)
+	assertIntEqual(t, x, 2)
+}
+
+func TestCoordinatesOfNewLine(t *testing.T) {
+	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
+	y, x := buffer.coordinates(7)
+	assertIntEqual(t, y, 1)
+	assertIntEqual(t, x, 3)
+}
