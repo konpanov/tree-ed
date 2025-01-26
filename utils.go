@@ -30,3 +30,7 @@ func matchBytes(a []byte, b []byte) bool {
 func isInRange(value int, start int, end int) bool {
 	return start <= value && value <= end
 }
+
+func order(a int, b int) (int, int) {
+	return min(a,b), max(a,b)
+}

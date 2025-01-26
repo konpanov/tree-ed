@@ -148,6 +148,11 @@ func (window *Window) draw(screen tcell.Screen) {
 					}
 					screen.HideCursor()
 				}
+				if value == '\r' {
+					value = 'R'
+				} else if value == '\n' {
+					value = 'N'
+				}
 				screen.SetContent(x, y, rune(value), nil, style)
 			}
 		}
@@ -374,4 +379,8 @@ func (window *Window) remove() {
 	window.cursor.invalidOriginColumn = true
 	window.normalizeCursor(window.cursor)
 	window.shiftToCursor(window.cursor)
+}
+
+func (window *Window) deleteRange(from int, to int) {
+	window.buffer.erease(from, to)
 }

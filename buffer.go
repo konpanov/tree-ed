@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 )
 
@@ -60,6 +61,7 @@ func (buffer *Buffer) insert(index int, value []byte) {
 }
 
 func (buffer *Buffer) erease(from int, to int) {
-	buffer.content = append(buffer.content[:from-1], buffer.content[to:]...)
+	log.Printf("Ereasing range %d - %d: %s\n", from, to, buffer.content[from:to+1])
+	buffer.content = append(buffer.content[:from], buffer.content[to+1:]...)
 	buffer.update()
 }

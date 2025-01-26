@@ -71,3 +71,16 @@ func TestInsertWindowsNewLine(t *testing.T) {
 	assertBytesEqual(t, []byte("ab\r\n\r\ncdef"), buffer.content)
 	assertIntEqual(t, 3, len(buffer.lines))
 }
+
+func TestErease(t *testing.T) {
+	buffer := bufferFromContent([]byte("abcdefghi"), []byte("\n"))
+	buffer.erease(1, 2)
+	assertBytesEqual(t, []byte("adefghi"), buffer.content)
+}
+
+func TestEreaseLine(t *testing.T) {
+	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
+	line := buffer.lines[1]
+	buffer.erease(line.start, line.end)
+	assertBytesEqual(t, []byte("abc\nghi"), buffer.content)
+}

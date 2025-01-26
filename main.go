@@ -101,6 +101,9 @@ func handleNormalModeEvents(window *Window, ev *tcell.EventKey) bool {
 		case 't':
 			window.switchToTree()
 			return true
+		case 'd':
+			line := window.buffer.lines[window.cursor.row]
+			window.deleteRange(line.start, line.end)
 		}
 	}
 	return false
@@ -151,6 +154,15 @@ func handleVisualModeEvents(window *Window, ev *tcell.EventKey) bool {
 		case 'v':
 			window.switchToNormal()
 			return true
+		case 'd':
+			start := window.cursor.index
+			end := window.secondCursor.index
+			start, end = order(start, end)
+			window.deleteRange(start, end)
+			window.cursor.index = start
+			window.normalizeCursor(window.cursor)
+			window.shiftToCursor(window.cursor)
+			window.switchToNormal()
 		}
 	}
 	return false
