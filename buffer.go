@@ -1,80 +1,144 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
-	"os"
+	"slices"
+
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/golang"
 )
 
-type BufferLine struct {
+type Range struct {
 	start, end int
 }
 
-type Buffer struct {
-	content    []byte
-	newLineSeq []byte
-	lines      []BufferLine
-	quiting    bool
+type Point struct {
+	row, col int
 }
 
-func bufferFromContent(content []byte, newLineSeq []byte) *Buffer {
-	buffer := &Buffer{
-		content:    content,
-		newLineSeq: newLineSeq,
-		lines:      []BufferLine{},
-		quiting:    false,
-	}
-	buffer.update()
-	return buffer
+type IBuffer interface {
+	Insert(index int, value []byte) error
+	Erase(r Range) error
+	EraseLine(line_number int) error
+	Coord(index int) (Point, error)
+	Lines() []Range
 }
 
-func bufferFromFile(filename string, newLineSeq []byte) *Buffer {
-	content, err := os.ReadFile(filename)
+var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
+var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
+var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
+
+type BufferNew struct {
+	content []byte
+	nl_seq  []byte
+	tree    *sitter.Tree
+	quiting bool
+}
+
+func bufferNewFromContent(content []byte, nl_seq []byte) (*BufferNew, error) {
+	parser := sitter.NewParser()
+	parser.SetLanguage(golang.GetLanguage())
+	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil {
-		panic(err)
+		log.Fatalln("Failed to parse buffer")
+		return nil, err
 	}
-	return bufferFromContent(content, newLineSeq)
+
+	buffer := &BufferNew{
+		content: content,
+		nl_seq:  nl_seq,
+		tree:    tree,
+	}
+
+	return buffer, nil
 }
 
-func (buffer *Buffer) update() {
-	buffer.lines = []BufferLine{}
-	prevNewLine := 0
-	for i := 0; i < len(buffer.content); i++ {
-		if matchBytes(buffer.content[i:], buffer.newLineSeq) {
-			line := BufferLine{start: prevNewLine, end: i}
-			buffer.lines = append(buffer.lines, line)
-			prevNewLine = i + len(buffer.newLineSeq)
+func (b *BufferNew) Insert(index int, value []byte) error {
+	err := b.check_index(index)
+	if err != nil {
+		return err
+	}
+
+	b.content = slices.Insert(b.content, index, value...)
+	return nil
+}
+
+func (b *BufferNew) EraseLine(line_number int) error {
+	lines := b.Lines()
+	if line_number < 0 || len(lines) <= line_number {
+		return ErrLineIndexOutOfRange
+	}
+	line := lines[line_number]
+	line.end += len(b.nl_seq)
+	b.Erase(line)
+	return nil
+}
+
+func (b *BufferNew) Erase(r Range) error {
+	var err error
+
+	err = b.check_index(r.start)
+	if err != nil {
+		return err
+	}
+
+	err = b.check_index(r.end)
+	if err != nil {
+		return err
+	}
+
+	b.content = slices.Delete(b.content, r.start, r.end)
+	return nil
+}
+
+func (b *BufferNew) Coord(index int) (Point, error) {
+	var err error
+	p := Point{0, 0}
+
+	err = b.check_index(index)
+	if err != nil {
+		return p, err
+	}
+
+	for i := 0; i < index; {
+		if matchBytes(b.content[i:], b.nl_seq) {
+			i += len(b.nl_seq)
+			p.row++
+			p.col = 0
+		} else {
+			p.col++
+			i++
 		}
 	}
-	line := BufferLine{start: prevNewLine, end: len(buffer.content)}
-	buffer.lines = append(buffer.lines, line)
+
+	return p, nil
 }
 
-func (buffer *Buffer) insert(index int, value []byte) {
-	if index == len(buffer.content) {
-		buffer.content = append(buffer.content, value...)
-	} else {
-		before := buffer.content[:index]
-		after := buffer.content[index:]
-		buffer.content = append(before, append(value, after...)...)
-	}
-	buffer.update()
-}
-
-func (buffer *Buffer) erease(from int, to int) {
-	log.Printf("Ereasing range %d - %d: %s\n", from, to, buffer.content[from:to+1])
-	buffer.content = append(buffer.content[:from], buffer.content[to+1:]...)
-	buffer.update()
-}
-
-func (buffer *Buffer) coordinates(index int) (int, int) {
-	for y, line := range buffer.lines {
-		if line.end >= index {
-			return y, index - line.start
+func (b *BufferNew) Lines() []Range {
+	lines := []Range{}
+	lines = append(lines, Range{0, 0})
+	for i := 0; i < len(b.content); {
+		if matchBytes(b.content[i:], b.nl_seq) {
+			lines[len(lines)-1].end = i
+			i += len(b.nl_seq)
+			lines = append(lines, Range{start: i, end: i})
+		} else {
+			i += 1
 		}
 	}
-	return -1, -1
+	lines[len(lines)-1].end = len(b.content)
+	return lines
 }
 
-func (buffer *Buffer) index(y int, x int) int {
-	return buffer.lines[y].start + x
+func (b *BufferNew) check_index(index int) error {
+	if index < 0 {
+		return ErrIndexLessThanZero
+	}
+	if index > len(b.content) {
+		return ErrIndexGreaterThanBufferSize
+	}
+	return nil
+
 }

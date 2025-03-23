@@ -1,100 +1,321 @@
 package main
 
 import (
-	"bytes"
 	"testing"
 )
 
-func assertIntEqual(t *testing.T, a int, b int) {
-	if a != b {
-		t.Errorf("%d != %d", a, b)
+func TestBufferCreateFromContent(t *testing.T) {
+	content := []byte("content\nfor\ntesting\n")
+	nl_seq := []byte("\n")
+	buffer, err := bufferNewFromContent(content, nl_seq)
+	assertNoErrors(t, err)
+	assertBytesEqual(t, buffer.content, content)
+	assertBytesEqual(t, buffer.nl_seq, nl_seq)
+}
+
+func TestBufferInsertWhenEmpty(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("a"))
+	assertBytesEqual(t, buffer.content, []byte("a"))
+
+	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("ab"))
+	assertBytesEqual(t, buffer.content, []byte("ab"))
+
+	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("a\nc"))
+	assertBytesEqual(t, buffer.content, []byte("a\nc"))
+}
+
+func TestBufferInsertAtTheBeginningOfALine(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("a"))
+	assertBytesEqual(t, buffer.content, []byte("aoriginal"))
+
+	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("abc"))
+	assertBytesEqual(t, buffer.content, []byte("abcoriginal"))
+
+	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("\nqwe\n"))
+	assertBytesEqual(t, buffer.content, []byte("\nqwe\noriginal"))
+
+	buffer, err = bufferNewFromContent([]byte("original"), []byte("\r\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(0, []byte("\r\nqwe\r\n"))
+	assertBytesEqual(t, buffer.content, []byte("\r\nqwe\r\noriginal"))
+}
+
+func TestBufferInsertAtTheEndOfALine(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(3, []byte("d"))
+	assertBytesEqual(t, buffer.content, []byte("abcd"))
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(3, []byte("de"))
+	assertBytesEqual(t, buffer.content, []byte("abcde"))
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(3, []byte("\nde\n"))
+	assertBytesEqual(t, buffer.content, []byte("abc\nde\n"))
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\r\n"))
+	assertNoErrors(t, err)
+	buffer.Insert(3, []byte("\r\nde\r\n"))
+	assertBytesEqual(t, buffer.content, []byte("abc\r\nde\r\n"))
+}
+
+func TestBufferFailsOnIndexOutOfBound(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Insert(-1, []byte("test"))
+	if err != ErrIndexLessThanZero {
+		t.Error("Expected ErrIndexLessThanZero")
+	}
+
+	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Insert(4, []byte("test"))
+	if err != ErrIndexGreaterThanBufferSize {
+		t.Error("Expected ErrIndexGreaterThanBufferSize")
 	}
 }
 
-func assertBytesEqual(t *testing.T, a []byte, b []byte) {
-	if !bytes.Equal(a, b) {
-		t.Errorf("%s != %s", string(a), string(b))
+func TestBufferErase(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Erase(Range{1, 4})
+	if err != nil {
+		t.Error(err)
+	}
+	assertBytesEqual(t, buffer.content, []byte("ae"))
+}
+
+func TestBufferEraseOutOfBound(t *testing.T) {
+	var buffer *BufferNew
+	var err error
+
+	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Erase(Range{-1, 4})
+	if err != ErrIndexLessThanZero {
+		t.Error("Expected ErrIndexLessThanZero")
+	}
+
+	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Erase(Range{6, 8})
+	if err != ErrIndexGreaterThanBufferSize {
+		t.Error("Expected ErrIndexGreaterThanBufferSize")
+	}
+
+	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Erase(Range{1, -3})
+	if err != ErrIndexLessThanZero {
+		t.Error("Expected ErrIndexLessThanZero")
+	}
+
+	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	assertNoErrors(t, err)
+	err = buffer.Erase(Range{2, 12})
+	if err != ErrIndexGreaterThanBufferSize {
+		t.Error("Expected ErrIndexGreaterThanBufferSize")
 	}
 }
 
-func TestInsertCharacter(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\n"))
-	buffer.insert(2, []byte{'X'})
-	assertBytesEqual(t, []byte("abXcdef"), buffer.content)
+func TestBufferFindCoordOnSingleLine(t *testing.T) {
+	var err error
+	nl := "\n"
+	content := ""
+	content += "first line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.Coord(5)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := Point{row: 0, col: 5}
+	if coord != expected {
+		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	}
 }
 
-func TestInsertCharacterAtTheStart(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\n"))
-	buffer.insert(0, []byte{'X'})
-	assertBytesEqual(t, []byte("Xabcdef"), buffer.content)
+func TestBufferFindCoordOnSecondLine(t *testing.T) {
+	var err error
+	nl := "\n"
+	content := ""
+	content += "first line"
+	content += nl
+	content += "second line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.Coord(17)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := Point{row: 1, col: 6}
+	if coord != expected {
+		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	}
 }
 
-func TestInsertCharacterBeforeTheEnd(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\n"))
-	buffer.insert(5, []byte{'X'})
-	assertBytesEqual(t, []byte("abcdeXf"), buffer.content)
+func TestBufferFindCoordOnEmptyLine(t *testing.T) {
+	var err error
+	nl := "\n"
+	content := ""
+	content += "abcde"
+	content += nl
+	content += nl
+	content += "third line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.Coord(6)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := Point{row: 1, col: 0}
+	if coord != expected {
+		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	}
 }
 
-func TestInsertCharacterAtTheEnd(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\n"))
-	buffer.insert(6, []byte{'X'})
-	assertBytesEqual(t, []byte("abcdefX"), buffer.content)
+func TestBufferFindCoordAfterEmptyLine(t *testing.T) {
+	var err error
+	nl := "\n"
+	content := ""
+	content += "abcde"
+	content += nl
+	content += nl
+	content += "third line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.Coord(7)
+	if err != nil {
+		t.Error(err)
+	}
+	expected := Point{row: 2, col: 0}
+	if coord != expected {
+		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	}
 }
 
-func TestInsertCharacterBeforeNewLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("ab\ncdef"), []byte("\n"))
-	buffer.insert(2, []byte{'X'})
-	assertBytesEqual(t, []byte("abX\ncdef"), buffer.content)
+func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
+	var err error
+	nl := "\r\n"
+	content := ""
+	content += "abcde"
+	content += nl
+	content += nl
+	content += "third line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+
+	coord, err := buffer.Coord(6)
+	assertNoErrors(t, err)
+	assertPointsEqual(t, coord, Point{row: 1, col: 0})
+
+	coord, err = buffer.Coord(7)
+	assertNoErrors(t, err)
+	assertPointsEqual(t, coord, Point{row: 1, col: 0})
+
+	coord, err = buffer.Coord(8)
+	assertNoErrors(t, err)
+	assertPointsEqual(t, coord, Point{row: 2, col: 0})
 }
 
-func TestInsertCharacterAfterNewLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("ab\ncdef"), []byte("\n"))
-	buffer.insert(3, []byte{'X'})
-	assertBytesEqual(t, []byte("ab\nXcdef"), buffer.content)
+func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
+	nl := "\n"
+	content := ""
+	content += "abcde"
+	content += nl
+	content += "nopqr"
+	content += nl
+	content += "third line"
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	lines := buffer.Lines()
+	expectedLength := 3
+	if len(lines) != expectedLength {
+		t.Errorf(
+			"Expected line info to have length %d, but gut %d",
+			expectedLength,
+			len(lines),
+		)
+	}
+	assertIntEqual(t, lines[0].start, 0)
+	assertIntEqual(t, lines[0].end, 5)
+	assertIntEqual(t, lines[1].start, 6)
+	assertIntEqual(t, lines[1].end, 11)
+	assertIntEqual(t, lines[2].start, 12)
+	assertIntEqual(t, lines[2].end, 22)
 }
 
-func TestInsertCharacterAtEmptyLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("ab\n\ncdef"), []byte("\n"))
-	buffer.insert(3, []byte{'X'})
-	assertBytesEqual(t, []byte("ab\nX\ncdef"), buffer.content)
+func TestBufferLineInfoOnEmptyContent(t *testing.T) {
+	nl := "\n"
+	content := ""
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	lines := buffer.Lines()
+	expectedLength := 1
+	if len(lines) != expectedLength {
+		t.Errorf(
+			"Expected line info to have length %d, but got %d",
+			expectedLength,
+			len(lines),
+		)
+	}
+	assertIntEqual(t, lines[0].start, 0)
+	assertIntEqual(t, lines[0].end, 0)
 }
 
-func TestInsertMultipleCharacters(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\n"))
-	buffer.insert(2, []byte("XY"))
-	assertBytesEqual(t, []byte("abXYcdef"), buffer.content)
-}
+func TestBufferLineInfoOnEmptyLine(t *testing.T) {
+	nl := "\n"
+	content := ""
+	content += "first line"
+	content += nl
+	content += nl
+	content += "third line"
 
-func TestInsertWindowsNewLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdef"), []byte("\r\n"))
-	buffer.insert(2, []byte("\r\n\r\n"))
-	assertBytesEqual(t, []byte("ab\r\n\r\ncdef"), buffer.content)
-	assertIntEqual(t, 3, len(buffer.lines))
-}
-
-func TestErease(t *testing.T) {
-	buffer := bufferFromContent([]byte("abcdefghi"), []byte("\n"))
-	buffer.erease(1, 2)
-	assertBytesEqual(t, []byte("adefghi"), buffer.content)
-}
-
-func TestEreaseLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
-	line := buffer.lines[1]
-	buffer.erease(line.start, line.end)
-	assertBytesEqual(t, []byte("abc\nghi"), buffer.content)
-}
-
-func TestCoordinates(t *testing.T) {
-	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
-	y, x := buffer.coordinates(6)
-	assertIntEqual(t, y, 1)
-	assertIntEqual(t, x, 2)
-}
-
-func TestCoordinatesOfNewLine(t *testing.T) {
-	buffer := bufferFromContent([]byte("abc\ndef\nghi"), []byte("\n"))
-	y, x := buffer.coordinates(7)
-	assertIntEqual(t, y, 1)
-	assertIntEqual(t, x, 3)
+	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	lines := buffer.Lines()
+	expectedLength := 3
+	if len(lines) != expectedLength {
+		t.Errorf(
+			"Expected line info to have length %d, but got %d",
+			expectedLength,
+			len(lines),
+		)
+	}
+	assertIntEqual(t, lines[0].start, 0)
+	assertIntEqual(t, lines[0].end, 10)
+	assertIntEqual(t, lines[1].start, 11)
+	assertIntEqual(t, lines[1].end, 11)
+	assertIntEqual(t, lines[2].start, 12)
+	assertIntEqual(t, lines[2].end, 22)
 }

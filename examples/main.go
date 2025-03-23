@@ -40,11 +40,7 @@ func main() {
 
 	width, height := screen.Size()
 
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	buffer, err := bufferNewFromContent(content, getSystemNewLine())
+	buffer := bufferFromFile(filename, getSystemNewLine())
 	window := windowFromBuffer(buffer, width, height)
 
 	defer quit(screen)
@@ -106,7 +102,8 @@ func handleNormalModeEvents(window *Window, ev *tcell.EventKey) bool {
 			window.switchToTree()
 			return true
 		case 'd':
-			window.buffer.EraseLine(window.cursor.row)
+			line := window.buffer.lines[window.cursor.row]
+			window.deleteRange(line)
 		}
 	}
 	return false

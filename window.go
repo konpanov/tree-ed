@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/gdamore/tcell/v2"
 
 	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
 )
 
 type WindowMode int
@@ -57,21 +55,16 @@ type WindowCursor struct {
 
 type Window struct {
 	mode          WindowMode
-	buffer        *Buffer
+	buffer        *BufferNew
 	cursor        *WindowCursor
 	secondCursor  *WindowCursor
 	topLine       int // TODO: Should it be in WindowCursor?
 	leftColumn    int
 	width, height int
-	tree          *sitter.Tree
 	node          *sitter.Node
 }
 
-func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
-	parser := sitter.NewParser()
-	parser.SetLanguage(golang.GetLanguage())
-	tree, _ := parser.ParseCtx(context.Background(), nil, buffer.content)
-	rootNode := tree.RootNode()
+func windowFromBuffer(buffer *BufferNew, width int, height int) *Window {
 	return &Window{
 		mode:   NormalMode,
 		buffer: buffer,
@@ -93,12 +86,14 @@ func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 		leftColumn: 0,
 		width:      width,
 		height:     height,
-		tree:       tree,
-		node:       rootNode,
+		node:       buffer.tree.RootNode(),
 	}
 }
 
 func colorNode(styles []tcell.Style, node *sitter.Node) {
+	if node == nil {
+		return
+	}
 	for i := 0; i < int(node.ChildCount()); i++ {
 		start := int(node.Child(i).StartByte())
 		styles[start] = styles[start].Background(tcell.ColorDarkGray)
@@ -106,6 +101,8 @@ func colorNode(styles []tcell.Style, node *sitter.Node) {
 }
 
 func (window *Window) draw(screen tcell.Screen) {
+	log.Println("Starting to draw to screen")
+	log.Printf("Cursor index: %d", window.cursor.index)
 	normalStyle := tcell.StyleDefault
 	selectStyle := tcell.StyleDefault.Reverse(true)
 
@@ -117,17 +114,22 @@ func (window *Window) draw(screen tcell.Screen) {
 		selectEnd = int(window.node.EndByte()) - 1
 	}
 	selectStart, selectEnd = order(selectStart, selectEnd)
+	log.Printf("%d %d", selectStart, selectEnd)
+	selectStart = clip(selectStart, 0, len(window.buffer.content))
+	selectEnd = clip(selectEnd, 0, len(window.buffer.content))
+	log.Printf("%d %d", selectStart, selectEnd)
 
 	styles := []tcell.Style{}
-	for range window.buffer.content {
+	for i := 0; i <= len(window.buffer.content); i++ {
 		styles = append(styles, normalStyle)
 	}
 	if window.mode == TreeMode {
-		if window.node != window.tree.RootNode() {
+		if window.node != window.buffer.tree.RootNode() {
 			colorNode(styles, window.node.Parent())
 		}
 	}
 
+	log.Println("Setting styles")
 	if window.mode == TreeMode || window.mode == VisualMode {
 		screen.HideCursor()
 		for i := selectStart; i <= selectEnd; i++ {
@@ -135,20 +137,28 @@ func (window *Window) draw(screen tcell.Screen) {
 		}
 	} else if window.mode == NormalMode {
 		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
-		y, x := window.buffer.coordinates(window.cursor.index)
-		screen.ShowCursor(x, y)
+		coord, err := window.buffer.Coord(window.cursor.index)
+		if err != nil {
+			log.Fatal("Could not find cursor index\n")
+		}
+		screen.ShowCursor(coord.col, coord.row)
 	} else if window.mode == InsertMode {
 		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-		y, x := window.buffer.coordinates(window.cursor.index)
-		screen.ShowCursor(x, y)
+		coord, err := window.buffer.Coord(window.cursor.index)
+		if err != nil {
+			log.Fatal("Could not find cursor index\n")
+		}
+		screen.ShowCursor(coord.col, coord.row)
 	}
 
-	for y, line := range window.buffer.lines[window.topLine:] {
+	log.Println("Drawing content")
+	for y, line := range window.buffer.Lines()[window.topLine:] {
 		end := line.end
-		start := min(line.start+window.leftColumn, end)
 		if window.mode == InsertMode || window.mode == TreeMode {
 			end++
 		}
+		end = max(min(end, len(window.buffer.content)-1), 0)
+		start := min(line.start+window.leftColumn, end)
 		for x, value := range window.buffer.content[start:end] {
 			index := start + x
 			if value == '\r' {
@@ -175,11 +185,17 @@ func (window *Window) switchToVisual() {
 
 func (window *Window) switchToTree() {
 	window.mode = TreeMode
+	window.cursor.index = int(window.node.StartByte())
+	window.secondCursor.index = int(window.node.EndByte())
+	window.normalizeCursor(window.cursor)
+	window.normalizeCursor(window.secondCursor)
+	window.shiftToCursor(window.secondCursor)
+	window.shiftToCursor(window.cursor)
 }
 
 // Tree movements
 func (window *Window) nodeUp() {
-	if window.node.Equal(window.tree.RootNode()) {
+	if window.node.Equal(window.buffer.tree.RootNode()) {
 		return
 	}
 	window.node = window.node.Parent()
@@ -249,7 +265,10 @@ func (window *Window) moveCursor(move Movement) {
 }
 
 func (window *Window) normalizeCursor(cursor *WindowCursor) {
-	lines := window.buffer.lines
+	lines := window.buffer.Lines()
+	log.Println("Normalizing cursor")
+	log.Printf("%d\n", cursor.index)
+	cursor.index = max(min(cursor.index, len(window.buffer.content)-1), 0)
 
 	for lines[cursor.row].start > cursor.index {
 		cursor.row--
@@ -257,7 +276,7 @@ func (window *Window) normalizeCursor(cursor *WindowCursor) {
 	for lines[cursor.row].end < cursor.index {
 		cursor.row++
 	}
-	cursor.col = cursor.index - window.buffer.lines[cursor.row].start
+	cursor.col = cursor.index - window.buffer.Lines()[cursor.row].start
 	if window.cursor.invalidOriginColumn {
 		log.Println("Updating origin column")
 		cursor.originColumn = cursor.col
@@ -266,6 +285,7 @@ func (window *Window) normalizeCursor(cursor *WindowCursor) {
 }
 
 func (window *Window) shiftToCursor(cursor *WindowCursor) {
+	log.Println("Shifting window to cursor")
 	if window.leftColumn+window.width <= cursor.col {
 		log.Println("Cursor is to the right of the window. Moving window right.")
 		window.leftColumn = cursor.col - window.width + 1
@@ -288,7 +308,7 @@ func (window *Window) shiftToCursor(cursor *WindowCursor) {
 func (window *Window) cursorRight() {
 	log.Println("Moving cursor to the right")
 	log.Printf("Cursor at index: %d\n", window.cursor.index)
-	line := window.buffer.lines[window.cursor.row]
+	line := window.buffer.Lines()[window.cursor.row]
 	if window.mode == InsertMode {
 		line.end++
 	}
@@ -308,7 +328,7 @@ func (window *Window) cursorLeft() {
 	log.Println("Moving cursor to the left")
 	log.Printf("Cursor at index: %d\n", window.cursor.index)
 
-	line := window.buffer.lines[window.cursor.row]
+	line := window.buffer.Lines()[window.cursor.row]
 	if line.start == line.end {
 		log.Println("Line is empty. Cursor stays in place")
 	} else if window.cursor.index == line.start {
@@ -326,19 +346,18 @@ func (window *Window) cursorDown() {
 	cursor := window.cursor
 	buffer := window.buffer
 	log.Printf("Cursor at index: %d\n", cursor.index)
-	if cursor.row == len(buffer.lines)-1 {
+	if cursor.row == len(buffer.Lines())-1 {
 		log.Println("Cursor is already at the last line")
 		return
 	}
-	// cursor.row++
-	line := buffer.lines[cursor.row+1]
+	line := buffer.Lines()[cursor.row+1]
 	if line.start == line.end {
 		log.Println("Moved onto an empty line")
 		cursor.index = line.end
 	} else {
 		cursor.index = min(line.start+cursor.originColumn, line.end-1)
 	}
-	log.Printf("Cursor moved to index: %d\n", cursor.index)
+	log.Printf("Cursor moved to index: %d. Buffer length %d\n", cursor.index, len(buffer.content))
 }
 
 func (window *Window) cursorUp() {
@@ -350,8 +369,7 @@ func (window *Window) cursorUp() {
 		log.Println("Cursor is already at the first line")
 		return
 	}
-	// cursor.row--
-	line := buffer.lines[cursor.row-1]
+	line := buffer.Lines()[cursor.row-1]
 	if line.start == line.end {
 		log.Println("Moved onto an empty line")
 		cursor.index = line.end
@@ -362,8 +380,8 @@ func (window *Window) cursorUp() {
 }
 
 func (window *Window) insert(value []byte) {
-	log.Printf("Inserting %c and index %d\n", value, window.cursor.index)
-	window.buffer.insert(window.cursor.index, value)
+	log.Printf("Inserting %c at index %d\n", value, window.cursor.index)
+	window.buffer.Insert(window.cursor.index, value)
 	window.cursor.index += len(value)
 	window.cursor.invalidOriginColumn = true
 	window.normalizeCursor(window.cursor)
@@ -373,16 +391,42 @@ func (window *Window) insert(value []byte) {
 func (window *Window) remove() {
 	log.Printf("Removing at index %d\n", window.cursor.index)
 	length := 1
-	if matchBytes(window.buffer.content[window.cursor.index:], window.buffer.newLineSeq) {
-		length = len(window.buffer.newLineSeq)
+	if matchBytes(window.buffer.content[window.cursor.index:], window.buffer.nl_seq) {
+		length = len(window.buffer.nl_seq)
 	}
-	window.buffer.erease(window.cursor.index, window.cursor.index+length-1)
-	window.cursor.index -= length
+	toDeleteRange := Range{max(window.cursor.index-1, 0), window.cursor.index + length - 2}
+	window.buffer.Erase(toDeleteRange)
+	log.Println("Removed succesfully")
+	window.cursor.index -= toDeleteRange.end - toDeleteRange.start
+	window.cursor.index = max(min(window.cursor.index, len(window.buffer.content)-1), 0)
 	window.cursor.invalidOriginColumn = true
 	window.normalizeCursor(window.cursor)
 	window.shiftToCursor(window.cursor)
 }
 
-func (window *Window) deleteRange(from int, to int) {
-	window.buffer.erease(from, to)
+// TODO: update deleteRange call to not use returned range
+func (window *Window) deleteRange(r Range) {
+	window.buffer.Erase(r)
+	window.cursor.index = max(min(r.start, len(window.buffer.content)-1), 0)
+	window.cursor.invalidOriginColumn = true
+	*window.secondCursor = *window.cursor
+	window.normalizeCursor(window.cursor)
+	window.shiftToCursor(window.cursor)
+}
+
+func (window *Window) deleteNode() {
+	start := window.cursor.index
+	end := window.secondCursor.index
+	start, end = order(start, end)
+	end--
+	r := Range{start, end}
+	window.deleteRange(r)
+	window.node = window.buffer.tree.RootNode()
+	window.cursor.index = int(window.node.StartByte())
+	window.secondCursor.index = int(window.node.EndByte())
+	window.normalizeCursor(window.cursor)
+	window.normalizeCursor(window.secondCursor)
+	window.shiftToCursor(window.secondCursor)
+	window.shiftToCursor(window.cursor)
+	log.Printf("%d %d", window.cursor.index, window.secondCursor.index)
 }
