@@ -8,7 +8,7 @@ import (
 
 func TestInsertEmptyContent(t *testing.T) {
 	content := []byte("")
-	buffer, _ := bufferNewFromContent(content, []byte("\n"))
+	buffer, _ := bufferFromContent(content, []byte("\n"))
 	window := windowFromBuffer(buffer, 10, 10)
 	value := []byte("hello")
 	window.insert(value)
@@ -17,7 +17,7 @@ func TestInsertEmptyContent(t *testing.T) {
 
 func TestDeleteLinesAndInsertEmptyContent(t *testing.T) {
 	content := []byte("line\nline\n")
-	buffer, _ := bufferNewFromContent(content, []byte("\n"))
+	buffer, _ := bufferFromContent(content, []byte("\n"))
 	window := windowFromBuffer(buffer, 10, 10)
 	lines := window.buffer.Lines()
 	window.deleteRange(Range{start: lines[1].start, end: lines[1].end + len(buffer.nl_seq)})
@@ -33,7 +33,7 @@ func TestDrawEmptyContentInNormalMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create screen")
 	}
-	buffer, _ := bufferNewFromContent(content, []byte("\n"))
+	buffer, _ := bufferFromContent(content, []byte("\n"))
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
 	window.switchToNormal()
@@ -46,7 +46,7 @@ func TestDrawEmptyContentInInsertMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create screen")
 	}
-	buffer, _ := bufferNewFromContent(content, []byte("\n"))
+	buffer, _ := bufferFromContent(content, []byte("\n"))
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
 	window.switchToInsert()

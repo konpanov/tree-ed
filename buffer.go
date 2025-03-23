@@ -30,14 +30,14 @@ var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
 
-type BufferNew struct {
+type Buffer struct {
 	content []byte
 	nl_seq  []byte
 	tree    *sitter.Tree
 	quiting bool
 }
 
-func bufferNewFromContent(content []byte, nl_seq []byte) (*BufferNew, error) {
+func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(golang.GetLanguage())
 	tree, err := parser.ParseCtx(context.Background(), nil, content)
@@ -46,7 +46,7 @@ func bufferNewFromContent(content []byte, nl_seq []byte) (*BufferNew, error) {
 		return nil, err
 	}
 
-	buffer := &BufferNew{
+	buffer := &Buffer{
 		content: content,
 		nl_seq:  nl_seq,
 		tree:    tree,
@@ -55,7 +55,7 @@ func bufferNewFromContent(content []byte, nl_seq []byte) (*BufferNew, error) {
 	return buffer, nil
 }
 
-func (b *BufferNew) Insert(index int, value []byte) error {
+func (b *Buffer) Insert(index int, value []byte) error {
 	err := b.check_index(index)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (b *BufferNew) Insert(index int, value []byte) error {
 	return nil
 }
 
-func (b *BufferNew) EraseLine(line_number int) error {
+func (b *Buffer) EraseLine(line_number int) error {
 	lines := b.Lines()
 	if line_number < 0 || len(lines) <= line_number {
 		return ErrLineIndexOutOfRange
@@ -76,7 +76,7 @@ func (b *BufferNew) EraseLine(line_number int) error {
 	return nil
 }
 
-func (b *BufferNew) Erase(r Range) error {
+func (b *Buffer) Erase(r Range) error {
 	var err error
 
 	err = b.check_index(r.start)
@@ -93,7 +93,7 @@ func (b *BufferNew) Erase(r Range) error {
 	return nil
 }
 
-func (b *BufferNew) Coord(index int) (Point, error) {
+func (b *Buffer) Coord(index int) (Point, error) {
 	var err error
 	p := Point{0, 0}
 
@@ -116,7 +116,7 @@ func (b *BufferNew) Coord(index int) (Point, error) {
 	return p, nil
 }
 
-func (b *BufferNew) Lines() []Range {
+func (b *Buffer) Lines() []Range {
 	lines := []Range{}
 	lines = append(lines, Range{0, 0})
 	for i := 0; i < len(b.content); {
@@ -132,7 +132,7 @@ func (b *BufferNew) Lines() []Range {
 	return lines
 }
 
-func (b *BufferNew) check_index(index int) error {
+func (b *Buffer) check_index(index int) error {
 	if index < 0 {
 		return ErrIndexLessThanZero
 	}

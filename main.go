@@ -44,7 +44,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	buffer, err := bufferNewFromContent(content, getSystemNewLine())
+	buffer, err := bufferFromContent(content, getSystemNewLine())
 	window := windowFromBuffer(buffer, width, height)
 
 	defer quit(screen)

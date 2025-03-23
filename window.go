@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"math"
+	"strconv"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -55,7 +57,7 @@ type WindowCursor struct {
 
 type Window struct {
 	mode          WindowMode
-	buffer        *BufferNew
+	buffer        *Buffer
 	cursor        *WindowCursor
 	secondCursor  *WindowCursor
 	topLine       int // TODO: Should it be in WindowCursor?
@@ -64,7 +66,7 @@ type Window struct {
 	node          *sitter.Node
 }
 
-func windowFromBuffer(buffer *BufferNew, width int, height int) *Window {
+func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 	return &Window{
 		mode:   NormalMode,
 		buffer: buffer,
@@ -101,6 +103,8 @@ func colorNode(styles []tcell.Style, node *sitter.Node) {
 }
 
 func (window *Window) draw(screen tcell.Screen) {
+	lines := window.buffer.Lines()
+	startCol := int(max(math.Log10(float64(len(lines))))) + 2
 	log.Println("Starting to draw to screen")
 	log.Printf("Cursor index: %d", window.cursor.index)
 	normalStyle := tcell.StyleDefault
@@ -141,18 +145,18 @@ func (window *Window) draw(screen tcell.Screen) {
 		if err != nil {
 			log.Fatal("Could not find cursor index\n")
 		}
-		screen.ShowCursor(coord.col, coord.row)
+		screen.ShowCursor(coord.col+startCol, coord.row)
 	} else if window.mode == InsertMode {
 		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
 		coord, err := window.buffer.Coord(window.cursor.index)
 		if err != nil {
 			log.Fatal("Could not find cursor index\n")
 		}
-		screen.ShowCursor(coord.col, coord.row)
+		screen.ShowCursor(coord.col+startCol, coord.row)
 	}
 
 	log.Println("Drawing content")
-	for y, line := range window.buffer.Lines()[window.topLine:] {
+	for y, line := range lines[window.topLine:] {
 		end := line.end
 		if window.mode == InsertMode || window.mode == TreeMode {
 			end++
@@ -166,7 +170,12 @@ func (window *Window) draw(screen tcell.Screen) {
 			} else if value == '\n' {
 				value = ' '
 			}
-			screen.SetContent(x, y, rune(value), nil, styles[min(index, len(styles)-1)])
+			screen.SetContent(x+startCol, y, rune(value), nil, styles[min(index, len(styles)-1)])
+		}
+
+		line_num := strconv.Itoa(window.topLine + y)
+		for i, r := range line_num {
+			screen.SetContent(startCol-1-len(line_num)+i, y, r, nil, normalStyle)
 		}
 	}
 }

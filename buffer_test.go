@@ -7,94 +7,94 @@ import (
 func TestBufferCreateFromContent(t *testing.T) {
 	content := []byte("content\nfor\ntesting\n")
 	nl_seq := []byte("\n")
-	buffer, err := bufferNewFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq)
 	assertNoErrors(t, err)
 	assertBytesEqual(t, buffer.content, content)
 	assertBytesEqual(t, buffer.nl_seq, nl_seq)
 }
 
 func TestBufferInsertWhenEmpty(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	buffer, err = bufferFromContent([]byte(""), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("a"))
 	assertBytesEqual(t, buffer.content, []byte("a"))
 
-	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	buffer, err = bufferFromContent([]byte(""), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("ab"))
 	assertBytesEqual(t, buffer.content, []byte("ab"))
 
-	buffer, err = bufferNewFromContent([]byte(""), []byte("\n"))
+	buffer, err = bufferFromContent([]byte(""), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("a\nc"))
 	assertBytesEqual(t, buffer.content, []byte("a\nc"))
 }
 
 func TestBufferInsertAtTheBeginningOfALine(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("original"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("a"))
 	assertBytesEqual(t, buffer.content, []byte("aoriginal"))
 
-	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("original"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("abc"))
 	assertBytesEqual(t, buffer.content, []byte("abcoriginal"))
 
-	buffer, err = bufferNewFromContent([]byte("original"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("original"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("\nqwe\n"))
 	assertBytesEqual(t, buffer.content, []byte("\nqwe\noriginal"))
 
-	buffer, err = bufferNewFromContent([]byte("original"), []byte("\r\n"))
+	buffer, err = bufferFromContent([]byte("original"), []byte("\r\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(0, []byte("\r\nqwe\r\n"))
 	assertBytesEqual(t, buffer.content, []byte("\r\nqwe\r\noriginal"))
 }
 
 func TestBufferInsertAtTheEndOfALine(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(3, []byte("d"))
 	assertBytesEqual(t, buffer.content, []byte("abcd"))
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(3, []byte("de"))
 	assertBytesEqual(t, buffer.content, []byte("abcde"))
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(3, []byte("\nde\n"))
 	assertBytesEqual(t, buffer.content, []byte("abc\nde\n"))
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\r\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\r\n"))
 	assertNoErrors(t, err)
 	buffer.Insert(3, []byte("\r\nde\r\n"))
 	assertBytesEqual(t, buffer.content, []byte("abc\r\nde\r\n"))
 }
 
 func TestBufferFailsOnIndexOutOfBound(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Insert(-1, []byte("test"))
 	if err != ErrIndexLessThanZero {
 		t.Error("Expected ErrIndexLessThanZero")
 	}
 
-	buffer, err = bufferNewFromContent([]byte("abc"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abc"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Insert(4, []byte("test"))
 	if err != ErrIndexGreaterThanBufferSize {
@@ -103,10 +103,10 @@ func TestBufferFailsOnIndexOutOfBound(t *testing.T) {
 }
 
 func TestBufferErase(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Erase(Range{1, 4})
 	if err != nil {
@@ -116,31 +116,31 @@ func TestBufferErase(t *testing.T) {
 }
 
 func TestBufferEraseOutOfBound(t *testing.T) {
-	var buffer *BufferNew
+	var buffer *Buffer
 	var err error
 
-	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Erase(Range{-1, 4})
 	if err != ErrIndexLessThanZero {
 		t.Error("Expected ErrIndexLessThanZero")
 	}
 
-	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Erase(Range{6, 8})
 	if err != ErrIndexGreaterThanBufferSize {
 		t.Error("Expected ErrIndexGreaterThanBufferSize")
 	}
 
-	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Erase(Range{1, -3})
 	if err != ErrIndexLessThanZero {
 		t.Error("Expected ErrIndexLessThanZero")
 	}
 
-	buffer, err = bufferNewFromContent([]byte("abcde"), []byte("\n"))
+	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
 	err = buffer.Erase(Range{2, 12})
 	if err != ErrIndexGreaterThanBufferSize {
@@ -153,7 +153,7 @@ func TestBufferFindCoordOnSingleLine(t *testing.T) {
 	nl := "\n"
 	content := ""
 	content += "first line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	coord, err := buffer.Coord(5)
 	if err != nil {
@@ -172,7 +172,7 @@ func TestBufferFindCoordOnSecondLine(t *testing.T) {
 	content += "first line"
 	content += nl
 	content += "second line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	coord, err := buffer.Coord(17)
 	if err != nil {
@@ -192,7 +192,7 @@ func TestBufferFindCoordOnEmptyLine(t *testing.T) {
 	content += nl
 	content += nl
 	content += "third line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	coord, err := buffer.Coord(6)
 	if err != nil {
@@ -212,7 +212,7 @@ func TestBufferFindCoordAfterEmptyLine(t *testing.T) {
 	content += nl
 	content += nl
 	content += "third line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	coord, err := buffer.Coord(7)
 	if err != nil {
@@ -232,7 +232,7 @@ func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
 	content += nl
 	content += nl
 	content += "third line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 
 	coord, err := buffer.Coord(6)
@@ -256,7 +256,7 @@ func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
 	content += "nopqr"
 	content += nl
 	content += "third line"
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	lines := buffer.Lines()
 	expectedLength := 3
@@ -278,7 +278,7 @@ func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
 func TestBufferLineInfoOnEmptyContent(t *testing.T) {
 	nl := "\n"
 	content := ""
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	lines := buffer.Lines()
 	expectedLength := 1
@@ -301,7 +301,7 @@ func TestBufferLineInfoOnEmptyLine(t *testing.T) {
 	content += nl
 	content += "third line"
 
-	buffer, err := bufferNewFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 	lines := buffer.Lines()
 	expectedLength := 3
