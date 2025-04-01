@@ -55,40 +55,34 @@ type WindowCursor struct {
 	invalidOriginColumn bool
 }
 
+func (c WindowCursor) log() {
+	log.Printf("Cursor: %+v\n", c)
+}
+
 type Window struct {
-	mode          WindowMode
-	buffer        *Buffer
-	cursor        *WindowCursor
-	secondCursor  *WindowCursor
-	topLine       int // TODO: Should it be in WindowCursor?
-	leftColumn    int
-	width, height int
-	node          *sitter.Node
+	mode              WindowMode
+	buffer            *Buffer
+	cursor            *WindowCursor
+	secondCursor      *WindowCursor
+	topLine           int
+	leftColumn        int
+	width, height     int
+	numberColumnWidth int
+	node              *sitter.Node
 }
 
 func windowFromBuffer(buffer *Buffer, width int, height int) *Window {
 	return &Window{
-		mode:   NormalMode,
-		buffer: buffer,
-		cursor: &WindowCursor{
-			index:               0,
-			row:                 0,
-			col:                 0,
-			originColumn:        0,
-			invalidOriginColumn: false,
-		},
-		secondCursor: &WindowCursor{
-			index:               0,
-			row:                 0,
-			col:                 0,
-			originColumn:        0,
-			invalidOriginColumn: false,
-		},
-		topLine:    0,
-		leftColumn: 0,
-		width:      width,
-		height:     height,
-		node:       buffer.tree.RootNode(),
+		mode:              NormalMode,
+		buffer:            buffer,
+		cursor:            &WindowCursor{},
+		secondCursor:      &WindowCursor{},
+		topLine:           0,
+		leftColumn:        0,
+		numberColumnWidth: int(max(math.Log10(float64(len(buffer.Lines()))))) + 2,
+		width:             width,
+		height:            height,
+		node:              buffer.tree.RootNode(),
 	}
 }
 
@@ -102,60 +96,27 @@ func colorNode(styles []tcell.Style, node *sitter.Node) {
 	}
 }
 
-func (window *Window) draw(screen tcell.Screen) {
+func (window *Window) shift_to_fit_cursor(cursor WindowCursor) {
+	log.Println("Fitting window to cursor")
+	log.Printf("Window top line before: %d\n", window.topLine)
+	cursor.log()
+	window.topLine = max(min(window.topLine, cursor.row), cursor.row-window.height+1)
+	window.leftColumn = max(min(window.leftColumn, cursor.col), cursor.col-(window.width-window.numberColumnWidth)+1)
+	log.Printf("Window top line after: %d\n", window.topLine)
+}
+
+func (window *Window) draw_cursor(screen tcell.Screen, cursor WindowCursor) {
+	screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+	coord, err := window.buffer.Coord(cursor.index)
+	if err != nil {
+		log.Fatal("Could not find cursor index\n")
+	}
+	screen.ShowCursor(coord.col+window.numberColumnWidth-window.leftColumn, coord.row-window.topLine)
+}
+
+func (window *Window) draw_text(screen tcell.Screen) {
 	lines := window.buffer.Lines()
-	startCol := int(max(math.Log10(float64(len(lines))))) + 2
-	log.Println("Starting to draw to screen")
-	log.Printf("Cursor index: %d", window.cursor.index)
 	normalStyle := tcell.StyleDefault
-	selectStyle := tcell.StyleDefault.Reverse(true)
-
-	selectStart, selectEnd := window.cursor.index, window.secondCursor.index
-	if window.mode == TreeMode {
-		log.Println(window.node.String())
-		log.Println(window.node.Content(window.buffer.content))
-		selectStart = int(window.node.StartByte())
-		selectEnd = int(window.node.EndByte()) - 1
-	}
-	selectStart, selectEnd = order(selectStart, selectEnd)
-	log.Printf("%d %d", selectStart, selectEnd)
-	selectStart = clip(selectStart, 0, len(window.buffer.content))
-	selectEnd = clip(selectEnd, 0, len(window.buffer.content))
-	log.Printf("%d %d", selectStart, selectEnd)
-
-	styles := []tcell.Style{}
-	for i := 0; i <= len(window.buffer.content); i++ {
-		styles = append(styles, normalStyle)
-	}
-	if window.mode == TreeMode {
-		if window.node != window.buffer.tree.RootNode() {
-			colorNode(styles, window.node.Parent())
-		}
-	}
-
-	log.Println("Setting styles")
-	if window.mode == TreeMode || window.mode == VisualMode {
-		screen.HideCursor()
-		for i := selectStart; i <= selectEnd; i++ {
-			styles[i] = selectStyle
-		}
-	} else if window.mode == NormalMode {
-		screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
-		coord, err := window.buffer.Coord(window.cursor.index)
-		if err != nil {
-			log.Fatal("Could not find cursor index\n")
-		}
-		screen.ShowCursor(coord.col+startCol, coord.row)
-	} else if window.mode == InsertMode {
-		screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-		coord, err := window.buffer.Coord(window.cursor.index)
-		if err != nil {
-			log.Fatal("Could not find cursor index\n")
-		}
-		screen.ShowCursor(coord.col+startCol, coord.row)
-	}
-
-	log.Println("Drawing content")
 	for y, line := range lines[window.topLine:] {
 		end := line.end
 		if window.mode == InsertMode || window.mode == TreeMode {
@@ -163,21 +124,136 @@ func (window *Window) draw(screen tcell.Screen) {
 		}
 		end = max(min(end, len(window.buffer.content)-1), 0)
 		start := min(line.start+window.leftColumn, end)
+		// end = max(min(end, start+endCol-startCol), 0)
 		for x, value := range window.buffer.content[start:end] {
-			index := start + x
+			// index := start + x
 			if value == '\r' {
 				value = ' '
 			} else if value == '\n' {
 				value = ' '
 			}
-			screen.SetContent(x+startCol, y, rune(value), nil, styles[min(index, len(styles)-1)])
-		}
-
-		line_num := strconv.Itoa(window.topLine + y)
-		for i, r := range line_num {
-			screen.SetContent(startCol-1-len(line_num)+i, y, r, nil, normalStyle)
+			screen.SetContent(x+window.numberColumnWidth, y, rune(value), nil, normalStyle)
 		}
 	}
+}
+
+func (window *Window) draw_line_number_column(screen tcell.Screen) {
+	lines := window.buffer.Lines()
+	normalStyle := tcell.StyleDefault
+	for y := range lines[window.topLine:] {
+		line_num := strconv.Itoa(window.topLine + y + 1)
+		for i, r := range line_num {
+			screen.SetContent(window.numberColumnWidth-1-len(line_num)+i, y, r, nil, normalStyle)
+		}
+	}
+}
+
+func (window *Window) draw_normal(screen tcell.Screen) {
+	log.Printf("Window: %+v\n", window)
+	lines := window.buffer.Lines()
+
+	window.numberColumnWidth = int(max(math.Log10(float64(len(lines))))) + 2
+	window.shift_to_fit_cursor(*window.cursor)
+	window.draw_cursor(screen, *window.cursor)
+	window.draw_text(screen)
+	window.draw_line_number_column(screen)
+}
+
+func (window *Window) draw(screen tcell.Screen) {
+	window.draw_normal(screen)
+	return
+	// lines := window.buffer.Lines()
+	// log.Println("Window height: ", window.height)
+	// window.shift_to_fit_cursor(*window.cursor)
+	//
+	// // // if window.leftColumn+window.width <= cursor.col {
+	// // // 	window.leftColumn = cursor.col - window.width + 1
+	// // // } else if window.leftColumn > cursor.col {
+	// // // 	window.leftColumn = cursor.col
+	// // // }
+	// //
+	// // height := window.height - padding.top - padding.bottom
+	// // if window.topLine > window.cursor.row {
+	// // 	window.topLine = window.cursor.row
+	// // } else if window.topLine+height <= window.cursor.row {
+	// // 	window.topLine = window.cursor.row
+	// // }
+	//
+	// log.Println("Starting to draw to screen")
+	// log.Printf("Cursor index: %d", window.cursor.index)
+	// normalStyle := tcell.StyleDefault
+	// selectStyle := tcell.StyleDefault.Reverse(true)
+	//
+	// selectStart, selectEnd := window.cursor.index, window.secondCursor.index
+	// if window.mode == TreeMode {
+	// 	log.Println(window.node.String())
+	// 	log.Println(window.node.Content(window.buffer.content))
+	// 	selectStart = int(window.node.StartByte())
+	// 	selectEnd = int(window.node.EndByte()) - 1
+	// }
+	// selectStart, selectEnd = order(selectStart, selectEnd)
+	// log.Printf("%d %d", selectStart, selectEnd)
+	// selectStart = clip(selectStart, 0, len(window.buffer.content))
+	// selectEnd = clip(selectEnd, 0, len(window.buffer.content))
+	// log.Printf("%d %d", selectStart, selectEnd)
+	//
+	// styles := []tcell.Style{}
+	// for i := 0; i <= len(window.buffer.content); i++ {
+	// 	styles = append(styles, normalStyle)
+	// }
+	// if window.mode == TreeMode {
+	// 	if window.node != window.buffer.tree.RootNode() {
+	// 		colorNode(styles, window.node.Parent())
+	// 	}
+	// }
+	//
+	// log.Println("Setting styles")
+	// if window.mode == TreeMode || window.mode == VisualMode {
+	// 	screen.HideCursor()
+	// 	for i := selectStart; i <= selectEnd; i++ {
+	// 		styles[i] = selectStyle
+	// 	}
+	// } else if window.mode == NormalMode {
+	// 	screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
+	// 	coord, err := window.buffer.Coord(window.cursor.index)
+	// 	if err != nil {
+	// 		log.Fatal("Could not find cursor index\n")
+	// 	}
+	// 	screen.ShowCursor(coord.col+padding.left, coord.row+padding.top)
+	// } else if window.mode == InsertMode {
+	// 	screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
+	// 	coord, err := window.buffer.Coord(window.cursor.index)
+	// 	if err != nil {
+	// 		log.Fatal("Could not find cursor index\n")
+	// 	}
+	// 	screen.ShowCursor(coord.col+padding.left, coord.row+padding.top)
+	// }
+	//
+	// log.Println("Drawing content")
+	// log.Println("Top line: ", window.topLine)
+	// for y, line := range lines[window.topLine:] {
+	// 	end := line.end
+	// 	if window.mode == InsertMode || window.mode == TreeMode {
+	// 		end++
+	// 	}
+	// 	end = max(min(end, len(window.buffer.content)-1), 0)
+	// 	start := min(line.start+window.leftColumn, end)
+	// 	// end = max(min(end, start+endCol-startCol), 0)
+	// 	for x, value := range window.buffer.content[start:end] {
+	// 		index := start + x
+	// 		if value == '\r' {
+	// 			value = ' '
+	// 		} else if value == '\n' {
+	// 			value = ' '
+	// 		}
+	// 		screen.SetContent(x+padding.left, y+padding.top, rune(value), nil, styles[min(index, len(styles)-1)])
+	// 	}
+	//
+	// 	line_num := strconv.Itoa(window.topLine + y + 1)
+	// 	for i, r := range line_num {
+	// 		screen.SetContent(padding.left-1-len(line_num)+i, y+padding.top, r, nil, normalStyle)
+	// 	}
+	// }
 }
 
 func (window *Window) switchToInsert() {
@@ -198,8 +274,8 @@ func (window *Window) switchToTree() {
 	window.secondCursor.index = int(window.node.EndByte())
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 // Tree movements
@@ -213,8 +289,8 @@ func (window *Window) nodeUp() {
 
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) nodeDown() {
@@ -226,8 +302,8 @@ func (window *Window) nodeDown() {
 	window.secondCursor.index = int(window.node.EndByte())
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) nodeRight() {
@@ -240,8 +316,8 @@ func (window *Window) nodeRight() {
 	window.secondCursor.index = int(window.node.EndByte())
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) nodeLeft() {
@@ -254,8 +330,8 @@ func (window *Window) nodeLeft() {
 	window.secondCursor.index = int(window.node.EndByte())
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) moveCursor(move Movement) {
@@ -270,7 +346,7 @@ func (window *Window) moveCursor(move Movement) {
 		window.cursorRight()
 	}
 	window.normalizeCursor(window.cursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) normalizeCursor(cursor *WindowCursor) {
@@ -394,7 +470,7 @@ func (window *Window) insert(value []byte) {
 	window.cursor.index += len(value)
 	window.cursor.invalidOriginColumn = true
 	window.normalizeCursor(window.cursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) remove() {
@@ -410,7 +486,7 @@ func (window *Window) remove() {
 	window.cursor.index = max(min(window.cursor.index, len(window.buffer.content)-1), 0)
 	window.cursor.invalidOriginColumn = true
 	window.normalizeCursor(window.cursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 // TODO: update deleteRange call to not use returned range
@@ -420,7 +496,7 @@ func (window *Window) deleteRange(r Range) {
 	window.cursor.invalidOriginColumn = true
 	*window.secondCursor = *window.cursor
 	window.normalizeCursor(window.cursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.cursor)
 }
 
 func (window *Window) deleteNode() {
@@ -435,7 +511,7 @@ func (window *Window) deleteNode() {
 	window.secondCursor.index = int(window.node.EndByte())
 	window.normalizeCursor(window.cursor)
 	window.normalizeCursor(window.secondCursor)
-	window.shiftToCursor(window.secondCursor)
-	window.shiftToCursor(window.cursor)
+	// window.shiftToCursor(window.secondCursor)
+	// window.shiftToCursor(window.cursor)
 	log.Printf("%d %d", window.cursor.index, window.secondCursor.index)
 }

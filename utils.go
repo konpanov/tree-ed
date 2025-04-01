@@ -44,6 +44,12 @@ func assertIntEqual(t *testing.T, a int, b int) {
 	}
 }
 
+func assertIntEqualMsg(t *testing.T, a int, b int, msg string) {
+	if a != b {
+		t.Errorf("%s%d != %d", msg, a, b)
+	}
+}
+
 func assertBytesEqual(t *testing.T, a []byte, b []byte) {
 	if !bytes.Equal(a, b) {
 		t.Errorf("%s != %s", string(a), string(b))

@@ -1,5 +1,6 @@
 package main
 
+// aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbcccccccccccccccccccccccc
 import (
 	"log"
 	"os"
@@ -46,11 +47,37 @@ func main() {
 	}
 	buffer, err := bufferFromContent(content, getSystemNewLine())
 	window := windowFromBuffer(buffer, width, height)
+	whole_screen := Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
+
+	buffer_view := BufferView{
+		buffer: buffer,
+		number_column: &NumberColumnView{
+			buffer: buffer,
+		},
+		text: &TextView{
+			buffer: buffer,
+			style:  tcell.StyleDefault,
+		},
+	}
 
 	defer quit(screen)
 	for !buffer.quiting {
 		screen.Clear()
-		window.draw(screen)
+
+		if window.mode == VisualMode || window.mode == TreeMode {
+			selection_text_view(buffer_view.text, window.cursor, window.secondCursor)
+		} else {
+			normal_text_view(buffer_view.text, window.cursor)
+		}
+
+		buffer_view.status_line = &StatusLine{
+			filename: filename,
+			cursor:   *window.cursor,
+			buffer:   buffer,
+		}
+
+		buffer_view.Draw(screen, whole_screen)
+
 		screen.Show()
 
 		handleEvents(screen.PollEvent(), window)
