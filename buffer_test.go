@@ -275,6 +275,54 @@ func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
 	assertIntEqual(t, lines[2].end, 22)
 }
 
+func TestBufferLineInfoOnContentEndingOnNewLine(t *testing.T) {
+	nl := "\n"
+	content := ""
+	content += "abcde"
+	content += nl
+	content += "nopqr"
+	content += nl
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	lines := buffer.Lines()
+	expectedLength := 2
+	if len(lines) != expectedLength {
+		t.Errorf(
+			"Expected line info to have length %d, but gut %d",
+			expectedLength,
+			len(lines),
+		)
+	}
+	assertIntEqual(t, lines[0].start, 0)
+	assertIntEqual(t, lines[0].end, 5)
+	assertIntEqual(t, lines[1].start, 6)
+	assertIntEqualMsg(t, lines[1].end, 11, "Unexpected end of the second line: ")
+}
+
+func TestBufferLineInfoOnContentEndingOnNewLineWindowVersion(t *testing.T) {
+	nl := NewLineWindows
+	content := ""
+	content += "abcde"
+	content += nl
+	content += "nopqr"
+	content += nl
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	lines := buffer.Lines()
+	expectedLength := 2
+	if len(lines) != expectedLength {
+		t.Errorf(
+			"Expected line info to have length %d, but gut %d",
+			expectedLength,
+			len(lines),
+		)
+	}
+	assertIntEqual(t, lines[0].start, 0)
+	assertIntEqual(t, lines[0].end, 5)
+	assertIntEqual(t, lines[1].start, 7)
+	assertIntEqualMsg(t, lines[1].end, 12, "Unexpected end of the second line: ")
+}
+
 func TestBufferLineInfoOnEmptyContent(t *testing.T) {
 	nl := "\n"
 	content := ""

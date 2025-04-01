@@ -10,10 +10,17 @@ import (
 	"github.com/smacker/go-tree-sitter/golang"
 )
 
+// start and end specify "fenceposts" in between characters.
+// |h|e|l|l|o|
+// ^         ^
+// start     end
+// In other words start is inclusive and end is not
 type Range struct {
 	start, end int
 }
 
+type Size struct {
+}
 type Point struct {
 	row, col int
 }
@@ -23,7 +30,7 @@ type IBuffer interface {
 	Erase(r Range) error
 	EraseLine(line_number int) error
 	Coord(index int) (Point, error)
-	Lines() []Range
+	Lines() []Range // Returns ranges in which lines are contained, without the new lien sequences
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
@@ -118,17 +125,25 @@ func (b *Buffer) Coord(index int) (Point, error) {
 
 func (b *Buffer) Lines() []Range {
 	lines := []Range{}
+	line_finished := false
 	lines = append(lines, Range{0, 0})
-	for i := 0; i < len(b.content); {
-		if matchBytes(b.content[i:], b.nl_seq) {
+	content := b.content
+	for i := 0; i < len(content); {
+		if line_finished {
+			lines = append(lines, Range{i, i})
+			line_finished = false
+		}
+		if matchBytes(content[i:], b.nl_seq) {
 			lines[len(lines)-1].end = i
 			i += len(b.nl_seq)
-			lines = append(lines, Range{start: i, end: i})
+			line_finished = true
 		} else {
 			i += 1
 		}
 	}
-	lines[len(lines)-1].end = len(b.content)
+	if !line_finished {
+		lines[len(lines)-1].end = len(b.content)
+	}
 	return lines
 }
 
