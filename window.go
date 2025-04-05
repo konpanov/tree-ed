@@ -10,13 +10,13 @@ import (
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
-type WindowMode int
+type WindowMode string
 
 const (
-	NormalMode WindowMode = iota
-	InsertMode WindowMode = iota
-	VisualMode WindowMode = iota
-	TreeMode   WindowMode = iota
+	NormalMode WindowMode = "Normal"
+	InsertMode WindowMode = "Insert"
+	VisualMode WindowMode = "Visual"
+	TreeMode   WindowMode = "Tree"
 )
 
 func modeToString(mode WindowMode) string {
@@ -479,7 +479,7 @@ func (window *Window) remove() {
 	if matchBytes(window.buffer.content[window.cursor.index:], window.buffer.nl_seq) {
 		length = len(window.buffer.nl_seq)
 	}
-	toDeleteRange := Range{max(window.cursor.index-1, 0), window.cursor.index + length - 2}
+	toDeleteRange := Region{max(window.cursor.index-1, 0), window.cursor.index + length - 2}
 	window.buffer.Erase(toDeleteRange)
 	log.Println("Removed succesfully")
 	window.cursor.index -= toDeleteRange.end - toDeleteRange.start
@@ -490,7 +490,7 @@ func (window *Window) remove() {
 }
 
 // TODO: update deleteRange call to not use returned range
-func (window *Window) deleteRange(r Range) {
+func (window *Window) deleteRange(r Region) {
 	window.buffer.Erase(r)
 	window.cursor.index = max(min(r.start, len(window.buffer.content)-1), 0)
 	window.cursor.invalidOriginColumn = true
@@ -504,7 +504,7 @@ func (window *Window) deleteNode() {
 	end := window.secondCursor.index
 	start, end = order(start, end)
 	end--
-	r := Range{start, end}
+	r := Region{start, end}
 	window.deleteRange(r)
 	window.node = window.buffer.tree.RootNode()
 	window.cursor.index = int(window.node.StartByte())

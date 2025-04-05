@@ -9,106 +9,53 @@ import (
 )
 
 type View interface {
-	Draw(screen tcell.Screen, roi Rect)
-}
-
-type StatusLine struct {
-	filename string
-	cursor   WindowCursor
-	buffer   *Buffer
-}
-
-func (sl *StatusLine) Draw(screen tcell.Screen, roi Rect) {
-	info := ""
-	info += "file: " + sl.filename
-	info += ", "
-	info += "line: " + strconv.Itoa(sl.cursor.row)
-	info += ", "
-	info += "column: " + strconv.Itoa(sl.cursor.col)
-
-	for col, value := range info {
-		pos := view_pos_to_screen_pos(Point{row: 0, col: col}, roi)
-		set_rune(screen, pos, byte(value))
-	}
-}
-
-type NumberColumnView struct {
-	buffer *Buffer
-}
-
-func (nc *NumberColumnView) Draw(screen tcell.Screen, roi Rect, row_offset int) {
-	lines := nc.buffer.Lines()
-	width := roi.bot_right.col - roi.top_left.col
-	height := roi.bot_right.row - roi.top_left.row
-
-	for y := range lines[row_offset : row_offset+height] {
-		line_num := strconv.Itoa(row_offset + y + 1)
-		for i, r := range line_num {
-			screen_pos := view_pos_to_screen_pos(
-				Point{col: width - 1 - len(line_num) + i, row: y},
-				roi,
-			)
-			set_rune(screen, screen_pos, byte(r))
-		}
-	}
+	Draw(screen tcell.Screen)
 }
 
 type BufferView struct {
+	roi           Rect
 	buffer        *Buffer
-	number_column *NumberColumnView
-	text          *TextView
+	cursor        WindowCursor
+	number_column LineNumberColumn
+	text          TextView
 	status_line   *StatusLine
 }
 
-func (view *BufferView) Draw(screen tcell.Screen, roi Rect) {
-	numer_column_width := int(max(math.Log10(float64(len(view.buffer.Lines()))))) + 2
+func (view *BufferView) Draw(screen tcell.Screen) {
+	line_number_column_width := view.number_column.GetWidth(view)
 	status_line_height := 0
 
 	if view.status_line != nil {
-		status_line_height = 1
-		sl_roi := roi
-		sl_roi.top_left.row = roi.bot_right.row - 1
+		status_line_height = view.status_line.GetHeight()
+		sl_roi := view.roi
+		sl_roi.top_left.row = view.roi.bot_right.row - status_line_height
 		view.status_line.Draw(screen, sl_roi)
 	}
 
-	text_roi := roi
-	text_roi.top_left.col += numer_column_width
-	text_roi.bot_right.row -= status_line_height
+	text_roi := view.roi.AdjustLeft(line_number_column_width).AdjustBot(-status_line_height)
 	view.text.Draw(screen, text_roi)
 
-	column_roi := roi
-	column_roi.bot_right.col = numer_column_width
-	column_roi.bot_right.row -= status_line_height
-	view.number_column.Draw(screen, column_roi, view.text.text_offset.row)
-}
-
-func selection_text_view(view *TextView, cursor *WindowCursor, anchorCursor *WindowCursor) {
-	view.cursor_drawing = SelectoionViewCursor{
-		selection: Range{cursor.index, anchorCursor.index},
-		style:     tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorDarkGray),
-	}
-	view.view_shifter = CursorViewShifter{[]*WindowCursor{anchorCursor, cursor}}
+	column_roi := view.roi.SetRight(line_number_column_width).AdjustBot(-status_line_height)
+	view.number_column.Draw(screen, view, column_roi)
 }
 
 func normal_text_view(view *TextView, cursor *WindowCursor) {
-	view.cursor_drawing = CharacterViewCursor{position_in_buffer: cursor.index}
-	view.view_shifter = CursorViewShifter{[]*WindowCursor{cursor}}
 }
 
 type TextView struct {
-	buffer         *Buffer
-	style          tcell.Style
-	text_offset    Point
-	view_shifter   ViewTextShifter
-	cursor_drawing ViewCursor
+	buffer      *Buffer
+	style       tcell.Style
+	text_offset Point
+	shifter     ViewTextShifter
+	cursor      ViewCursor
 }
 
 func (v *TextView) Draw(screen tcell.Screen, roi Rect) {
-	v.view_shifter.Shift(v, roi)
+	v.shifter.Shift(v, roi)
 	to_draw := get_text_to_draw(roi, v.text_offset, v.buffer)
 
 	v.draw_background(screen, roi)
-	v.cursor_drawing.Draw(screen, v, to_draw, roi)
+	v.cursor.Draw(screen, v, to_draw, roi)
 	v.draw_text(screen, to_draw, roi)
 
 }
@@ -123,10 +70,11 @@ func view_pos_to_text_pos(pos Point, text_offset Point) Point {
 func view_pos_to_screen_pos(pos Point, roi Rect) Point {
 	col := pos.col + roi.top_left.col
 	row := pos.row + roi.top_left.row
+	screen_pos := Point{col: col, row: row}
 	if row >= roi.bot_right.row || row < roi.top_left.row || col >= roi.bot_right.col || col < roi.top_left.col {
-		log.Fatalln("View should not draw outside it's roi")
+		log.Panicf("View should not draw outside it's roi. View roi: %+v. Screen position: %+v. View position: %+v.\n", roi, screen_pos, pos)
 	}
-	return Point{col: col, row: row}
+	return screen_pos
 }
 
 func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
@@ -154,7 +102,7 @@ func (v *TextView) draw_background(screen tcell.Screen, roi Rect) {
 	}
 }
 
-func (v *TextView) draw_text(screen tcell.Screen, to_draw []Range, roi Rect) {
+func (v *TextView) draw_text(screen tcell.Screen, to_draw []Region, roi Rect) {
 	for row, line_range := range to_draw {
 		for col, value := range v.buffer.content[line_range.start:line_range.end] {
 			screen_pos := view_pos_to_screen_pos(Point{col: col, row: row}, roi)
@@ -163,12 +111,8 @@ func (v *TextView) draw_text(screen tcell.Screen, to_draw []Range, roi Rect) {
 	}
 }
 
-type Rect struct {
-	top_left, bot_right Point
-}
-
-func get_text_to_draw(roi Rect, text_offset Point, buffer *Buffer) []Range {
-	to_draw := []Range{}
+func get_text_to_draw(roi Rect, text_offset Point, buffer *Buffer) []Region {
+	to_draw := []Region{}
 	lines := buffer.Lines()
 	view_width := roi.bot_right.col - roi.top_left.col
 	view_height := roi.bot_right.row - roi.top_left.row
@@ -189,7 +133,7 @@ func get_text_to_draw(roi Rect, text_offset Point, buffer *Buffer) []Range {
 		buffer_line_start := min(text_line_start_pos.col+line.start, line.end)
 		buffer_line_end := min(text_line_end_pos.col+line.start, line.end)
 
-		to_draw = append(to_draw, Range{buffer_line_start, buffer_line_end})
+		to_draw = append(to_draw, Region{buffer_line_start, buffer_line_end})
 	}
 	return to_draw
 }
@@ -205,6 +149,111 @@ func set_rune(screen tcell.Screen, pos Point, value byte) {
 func set_style(screen tcell.Screen, pos Point, style tcell.Style) {
 	value, _, _, _ := screen.GetContent(pos.col, pos.row)
 	screen.SetContent(pos.col, pos.row, value, nil, style)
+}
+
+/******************************************************/
+/*                   Status line                      */
+/******************************************************/
+
+type StatusLine struct {
+	filename string
+	cursor   WindowCursor
+	buffer   *Buffer
+	mode     string
+}
+
+func (sl *StatusLine) GetHeight() int {
+	return 2
+}
+
+func (sl *StatusLine) Draw(screen tcell.Screen, roi Rect) {
+	log.Println("Drawing status line")
+	info := ""
+	info += "file: " + sl.filename
+	info += ", "
+	info += "line: " + strconv.Itoa(sl.cursor.row)
+	info += ", "
+	info += "char: " + strconv.Itoa(sl.cursor.col)
+	info += ", "
+	info += "mode: " + sl.mode
+
+	for col := roi.Left(); col < roi.Right(); col++ {
+		set_rune(screen, Point{col: col, row: roi.Top()}, '-')
+	}
+
+	for col, value := range info {
+		pos := view_pos_to_screen_pos(Point{row: 1, col: col}, roi)
+		set_rune(screen, pos, byte(value))
+	}
+}
+
+/******************************************************/
+/*                   Line number column               */
+/******************************************************/
+type LineNumberColumn interface {
+	GetWidth(view *BufferView) int
+	Draw(screen tcell.Screen, view *BufferView, roi Rect)
+}
+
+func defulat_buffer_line_number_max_width(buffer *Buffer) int {
+	return int(math.Log10(float64(len(buffer.Lines())))) + 2
+}
+
+type RelativeNumberColumnView struct{}
+
+func (nc RelativeNumberColumnView) GetWidth(view *BufferView) int {
+	return defulat_buffer_line_number_max_width(view.buffer)
+}
+
+func (nc RelativeNumberColumnView) Draw(screen tcell.Screen, view *BufferView, roi Rect) {
+	lines := view.buffer.Lines()
+	width := roi.Width()
+	height := roi.Height()
+	start_line := view.text.text_offset.row
+
+	for y := range lines[start_line : start_line+height] {
+		relative := start_line + y - view.cursor.row
+		if relative < 0 {
+			relative = -relative
+		}
+		if relative == 0 {
+			relative = start_line + y + 1
+		}
+		line_num := strconv.Itoa(relative)
+		for i, r := range line_num {
+			screen_pos := view_pos_to_screen_pos(
+				Point{col: width - 1 - len(line_num) + i, row: y},
+				roi,
+			)
+			set_rune(screen, screen_pos, byte(r))
+		}
+		set_rune(screen, view_pos_to_screen_pos(Point{row: y, col: width - 1}, roi), '|')
+	}
+}
+
+type AbsoluteNumberColumnView struct {
+}
+
+func (nc AbsoluteNumberColumnView) GetWidth(view *BufferView) int {
+	return defulat_buffer_line_number_max_width(view.buffer)
+}
+
+func (nc AbsoluteNumberColumnView) Draw(screen tcell.Screen, view *BufferView, roi Rect) {
+	lines := view.buffer.Lines()
+	width := roi.Width()
+	height := roi.Height()
+	start_line := view.text.text_offset.row
+
+	for y := range lines[start_line : start_line+height] {
+		line_num := strconv.Itoa(start_line + y + 1)
+		for i, r := range line_num {
+			screen_pos := view_pos_to_screen_pos(
+				Point{col: width - 1 - len(line_num) + i, row: y},
+				roi,
+			)
+			set_rune(screen, screen_pos, byte(r))
+		}
+	}
 }
 
 /******************************************************/
@@ -235,15 +284,23 @@ func (shifter CursorViewShifter) Shift(view *TextView, roi Rect) {
 /******************************************************/
 
 type ViewCursor interface {
-	Draw(screen tcell.Screen, view *TextView, to_draw []Range, roi Rect)
+	Draw(screen tcell.Screen, view *TextView, to_draw []Region, roi Rect)
 }
 
 type CharacterViewCursor struct {
 	position_in_buffer int
 }
 
-func (cursor CharacterViewCursor) Draw(screen tcell.Screen, view *TextView, to_draw []Range, roi Rect) {
-	log.Println("Drawing character cursor")
+type BetweenCharactersViewCursor struct {
+	position_in_buffer int
+}
+
+type SelectoionViewCursor struct {
+	selection Region
+	style     tcell.Style
+}
+
+func (cursor CharacterViewCursor) Draw(screen tcell.Screen, view *TextView, to_draw []Region, roi Rect) {
 	screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
 	coord, err := view.buffer.Coord(cursor.position_in_buffer)
 	if err != nil {
@@ -253,41 +310,26 @@ func (cursor CharacterViewCursor) Draw(screen tcell.Screen, view *TextView, to_d
 	screen.ShowCursor(roi.top_left.col+pos.col, roi.top_left.row+pos.row)
 }
 
-type SelectoionViewCursor struct {
-	selection Range
-	style     tcell.Style
-}
-
-func (cursor SelectoionViewCursor) Draw(screen tcell.Screen, view *TextView, to_draw []Range, roi Rect) {
+func (cursor SelectoionViewCursor) Draw(screen tcell.Screen, view *TextView, to_draw []Region, roi Rect) {
 	screen.SetCursorStyle(tcell.CursorStyleDefault)
 	screen.ShowCursor(-1, -1)
-	log.Println("Drawing selection cursor")
-
-	start_text_index := min(cursor.selection.start, cursor.selection.end)
-	start_text_pos, err := view.buffer.Coord(start_text_index)
-	if err != nil {
-		log.Fatalln("Could not find start selection index: ", err)
+	start := cursor.selection.Start()
+	end := cursor.selection.End()
+	for _, region := range to_draw {
+		for i := max(region.start, start); i <= min(region.end, end); i++ {
+			text_pos, _ := view.buffer.Coord(i)
+			view_pos := view.text_pos_to_view_pos(text_pos, roi)
+			screen_pos := view_pos_to_screen_pos(view_pos, roi)
+			set_style(screen, screen_pos, cursor.style)
+		}
 	}
-	start_view_pos := view.text_pos_to_view_pos(start_text_pos, roi)
+}
 
-	end_text_index := max(cursor.selection.start, cursor.selection.end)
-	end_text_pos, err := view.buffer.Coord(end_text_index)
-	if err != nil {
-		log.Fatalln("Could not find end index: ", err)
-	}
-	end_view_pos := view.text_pos_to_view_pos(end_text_pos, roi)
-
-	for row := start_view_pos.row; row <= end_view_pos.row; row++ {
-		start_col := 0
-		end_col := to_draw[row].end - to_draw[row].start
-		if row == start_view_pos.row {
-			start_col = start_text_pos.col
-		}
-		if row == end_view_pos.row {
-			end_col = end_text_pos.col + 1
-		}
-		for i := start_col; i < end_col; i++ {
-			set_style(screen, view_pos_to_screen_pos(Point{col: i, row: row}, roi), cursor.style)
-		}
+func (cursor BetweenCharactersViewCursor) Draw(screen tcell.Screen, view *TextView, to_draw []Region, roi Rect) {
+	screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
+	coord, err := view.buffer.Coord(cursor.position_in_buffer)
+	if err == nil {
+		pos := view.text_pos_to_view_pos(coord, roi)
+		screen.ShowCursor(roi.top_left.col+pos.col, roi.top_left.row+pos.row)
 	}
 }

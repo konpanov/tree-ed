@@ -108,7 +108,7 @@ func TestBufferErase(t *testing.T) {
 
 	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
-	err = buffer.Erase(Range{1, 4})
+	err = buffer.Erase(Region{1, 4})
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,28 +121,28 @@ func TestBufferEraseOutOfBound(t *testing.T) {
 
 	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
-	err = buffer.Erase(Range{-1, 4})
+	err = buffer.Erase(Region{-1, 4})
 	if err != ErrIndexLessThanZero {
 		t.Error("Expected ErrIndexLessThanZero")
 	}
 
 	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
-	err = buffer.Erase(Range{6, 8})
+	err = buffer.Erase(Region{6, 8})
 	if err != ErrIndexGreaterThanBufferSize {
 		t.Error("Expected ErrIndexGreaterThanBufferSize")
 	}
 
 	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
-	err = buffer.Erase(Range{1, -3})
+	err = buffer.Erase(Region{1, -3})
 	if err != ErrIndexLessThanZero {
 		t.Error("Expected ErrIndexLessThanZero")
 	}
 
 	buffer, err = bufferFromContent([]byte("abcde"), []byte("\n"))
 	assertNoErrors(t, err)
-	err = buffer.Erase(Range{2, 12})
+	err = buffer.Erase(Region{2, 12})
 	if err != ErrIndexGreaterThanBufferSize {
 		t.Error("Expected ErrIndexGreaterThanBufferSize")
 	}

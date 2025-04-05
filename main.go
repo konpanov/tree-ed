@@ -47,39 +47,44 @@ func main() {
 	}
 	buffer, err := bufferFromContent(content, getSystemNewLine())
 	window := windowFromBuffer(buffer, width, height)
-	whole_screen := Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
-
-	buffer_view := BufferView{
-		buffer: buffer,
-		number_column: &NumberColumnView{
-			buffer: buffer,
-		},
-		text: &TextView{
-			buffer: buffer,
-			style:  tcell.StyleDefault,
-		},
-	}
+	whole_screen_roi := Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
+	selection_style := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorDarkGray)
+	view := BufferView{}
 
 	defer quit(screen)
 	for !buffer.quiting {
-		screen.Clear()
+		view.roi = whole_screen_roi
+		view.buffer = buffer
+		view.cursor = *window.cursor
 
-		if window.mode == VisualMode || window.mode == TreeMode {
-			selection_text_view(buffer_view.text, window.cursor, window.secondCursor)
-		} else {
-			normal_text_view(buffer_view.text, window.cursor)
+		view.number_column = RelativeNumberColumnView{}
+		view.text = TextView{
+			buffer: buffer,
+			style:  tcell.StyleDefault,
 		}
-
-		buffer_view.status_line = &StatusLine{
+		view.status_line = &StatusLine{
 			filename: filename,
 			cursor:   *window.cursor,
 			buffer:   buffer,
+			mode:     string(window.mode),
 		}
 
-		buffer_view.Draw(screen, whole_screen)
+		if window.mode == VisualMode || window.mode == TreeMode {
+			cursor := window.cursor
+			secondCursor := window.secondCursor
+			selection := Region{cursor.index, secondCursor.index}
+			view.text.cursor = SelectoionViewCursor{selection: selection, style: selection_style}
+			view.text.shifter = CursorViewShifter{[]*WindowCursor{secondCursor, cursor}}
+		} else if window.mode == InsertMode {
+			view.text.cursor = BetweenCharactersViewCursor{window.cursor.index}
+		} else {
+			view.text.cursor = CharacterViewCursor{position_in_buffer: window.cursor.index}
+			view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
+		}
 
+		screen.Clear()
+		view.Draw(screen)
 		screen.Show()
-
 		handleEvents(screen.PollEvent(), window)
 	}
 }
@@ -188,7 +193,7 @@ func handleVisualModeEvents(window *Window, ev *tcell.EventKey) bool {
 			start := window.cursor.index
 			end := window.secondCursor.index
 			start, end = order(start, end)
-			window.deleteRange(Range{start, end})
+			window.deleteRange(Region{start, end})
 			window.cursor.index = start
 			window.normalizeCursor(window.cursor)
 			window.shiftToCursor(window.cursor)

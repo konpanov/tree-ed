@@ -15,11 +15,19 @@ import (
 // ^         ^
 // start     end
 // In other words start is inclusive and end is not
-type Range struct {
+type Region struct {
 	start, end int
 }
 
+func (r Region) Start() int {
+	return min(r.start, r.end)
+}
+func (r Region) End() int {
+	return max(r.start, r.end)
+}
+
 type Size struct {
+	width, height int
 }
 type Point struct {
 	row, col int
@@ -27,10 +35,10 @@ type Point struct {
 
 type IBuffer interface {
 	Insert(index int, value []byte) error
-	Erase(r Range) error
+	Erase(r Region) error
 	EraseLine(line_number int) error
 	Coord(index int) (Point, error)
-	Lines() []Range // Returns ranges in which lines are contained, without the new lien sequences
+	Lines() []Region // Returns ranges in which lines are contained, without the new lien sequences
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
@@ -83,7 +91,7 @@ func (b *Buffer) EraseLine(line_number int) error {
 	return nil
 }
 
-func (b *Buffer) Erase(r Range) error {
+func (b *Buffer) Erase(r Region) error {
 	var err error
 
 	err = b.check_index(r.start)
@@ -106,6 +114,7 @@ func (b *Buffer) Coord(index int) (Point, error) {
 
 	err = b.check_index(index)
 	if err != nil {
+		log.Fatalln("Could not find cursor index: ", err)
 		return p, err
 	}
 
@@ -123,14 +132,14 @@ func (b *Buffer) Coord(index int) (Point, error) {
 	return p, nil
 }
 
-func (b *Buffer) Lines() []Range {
-	lines := []Range{}
+func (b *Buffer) Lines() []Region {
+	lines := []Region{}
 	line_finished := false
-	lines = append(lines, Range{0, 0})
+	lines = append(lines, Region{0, 0})
 	content := b.content
 	for i := 0; i < len(content); {
 		if line_finished {
-			lines = append(lines, Range{i, i})
+			lines = append(lines, Region{i, i})
 			line_finished = false
 		}
 		if matchBytes(content[i:], b.nl_seq) {
