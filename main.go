@@ -1,6 +1,6 @@
 package main
 
-// aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbcccccccccccccccccccccccc
+// aaąćźżółaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbbcccccccccccccccccccccccc
 import (
 	"log"
 	"os"
@@ -10,6 +10,8 @@ import (
 )
 
 func main() {
+	// list_colors()
+	// return
 	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
@@ -38,52 +40,70 @@ func main() {
 	if err := screen.Init(); err != nil {
 		log.Fatalf("%+v", err)
 	}
-
-	width, height := screen.Size()
+	defer quit(screen)
 
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
 	buffer, err := bufferFromContent(content, getSystemNewLine())
+	width, height := screen.Size()
 	window := windowFromBuffer(buffer, width, height)
-	whole_screen_roi := Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
-	selection_style := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorDarkGray)
-	view := BufferView{}
+	// selection_style := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorDarkGray)
+	// view := BufferView{}
 
-	defer quit(screen)
-	for !buffer.quiting {
-		view.roi = whole_screen_roi
-		view.buffer = buffer
-		view.cursor = *window.cursor
+	window_view := NewWindowView(
+		screen,
+		Rect{Point{col: 0, row: 0}, Point{col: width, row: height}},
+		buffer,
+		window.cursor,
+		window.secondCursor,
+		NormalMode,
+	)
 
-		view.number_column = RelativeNumberColumnView{}
-		view.text = TextView{
-			buffer: buffer,
-			style:  tcell.StyleDefault,
-		}
-		view.status_line = &StatusLine{
-			filename: filename,
-			cursor:   *window.cursor,
-			buffer:   buffer,
-			mode:     string(window.mode),
-		}
+	for !buffer.IsQuiting() {
+		width, height := screen.Size()
+		window_view.Update(
+			Rect{Point{col: 0, row: 0}, Point{col: width, row: height}},
+			window.cursor,
+			window.secondCursor,
+			window.mode,
+		)
 
-		if window.mode == VisualMode || window.mode == TreeMode {
-			cursor := window.cursor
-			secondCursor := window.secondCursor
-			selection := Region{cursor.index, secondCursor.index}
-			view.text.cursor = SelectoionViewCursor{selection: selection, style: selection_style}
-			view.text.shifter = CursorViewShifter{[]*WindowCursor{secondCursor, cursor}}
-		} else if window.mode == InsertMode {
-			view.text.cursor = BetweenCharactersViewCursor{window.cursor.index}
-		} else {
-			view.text.cursor = CharacterViewCursor{position_in_buffer: window.cursor.index}
-			view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
-		}
+		// view.roi = Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
+		// view.buffer = buffer
+		// view.cursor = *window.cursor
+		//
+		// view.debug_view = DebugView{buffer: buffer, window: window}
+		// view.number_column = RelativeNumberColumnView{}
+		// view.text = &TextView{
+		// 	buffer: buffer,
+		// 	style:  tcell.StyleDefault,
+		// }
+		// view.status_line = &StatusLine{
+		// 	filename: filename,
+		// 	cursor:   *window.cursor,
+		// 	buffer:   buffer,
+		// 	mode:     string(window.mode),
+		// }
+		//
+		// if window.mode == VisualMode || window.mode == TreeMode {
+		// 	cursor := window.cursor
+		// 	secondCursor := window.secondCursor
+		// 	selection := Region{cursor.index, secondCursor.index}
+		// 	view.text.cursor = SelectoionViewCursor{selection: selection, style: selection_style}
+		// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{secondCursor, cursor}}
+		// 	// } else if window.mode == InsertMode {
+		// 	// 	view.text.cursor = BetweenCharactersViewCursor{window.cursor.index}
+		// 	// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
+		// } else {
+		// 	view.text.cursor = CharacterViewCursor{position_in_buffer: window.cursor.index}
+		// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
+		// }
 
 		screen.Clear()
-		view.Draw(screen)
+		window_view.Draw()
+		// view.Draw(screen)
 		screen.Show()
 		handleEvents(screen.PollEvent(), window)
 	}
@@ -94,7 +114,7 @@ func handleEvents(ev tcell.Event, window *Window) bool {
 	switch ev := ev.(type) {
 	case *tcell.EventKey:
 		log.Println("Registered key: ", tcell.KeyNames[ev.Key()])
-		window.buffer.quiting = ev.Key() == tcell.KeyCtrlC
+		window.buffer.SetQuiting(ev.Key() == tcell.KeyCtrlC)
 		return (handleInsertModeEvents(window, ev) ||
 			handleNormalModeEvents(window, ev) ||
 			handleVisualModeEvents(window, ev) ||
@@ -138,7 +158,9 @@ func handleNormalModeEvents(window *Window, ev *tcell.EventKey) bool {
 			window.switchToTree()
 			return true
 		case 'd':
-			window.buffer.EraseLine(window.cursor.row)
+			window.buffer.EraseLine(window.cursor.BytePosition().row)
+		case 'x':
+			window.remove()
 		}
 	}
 	return false
@@ -195,8 +217,6 @@ func handleVisualModeEvents(window *Window, ev *tcell.EventKey) bool {
 			start, end = order(start, end)
 			window.deleteRange(Region{start, end})
 			window.cursor.index = start
-			window.normalizeCursor(window.cursor)
-			window.shiftToCursor(window.cursor)
 			window.switchToNormal()
 		}
 	}

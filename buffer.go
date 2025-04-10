@@ -34,11 +34,23 @@ type Point struct {
 }
 
 type IBuffer interface {
+	Content() []byte
+	Nl_seq() []byte
+	IsQuiting() bool
+	SetQuiting(v bool)
+	CheckIndex(index int) error
+
 	Insert(index int, value []byte) error
 	Erase(r Region) error
 	EraseLine(line_number int) error
 	Coord(index int) (Point, error)
-	Lines() []Region // Returns ranges in which lines are contained, without the new lien sequences
+	RuneCoord(index int) (Point, error)
+
+	Tree() *sitter.Tree
+
+	// Returns ranges in which lines are contained, without the new line sequences.
+	// New lines must be left out to treat the same last lines with new lines and without.
+	Lines() []Region
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
@@ -70,8 +82,20 @@ func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
 	return buffer, nil
 }
 
+func (b *Buffer) Content() []byte {
+	return b.content
+}
+
+func (b *Buffer) IsQuiting() bool {
+	return b.quiting
+}
+
+func (b *Buffer) SetQuiting(v bool) {
+	b.quiting = v
+}
+
 func (b *Buffer) Insert(index int, value []byte) error {
-	err := b.check_index(index)
+	err := b.CheckIndex(index)
 	if err != nil {
 		return err
 	}
@@ -94,12 +118,12 @@ func (b *Buffer) EraseLine(line_number int) error {
 func (b *Buffer) Erase(r Region) error {
 	var err error
 
-	err = b.check_index(r.start)
+	err = b.CheckIndex(r.start)
 	if err != nil {
 		return err
 	}
 
-	err = b.check_index(r.end)
+	err = b.CheckIndex(r.end)
 	if err != nil {
 		return err
 	}
@@ -112,7 +136,7 @@ func (b *Buffer) Coord(index int) (Point, error) {
 	var err error
 	p := Point{0, 0}
 
-	err = b.check_index(index)
+	err = b.CheckIndex(index)
 	if err != nil {
 		log.Fatalln("Could not find cursor index: ", err)
 		return p, err
@@ -126,6 +150,26 @@ func (b *Buffer) Coord(index int) (Point, error) {
 		} else {
 			p.col++
 			i++
+		}
+	}
+
+	return p, nil
+}
+
+func (b *Buffer) RuneCoord(index int) (Point, error) {
+	var err error
+	p := Point{0, 0}
+
+	err = b.CheckIndex(index)
+	if err != nil {
+		log.Fatalln("Could not find cursor index: ", err)
+		return p, err
+	}
+
+	for row, line := range b.Lines() {
+		if line.start <= index && index <= line.end {
+			col := len([]rune(string(b.content[line.start:index])))
+			return Point{row: row, col: col}, nil
 		}
 	}
 
@@ -156,7 +200,7 @@ func (b *Buffer) Lines() []Region {
 	return lines
 }
 
-func (b *Buffer) check_index(index int) error {
+func (b *Buffer) CheckIndex(index int) error {
 	if index < 0 {
 		return ErrIndexLessThanZero
 	}
@@ -165,4 +209,12 @@ func (b *Buffer) check_index(index int) error {
 	}
 	return nil
 
+}
+
+func (b *Buffer) Tree() *sitter.Tree {
+	return b.tree
+}
+
+func (b *Buffer) Nl_seq() []byte {
+	return b.nl_seq
 }

@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"log"
 	"runtime"
 	"testing"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 const (
@@ -74,6 +77,26 @@ func assertNoErrors(t *testing.T, err error) {
 	}
 }
 
+func assertNoErrorsMsg(t *testing.T, err error, msg string) {
+	if err != nil {
+		t.Errorf("%s%s", msg, err)
+	}
+}
+
 func clip(value int, bot int, top int) int {
 	return max(min(value, top), bot)
+}
+
+func rune_grid_to_string_slice(grid [][]rune) []string {
+	ret := []string{}
+	for _, line := range grid {
+		ret = append(ret, string(line))
+	}
+	return ret
+}
+
+func list_colors() {
+	for _, color := range tcell.ColorNames {
+		log.Println(color)
+	}
 }

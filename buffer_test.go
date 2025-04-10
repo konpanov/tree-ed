@@ -4,6 +4,14 @@ import (
 	"testing"
 )
 
+func mkTestBuffer(t *testing.T, content string, nl string) IBuffer {
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	if err != nil {
+		t.Fatalf("Failed to create test buffer")
+	}
+	return buffer
+}
+
 func TestBufferCreateFromContent(t *testing.T) {
 	content := []byte("content\nfor\ntesting\n")
 	nl_seq := []byte("\n")
@@ -366,4 +374,82 @@ func TestBufferLineInfoOnEmptyLine(t *testing.T) {
 	assertIntEqual(t, lines[1].end, 11)
 	assertIntEqual(t, lines[2].start, 12)
 	assertIntEqual(t, lines[2].end, 22)
+}
+
+func TestBufferRuneCoordWithoutNonAsciiRunes(t *testing.T) {
+	nl := "\n"
+	content := ""
+	//          0123456789
+	content += "first line"
+	//         10
+	content += nl
+	//         11
+	content += nl
+	//          1214161820
+	content += "third line"
+	//           1315171921
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.RuneCoord(18)
+	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
+	assertIntEqualMsg(t, coord.col, 6, "Unexpected rune coord col: ")
+}
+
+func TestBufferRuneCoordWithNonAsciiRunes(t *testing.T) {
+	nl := "\n"
+	content := ""
+	//          0123456789
+	content += "first line"
+	//         10
+	content += nl
+	//         11
+	content += nl
+	//          12141618222527
+	content += "third ążćline"
+	//           131517202426
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.RuneCoord(20)
+	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
+	assertIntEqualMsg(t, coord.col, 7, "Unexpected rune coord col: ")
+}
+
+func TestBufferRuneCoordInbetweenNewLines(t *testing.T) {
+	nl := "\n"
+	content := ""
+	//          0123456789
+	content += "first line"
+	//         10
+	content += nl
+	//         11
+	content += nl
+	//          12141618222527
+	content += "third ążćline"
+	//           131517202426
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.RuneCoord(11)
+	assertIntEqualMsg(t, coord.row, 1, "Unexpected rune coord row: ")
+	assertIntEqualMsg(t, coord.col, 0, "Unexpected rune coord col: ")
+}
+
+func TestBufferRuneCoordFileEndingNewLine(t *testing.T) {
+	nl := "\n"
+	content := ""
+	//          0123456789	  10
+	content += "first line" + nl
+	//         11
+	content += nl
+	//          12141618222527   28
+	content += "third ążćline" + nl
+	//           131517202426
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	coord, err := buffer.RuneCoord(28)
+	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
+	assertIntEqualMsg(t, coord.col, 13, "Unexpected rune coord col: ")
 }
