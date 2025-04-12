@@ -41,19 +41,21 @@ func (self *WindowView) Update(roi Rect, cursor BufferCursor, secondCursor Buffe
 }
 
 func (self *WindowView) Draw() {
-	line_numbers_width := default_buffer_line_number_max_width(self.buffer)
+	status_line := StatusLine2{}
 
-	line_numbers_roi := self.roi.SetRight(line_numbers_width)
-	text_roi := self.roi.SetLeft(line_numbers_roi.Right())
+	line_numbers_width := default_buffer_line_number_max_width(self.buffer)
+	status_line_height := status_line.GetHeight()
+
+	status_line_roi := self.roi.SetTop(self.roi.Bot() - status_line_height)
+	line_numbers_roi := self.roi.SetRight(line_numbers_width).SetBot(status_line_roi.Top())
+	text_roi := self.roi.SetLeft(line_numbers_roi.Right()).SetBot(status_line_roi.Top())
 
 	text, text_offset := self.get_text_from_buffer(text_roi, self.text_offset)
 	self.text_offset = text_offset
 
 	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.buffer, self.text_offset.row}
 	text_view := NewTextView2(self.screen, text_roi, text)
-
-	line_numbers.Draw()
-	text_view.Draw()
+	status_line = StatusLine2{self.screen, status_line_roi, "tmpfilename", self.cursor, self.buffer, string(self.mode)}
 
 	var cursor_view View2
 
@@ -67,6 +69,10 @@ func (self *WindowView) Draw() {
 	}
 
 	cursor_view.Draw()
+	line_numbers.Draw()
+	text_view.Draw()
+	status_line.Draw()
+
 }
 
 func (self *WindowView) get_text_from_buffer(roi Rect, text_offset Point) ([][]rune, Point) {
