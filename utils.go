@@ -100,3 +100,9 @@ func list_colors() {
 		log.Println(color)
 	}
 }
+
+func panic_if_error(err error) {
+	if err != nil {
+		log.Panicln(err)
+	}
+}

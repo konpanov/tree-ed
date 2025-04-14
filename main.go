@@ -10,29 +10,28 @@ import (
 )
 
 func main() {
-	// list_colors()
-	// return
+
+	// Setup logging to file
 	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
+	panic_if_error(err)
 	defer f.Close()
 	log.SetOutput(f)
 	log.Println("Log file initiated.")
 
+	// Setup cpuprofile
 	f, err = os.Create("cpuprofile")
-	if err != nil {
-		log.Fatal(err)
-	}
+	panic_if_error(err)
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 	log.Println("Cpu profile initiated")
 
+	// Parse filename argument
 	filename := "main.go"
 	if len(os.Args) >= 2 {
 		filename = os.Args[1]
 	}
 
+	// Setup screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatalf("%+v", err)
@@ -42,71 +41,19 @@ func main() {
 	}
 	defer quit(screen)
 
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	buffer, err := bufferFromContent(content, getSystemNewLine())
-	width, height := screen.Size()
-	window := windowFromBuffer(buffer, width, height)
-	// selection_style := tcell.StyleDefault.Background(tcell.ColorGray).Foreground(tcell.ColorDarkGray)
-	// view := BufferView{}
+	editor := NewEditor(screen)
+	editor.OpenFileInWindow(filename)
+	editor.Start()
 
-	window_view := NewWindowView(
-		screen,
-		Rect{Point{col: 0, row: 0}, Point{col: width, row: height}},
-		buffer,
-		window.cursor,
-		window.secondCursor,
-		NormalMode,
-	)
-
-	for !buffer.IsQuiting() {
-		width, height := screen.Size()
-		window_view.Update(
-			Rect{Point{col: 0, row: 0}, Point{col: width, row: height}},
-			window.cursor,
-			window.secondCursor,
-			window.mode,
-		)
-
-		// view.roi = Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
-		// view.buffer = buffer
-		// view.cursor = *window.cursor
-		//
-		// view.debug_view = DebugView{buffer: buffer, window: window}
-		// view.number_column = RelativeNumberColumnView{}
-		// view.text = &TextView{
-		// 	buffer: buffer,
-		// 	style:  tcell.StyleDefault,
-		// }
-		// view.status_line = &StatusLine{
-		// 	filename: filename,
-		// 	cursor:   *window.cursor,
-		// 	buffer:   buffer,
-		// 	mode:     string(window.mode),
-		// }
-		//
-		// if window.mode == VisualMode || window.mode == TreeMode {
-		// 	cursor := window.cursor
-		// 	secondCursor := window.secondCursor
-		// 	selection := Region{cursor.index, secondCursor.index}
-		// 	view.text.cursor = SelectoionViewCursor{selection: selection, style: selection_style}
-		// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{secondCursor, cursor}}
-		// 	// } else if window.mode == InsertMode {
-		// 	// 	view.text.cursor = BetweenCharactersViewCursor{window.cursor.index}
-		// 	// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
-		// } else {
-		// 	view.text.cursor = CharacterViewCursor{position_in_buffer: window.cursor.index}
-		// 	view.text.shifter = CursorViewShifter{[]*WindowCursor{window.cursor}}
-		// }
-
-		screen.Clear()
-		window_view.Draw()
-		// view.Draw(screen)
-		screen.Show()
-		handleEvents(screen.PollEvent(), window)
-	}
+	// for !editor.is_quiting {
+	// 	width, height := screen.Size()
+	// 	window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: width, row: height}})
+	//
+	// 	screen.Clear()
+	// 	window_view.Draw()
+	// 	screen.Show()
+	// 	// handleEvents(screen.PollEvent(), window)
+	// }
 }
 
 func handleEvents(ev tcell.Event, window *Window) bool {
@@ -274,3 +221,5 @@ func handleNormalMovements(window *Window, ev *tcell.EventKey) bool {
 	}
 	return false
 }
+
+// LAST LINE

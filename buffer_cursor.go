@@ -133,5 +133,3 @@ func (self BufferCursor) SearchBackward(seq []byte) (BufferCursor, error) {
 		}
 	}
 }
-
-//aaaaaaa

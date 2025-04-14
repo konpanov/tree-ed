@@ -26,25 +26,29 @@ func (r Region) End() int {
 	return max(r.start, r.end)
 }
 
-type Size struct {
-	width, height int
-}
 type Point struct {
 	row, col int
 }
 
+func (self Point) Add(other Point) Point {
+	return Point{row: self.row + other.row, col: self.col + other.col}
+}
+
+// TODO Add filename field for file buffers that return nil for non file buffers
 type IBuffer interface {
 	Content() []byte
 	Nl_seq() []byte
 	IsQuiting() bool
 	SetQuiting(v bool)
 	CheckIndex(index int) error
+	CheckLine(line int) error
 
 	Insert(index int, value []byte) error
 	Erase(r Region) error
 	EraseLine(line_number int) error
 	Coord(index int) (Point, error)
 	RuneCoord(index int) (Point, error)
+	IndexFromRuneCoord(p Point) (int, error)
 
 	Tree() *sitter.Tree
 
@@ -56,6 +60,7 @@ type IBuffer interface {
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
+var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
 
 type Buffer struct {
 	content []byte
@@ -176,6 +181,23 @@ func (b *Buffer) RuneCoord(index int) (Point, error) {
 	return p, nil
 }
 
+func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
+	if err := b.CheckLine(p.row); err != nil {
+		return 0, err
+	}
+	lines := b.Lines()
+	in_runes := []rune(string(b.Content()[lines[p.row].start:lines[p.row].end]))
+	if (p.col >= 0 && p.col < len(in_runes)) || (p.col == 0 && len(in_runes) == 0) {
+		line_len_before_coord_in_bytes := len(string(in_runes[:p.col]))
+		return lines[p.row].start + line_len_before_coord_in_bytes, nil
+	} else if p.col < 0 {
+		return 0, fmt.Errorf("%w: coord col cannot be negative (%d)", ErrCoordOutOfRange, p.col)
+	} else {
+		return 0, fmt.Errorf("%w: coord col cannot be greater than the width of line (%d > %d)", ErrCoordOutOfRange, p.col, len(in_runes))
+	}
+
+}
+
 func (b *Buffer) Lines() []Region {
 	lines := []Region{}
 	line_finished := false
@@ -208,7 +230,17 @@ func (b *Buffer) CheckIndex(index int) error {
 		return ErrIndexGreaterThanBufferSize
 	}
 	return nil
+}
 
+func (b *Buffer) CheckLine(line int) error {
+	if line < 0 {
+		return fmt.Errorf("%w: coord row cannot be negative (%d)", ErrCoordOutOfRange, line)
+	}
+	lines := b.Lines()
+	if line >= len(lines) {
+		return fmt.Errorf("%w: coord row cannot be greater than the number of lines (%d > %d)", ErrCoordOutOfRange, line, len(lines))
+	}
+	return nil
 }
 
 func (b *Buffer) Tree() *sitter.Tree {

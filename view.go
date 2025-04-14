@@ -10,6 +10,8 @@ import (
 
 type View2 interface {
 	Draw()
+	SetRoi(roi Rect)
+	GetRoi() Rect
 }
 
 type View interface {
@@ -106,10 +108,14 @@ func view_pos_to_screen_pos(pos Point, roi Rect) Point {
 func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
 	width := roi.bot_right.col - roi.top_left.col
 	height := roi.bot_right.row - roi.top_left.row
-	return Point{
+	view_pos := Point{
 		col: min(pos.col-text_offset.col, width-1),
 		row: min(pos.row-text_offset.row, height-1),
 	}
+	if view_pos.row < 0 || view_pos.col < 0 {
+		log.Panicf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)
+	}
+	return view_pos
 }
 
 func (v TextView) view_pos_to_text_pos(pos Point) Point {

@@ -8,6 +8,16 @@ import (
 
 type LineNumberView interface{ Width() int }
 
+type NoLineNumberView struct {
+}
+
+func (self NoLineNumberView) Width() int {
+	return 0
+}
+
+func (self NoLineNumberView) Draw() {
+}
+
 type AbsoluteLineNumberView struct {
 	screen      tcell.Screen
 	roi         Rect
@@ -23,9 +33,10 @@ func (self AbsoluteLineNumberView) Draw() {
 	lines := self.buffer.Lines()
 	width := self.roi.Width()
 	height := self.roi.Height()
-	start_line := self.line_offset
+	start_line := max(min(self.line_offset, len(lines)), 0)
+	end_line := max(min(start_line+height, len(lines)), 0)
 
-	for y := range lines[start_line : start_line+height] {
+	for y := range lines[start_line:end_line] {
 		line_num := strconv.Itoa(start_line + y + 1)
 		for i, r := range line_num {
 			screen_pos := view_pos_to_screen_pos(

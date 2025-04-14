@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -452,4 +453,52 @@ func TestBufferRuneCoordFileEndingNewLine(t *testing.T) {
 	coord, err := buffer.RuneCoord(28)
 	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
 	assertIntEqualMsg(t, coord.col, 13, "Unexpected rune coord col: ")
+}
+
+func TestBufferIndexFromRuneCoord(t *testing.T) {
+	nl := "\n"
+	lines := []string{
+		"line1",
+		"line2",
+		"line3",
+	}
+	content := strings.Join(lines, nl)
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
+	assertNoErrors(t, err)
+	assertIntEqualMsg(t, index, 8, "Unexpected index: ")
+}
+
+func TestBufferIndexFromRuneCoordWithUnevenRunes(t *testing.T) {
+	nl := "\n"
+	lines := []string{
+		"ląne1",
+		"łońe2",
+		"line3",
+	}
+	content := strings.Join(lines, nl)
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
+	assertNoErrors(t, err)
+	assertIntEqualMsg(t, index, 10, "Unexpected index: ")
+}
+
+func TestBufferIndexFromRuneCoordWithEmptyLine(t *testing.T) {
+	nl := "\n"
+	lines := []string{
+		"ląne1",
+		"",
+		"line3",
+	}
+	content := strings.Join(lines, nl)
+
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrors(t, err)
+	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 0})
+	assertNoErrors(t, err)
+	assertIntEqualMsg(t, index, 7, "Unexpected index: ")
 }

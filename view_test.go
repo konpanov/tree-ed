@@ -2,6 +2,7 @@ package main
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -137,20 +138,22 @@ func TestDrawWindowViewWithSingleLine(t *testing.T) {
 	buffer := mkTestBuffer(t, content+nl, nl)
 
 	// Setup window
-	roi := Rect{Point{0, 0}, Point{10, 10}}
-	window := NewWindowView(screen, roi, buffer, NewBufferCursor(buffer), NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
+	roi := Rect{Point{0, 0}, Point{w, h}}
+	window_view := NewWindowView(screen, roi, window)
+	window_view.Draw()
 
 	screen.Show()
 	cells, _, _ := screen.GetContents()
-	assertCells(t, cells[:5], []rune(content), "")
-	assertCellsEmpty(t, cells[5:])
+	assertCells(t, cells[2:7], []rune(content), "")
+	assertCellsEmpty(t, cells[7:w*(h-2)])
 }
 
 func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
-	screen.SetSize(10, 3)
+	screen.SetSize(10, 5)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -168,15 +171,16 @@ func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	window := NewWindowView(screen, roi, buffer, NewBufferCursor(buffer), NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window := windowFromBuffer(buffer, w, h)
+	window_view := NewWindowView(screen, roi, window)
+	window_view.Draw()
 
 	screen.Show()
 	assertIntEqual(t, w, 10)
-	assertIntEqual(t, h, 3)
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune(lines[0]), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune(lines[1]), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune(lines[2]), "")
+	assertIntEqual(t, h, 5)
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 "+lines[0]), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 "+lines[1]), "")
+	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 "+lines[2]), "")
 }
 
 func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
@@ -196,19 +200,20 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	var window View2
-	window = NewWindowView(screen, roi, buffer, NewBufferCursor(buffer), NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window := windowFromBuffer(buffer, w, h)
+	var window_view View2
+	window_view = NewWindowView(screen, roi, window)
+	window_view.Draw()
 
 	screen.Show()
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune(lines[0]), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune(lines[1]), "")
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 "+lines[0]), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 "+lines[1]), "")
 }
 
 func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
-	screen.SetSize(5, 2)
+	screen.SetSize(8, 2)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -222,27 +227,28 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	}
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
-	cursor, _ := NewBufferCursor(buffer).ToIndex(20)
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
+	window.cursor, _ = window.cursor.ToIndex(20)
+	assertIntEqualMsg(t, w, 8, "")
+	assertIntEqualMsg(t, h, 2, "")
+	assertIntEqualMsg(t, window.cursor.Index(), 20, "")
+	roi := Rect{Point{0, 0}, Point{h, w}}
 
 	// Setup window
-	w, h := screen.Size()
-	assertIntEqualMsg(t, w, 5, "")
-	assertIntEqualMsg(t, h, 2, "")
-	assertIntEqualMsg(t, cursor.Index(), 20, "")
-	roi := Rect{Point{0, 0}, Point{h, w}}
-	var window View2
-	window = NewWindowView(screen, roi, buffer, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	var window_view View2
+	window_view = NewWindowView(screen, roi, window)
+	window_view.Draw()
 
 	screen.Show()
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("line3"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("line4"), "")
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
 }
 
 func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
-	screen.SetSize(5, 2)
+	screen.SetSize(8, 2)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -256,40 +262,41 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	}
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
-	cursor, _ := NewBufferCursor(buffer).ToIndex(20)
 
 	// Setup window
 	w, h := screen.Size()
-	assertIntEqualMsg(t, w, 5, "")
-	assertIntEqualMsg(t, h, 2, "")
-	assertIntEqualMsg(t, cursor.Index(), 20, "")
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	window := NewWindowView(screen, roi, buffer, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window := windowFromBuffer(buffer, w, h)
+	window.cursor, _ = window.cursor.ToIndex(20)
+	window_view := NewWindowView(screen, roi, window)
+	assertIntEqualMsg(t, w, 8, "")
+	assertIntEqualMsg(t, h, 2, "")
+	assertIntEqualMsg(t, window.cursor.Index(), 20, "")
+	window_view.Draw()
 
-	cursor, _ = cursor.ToIndex(14)
-	assertIntEqualMsg(t, cursor.Index(), 14, "")
-	window.Update(roi, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window.cursor, _ = window.cursor.ToIndex(14)
+	assertIntEqualMsg(t, window.cursor.Index(), 14, "")
+	window_view.Update(roi)
+	window_view.Draw()
 	screen.Show()
 
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("line3"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("line4"), "")
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
 
-	cursor, _ = cursor.ToIndex(8)
-	assertIntEqualMsg(t, cursor.Index(), 8, "")
-	window.Update(roi, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window.cursor, _ = window.cursor.ToIndex(8)
+	assertIntEqualMsg(t, window.cursor.Index(), 8, "")
+	window_view.Update(roi)
+	window_view.Draw()
 	screen.Show()
 
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("line2"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("line3"), "")
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("2 line2"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("3 line3"), "")
 }
 
 func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
-	screen.SetSize(2, 5)
+	screen.SetSize(4, 8)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -303,30 +310,31 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	}
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
-	cursor, _ := NewBufferCursor(buffer).RunesForward(4)
 
 	// Setup window
 	w, h := screen.Size()
-	assertIntEqualMsg(t, w, 2, "")
-	assertIntEqualMsg(t, h, 5, "")
-	assertIntEqualMsg(t, cursor.Index(), 4, "")
+	window := windowFromBuffer(buffer, w, h)
+	window.cursor, _ = window.cursor.RunesForward(4)
+	assertIntEqualMsg(t, w, 4, "")
+	assertIntEqualMsg(t, h, 8, "")
+	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	window := NewWindowView(screen, roi, buffer, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window_view := NewWindowView(screen, roi, window)
+	window_view.Draw()
 
 	screen.Show()
-	assertPointsEqual(t, window.text_offset, Point{col: 3, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("e1"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("e2"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("e3"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("e4"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("e5"), "")
+	assertPointsEqual(t, window_view.text_offset, Point{col: 3, row: 0})
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
+	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
+	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
+	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
 }
 
 func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
-	screen.SetSize(2, 5)
+	screen.SetSize(4, 8)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -340,40 +348,41 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	}
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
-	cursor, _ := NewBufferCursor(buffer).RunesForward(4)
 
 	// Setup window
 	w, h := screen.Size()
-	assertIntEqualMsg(t, w, 2, "")
-	assertIntEqualMsg(t, h, 5, "")
-	assertIntEqualMsg(t, cursor.Index(), 4, "")
+	window := windowFromBuffer(buffer, w, h)
+	window.cursor, _ = window.cursor.RunesForward(4)
+	assertIntEqualMsg(t, w, 4, "")
+	assertIntEqualMsg(t, h, 8, "")
+	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	window := NewWindowView(screen, roi, buffer, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window_view := NewWindowView(screen, roi, window)
+	window_view.Draw()
 
-	cursor, _ = cursor.RunesBackward(1)
-	window.Update(roi, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
-
-	screen.Show()
-	assertPointsEqual(t, window.text_offset, Point{col: 3, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("e1"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("e2"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("e3"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("e4"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("e5"), "")
-
-	cursor, _ = cursor.RunesBackward(1)
-	window.Update(roi, cursor, NewBufferCursor(buffer), NormalMode)
-	window.Draw()
+	window.cursor, _ = window.cursor.RunesBackward(1)
+	window_view.Update(roi)
+	window_view.Draw()
 
 	screen.Show()
-	assertPointsEqual(t, window.text_offset, Point{col: 2, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("ne"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("ne"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("ne"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("źe"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("ne"), "")
+	assertPointsEqual(t, window_view.text_offset, Point{col: 3, row: 0})
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
+	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
+	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
+	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
+
+	window.cursor, _ = window.cursor.RunesBackward(1)
+	window_view.Update(roi)
+	window_view.Draw()
+
+	screen.Show()
+	assertPointsEqual(t, window_view.text_offset, Point{col: 2, row: 0})
+	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 ne"), "")
+	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 ne"), "")
+	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 ne"), "")
+	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 źe"), "")
+	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 ne"), "")
 }
 
 // CHARACTER CURSOR
@@ -520,3 +529,73 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 }
 
 // TODO: Add test to selection cursor view
+
+func TestDrawSelectionCursorOnWholePage(t *testing.T) {
+	screen := mkTestScreen(t, "")
+	screen.SetSize(10, 5)
+	defer screen.Fini()
+	w, h := screen.Size()
+	assertIntEqualMsg(t, w, 10, "Unexpected screen width: ")
+	assertIntEqualMsg(t, h, 5, "Unexpected screen width: ")
+
+	// Setup buffer
+	nl := NewLineUnix
+	lines := []string{}
+	for i := 0; i < h+10; i++ {
+		lines = append(lines, "line"+strconv.Itoa(i+1))
+	}
+	// line1
+	// line2
+	// line3
+	// line4
+	// line5
+	// Sine6
+	// line7
+	// line8
+	// line9
+	// line10
+	// line11
+	// line12
+	// line13
+	// line14
+	// line15
+	// line16
+	// line17
+	// line18
+	// line19
+	// line20
+	content := strings.Join(lines, nl)
+	buffer := mkTestBuffer(t, content+nl, nl)
+
+	// Setup cursor
+	window := windowFromBuffer(buffer, w, h)
+	window_view := NewWindowView(
+		screen,
+		Rect{Point{col: 0, row: 0}, Point{col: w, row: h}},
+		window,
+	)
+
+	for i := 0; i < 5; i++ {
+		window.moveCursor(Down)
+		window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: w, row: h}})
+		window_view.Draw()
+	}
+	window.switchToVisual()
+	window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: w, row: h}})
+	window_view.Draw()
+
+	for i := 5; i < len(lines)-5; i++ {
+		window.moveCursor(Down)
+		window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: w, row: h}})
+		window_view.Draw()
+	}
+
+	screen.Show()
+
+	// x, y, visible := screen.GetCursor()
+	// assertIntEqual(t, x, 1)
+	// assertIntEqual(t, y, 1)
+	// if !visible {
+	// 	t.Errorf("Expected cursor to be visible")
+	// }
+}

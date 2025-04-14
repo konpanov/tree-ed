@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -44,4 +45,24 @@ func TestWindowMoveLeftCursorOnNonasciiCharacters(t *testing.T) {
 	window.cursor, _ = window.cursor.ToIndex(4)
 	window.moveCursor(Left)
 	assertIntEqualMsg(t, window.cursor.index, 2, "Expected cursor to move to move from 'ż' to 'ć': ")
+}
+
+func TestWindowMoveCursorDownAndSaveAnchor(t *testing.T) {
+	nl := NewLineUnix
+	lines := []string{
+		"line1longer",
+		"line2",
+		"line3longer",
+	}
+	content := strings.Join(lines, nl)
+	buffer, _ := bufferFromContent([]byte(content), []byte(nl))
+	window := windowFromBuffer(buffer, 10, 10)
+	for i := 0; i < 7; i++ {
+		window.cursorRight()
+	}
+	assertIntEqualMsg(t, window.cursor.Index(), 7, "Expected cursor to be move right before moving down")
+	for i := 0; i < 2; i++ {
+		window.cursorDown()
+	}
+	assertIntEqualMsg(t, window.cursor.Index(), 25, "Expected cursor to be under anchor cursor")
 }

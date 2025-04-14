@@ -22,6 +22,14 @@ func NewTextView2(screen tcell.Screen, roi Rect, text [][]rune) *TextView2 {
 	}
 }
 
+func (self *TextView2) GetRoi() Rect {
+	return self.roi
+}
+
+func (self *TextView2) SetRoi(roi Rect) {
+	self.roi = roi
+}
+
 func (self TextView2) Draw() {
 	log.Println("Drawing TextView")
 	number_of_lines := len(self.text)

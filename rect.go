@@ -23,8 +23,8 @@ func (r Rect) Height() int {
 	return r.bot_right.row - r.top_left.row
 }
 
-func (r Rect) Size() Size {
-	return Size{width: r.Width(), height: r.Height()}
+func (r Rect) Size() Point {
+	return Point{col: r.Width(), row: r.Height()}
 }
 
 func (r Rect) Top() int {
@@ -81,6 +81,10 @@ func (r Rect) SetRight(to int) Rect {
 func (r Rect) SetBot(to int) Rect {
 	r.bot_right.row = to
 	return r
+}
+
+func (r Rect) IsPointAbove(p Point) bool {
+	return r.Top() > p.row
 }
 
 // Position in buffer: i

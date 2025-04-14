@@ -5,6 +5,7 @@ import (
 	"math"
 	"unicode/utf8"
 
+	"github.com/gdamore/tcell/v2"
 	sitter "github.com/smacker/go-tree-sitter"
 )
 
@@ -58,6 +59,7 @@ func (c WindowCursor) log() {
 }
 
 type Window struct {
+	filename          string
 	mode              WindowMode
 	buffer            IBuffer
 	cursor            BufferCursor
@@ -86,6 +88,13 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 	}
 }
 
+func (window *Window) Parse(ev tcell.Event) (Operation, error) {
+	switch window.mode {
+	default:
+		return normal_operations.Parse(ev)
+	}
+}
+
 func (window *Window) switchToInsert() {
 	window.mode = InsertMode
 }
@@ -99,6 +108,7 @@ func (window *Window) switchToVisual() {
 }
 
 func (window *Window) switchToTree() {
+	log.Println("Switch to tree mode")
 	window.mode = TreeMode
 	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
 	window.secondCursor, _ = window.cursor.ToIndex(int(window.node.EndByte()))
