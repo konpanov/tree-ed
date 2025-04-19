@@ -19,11 +19,11 @@ type Region struct {
 	start, end int
 }
 
-func (r Region) Start() int {
-	return min(r.start, r.end)
-}
-func (r Region) End() int {
-	return max(r.start, r.end)
+func NewRegion(a, b int) Region {
+	return Region{
+		start: min(a, b),
+		end:   max(a, b),
+	}
 }
 
 type Point struct {

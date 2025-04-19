@@ -15,34 +15,34 @@ type IStatusLine interface {
 	Draw()
 }
 
-type StatusLine2 struct {
+type StatusLine struct {
 	screen      tcell.Screen
 	roi         Rect
 	window      *Window
 	window_view *WindowView
 }
 
-func NewStatusLine(screen tcell.Screen, window *Window, window_view *WindowView) *StatusLine2 {
-	return &StatusLine2{
+func NewStatusLine(screen tcell.Screen, window *Window, window_view *WindowView) *StatusLine {
+	return &StatusLine{
 		screen:      screen,
 		window:      window,
 		window_view: window_view,
 	}
 }
 
-func (self *StatusLine2) GetHeight() int {
+func (self *StatusLine) GetHeight() int {
 	return 2
 }
 
-func (self *StatusLine2) GetRoi() Rect {
+func (self *StatusLine) GetRoi() Rect {
 	return self.roi
 }
 
-func (self *StatusLine2) SetRoi(roi Rect) {
+func (self *StatusLine) SetRoi(roi Rect) {
 	self.roi = roi
 }
 
-func (self *StatusLine2) Draw() {
+func (self *StatusLine) Draw() {
 	pos := self.window.cursor.RunePosition()
 	offset := self.window_view.text_offset
 	log.Println("Drawing status line")
@@ -65,7 +65,7 @@ func (self *StatusLine2) Draw() {
 		text[i] = text[i][:min(self.roi.Width(), len(text[i]))]
 	}
 
-	text_view := NewTextView2(self.screen, self.roi, text)
+	text_view := NewTextView(self.screen, self.roi, text)
 	text_view.Draw()
 }
 

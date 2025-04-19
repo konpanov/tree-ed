@@ -17,35 +17,123 @@ type Parser interface {
 	Prase(ev tcell.Event) (Operation, error)
 }
 
-type GlobalParser struct {
-	keys  KeyTable
-	runes RuneTable
-}
+type GlobalParser struct{}
 
 func (self GlobalParser) Parse(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
 	}
-	return parseKeysAndRunes(self.keys, self.runes, key_event)
+	if key_event.Key() == tcell.KeyCtrlC {
+		return QuitOperation{}, nil
+	}
+	return nil, ErrNoMatch
 }
 
-func (self OperationTable) Parse(ev tcell.Event) (Operation, error) {
-	key, is_event_key := ev.(*tcell.EventKey)
-	if !is_event_key {
+type NormalParser struct{}
+
+func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
+	key_event, ok := ev.(*tcell.EventKey)
+	if !ok {
 		return nil, ErrNotAnEventKey
 	}
+	if key_event.Key() == tcell.KeyRune {
+		switch key_event.Rune() {
+		// Navigation
+		case 'j':
+			return NormalCursorDown{}, nil
+		case 'k':
+			return NormalCursorUp{}, nil
+		case 'h':
+			return NormalCursorLeft{}, nil
+		case 'l':
+			return NormalCursorRight{}, nil
+		// Modification
+		case 'd':
+			return EraseLineAtCursor{}, nil
+		case 'x':
+			return EraseCharAtCursor{}, nil
+		// Modes
+		case 'a':
+			return SwitchToInsertModeAsAppend{}, nil
+		case 'i':
+			return SwitchToInsertMode{}, nil
+		case 'v':
+			return SwitchToVisualmode{}, nil
+		case 't':
+			return SwitchToTreeMode{}, nil
 
-	op, ok := self.key_ops[key.Key()]
-	if ok {
-		return op, nil
+		}
 	}
-	op, ok = self.rune_ops[key.Rune()]
-	if ok {
-		return op, nil
-	}
-
 	return nil, ErrNoMatch
+}
+
+type InsertParser struct{}
+
+func (self InsertParser) Parse(ev tcell.Event) (Operation, error) {
+	key_event, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return nil, ErrNotAnEventKey
+	}
+	switch key_event.Key() {
+	case tcell.KeyRune:
+		return InsertChar{char: key_event.Rune()}, nil
+	case tcell.KeyEsc:
+		return SwitchToNormalMode{}, nil
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		return EraseCharAtCursor{}, nil
+	case tcell.KeyEnter:
+		return InsertNewLine{}, nil
+	default:
+		return nil, ErrNoMatch
+
+	}
+}
+
+type TreeParser struct{}
+
+func (self TreeParser) Parse(ev tcell.Event) (Operation, error) {
+	key_event, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return nil, ErrNotAnEventKey
+	}
+	keys := KeyTable{
+		tcell.KeyEsc: SwitchToNormalMode{},
+	}
+	runes := RuneTable{
+		't': SwitchToNormalMode{},
+		'k': NodeUpOperation{},
+		'j': NodeDownOperation{},
+		'l': NodeRightOperation{},
+		'h': NodeLeftOperation{},
+		'd': DeleteSelectionOperation{},
+	}
+	return parseKeysAndRunes(keys, runes, key_event)
+}
+
+type VisualParser struct{}
+
+func (self VisualParser) Parse(ev tcell.Event) (Operation, error) {
+	key_event, ok := ev.(*tcell.EventKey)
+	if !ok {
+		return nil, ErrNotAnEventKey
+	}
+	keys := KeyTable{
+		tcell.KeyEsc: SwitchToNormalMode{},
+	}
+	runes := RuneTable{
+		'i': SwitchToInsertMode{},
+		'a': SwitchToInsertModeAsAppend{},
+		'v': SwitchToNormalMode{},
+		'd': DeleteSelectionOperation{},
+
+		// Navigation
+		'j': NormalCursorDown{},
+		'k': NormalCursorUp{},
+		'h': NormalCursorLeft{},
+		'l': NormalCursorRight{},
+	}
+	return parseKeysAndRunes(keys, runes, key_event)
 }
 
 func parseKeysAndRunes(keys KeyTable, runes RuneTable, ev *tcell.EventKey) (Operation, error) {
@@ -58,38 +146,4 @@ func parseKeysAndRunes(keys KeyTable, runes RuneTable, ev *tcell.EventKey) (Oper
 	}
 
 	return nil, ErrNoMatch
-}
-
-type OperationTable struct {
-	key_ops  map[tcell.Key]Operation
-	rune_ops map[rune]Operation
-}
-
-var global_operations OperationTable = OperationTable{
-	key_ops: map[tcell.Key]Operation{
-		tcell.KeyCtrlC: QuitOperation{},
-	},
-	rune_ops: map[rune]Operation{},
-}
-
-var normal_operations OperationTable = OperationTable{
-	key_ops: map[tcell.Key]Operation{},
-	rune_ops: map[rune]Operation{
-		'j': NormalCursorDown{},
-		'k': NormalCursorUp{},
-		'h': NormalCursorLeft{},
-		'l': NormalCursorRight{},
-		'i': SwitchToInsertMode{},
-	},
-}
-
-var insert_operations OperationTable = OperationTable{
-	key_ops: map[tcell.Key]Operation{},
-	rune_ops: map[rune]Operation{
-		'j': NormalCursorDown{},
-		'k': NormalCursorUp{},
-		'h': NormalCursorLeft{},
-		'l': NormalCursorRight{},
-		'i': SwitchToInsertMode{},
-	},
 }

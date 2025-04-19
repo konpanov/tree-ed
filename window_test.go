@@ -32,7 +32,7 @@ func TestWindowMoveRightCursorOnNonasciiCharacters(t *testing.T) {
 	content := []byte("ąćż")
 	buffer, _ := bufferFromContent(content, []byte(NewLineUnix))
 	window := windowFromBuffer(buffer, 10, 10)
-	window.moveCursor(Right)
+	window.cursorRight()
 	assertIntEqualMsg(t, window.cursor.index, 2, "Expected cursor to move to move from 'ą' to 'ć': ")
 }
 
@@ -43,7 +43,7 @@ func TestWindowMoveLeftCursorOnNonasciiCharacters(t *testing.T) {
 	buffer, _ := bufferFromContent(content, []byte(NewLineUnix))
 	window := windowFromBuffer(buffer, 10, 10)
 	window.cursor, _ = window.cursor.ToIndex(4)
-	window.moveCursor(Left)
+	window.cursorLeft()
 	assertIntEqualMsg(t, window.cursor.index, 2, "Expected cursor to move to move from 'ż' to 'ć': ")
 }
 

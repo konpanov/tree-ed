@@ -41,8 +41,6 @@ func (self *WindowView) Update(roi Rect) {
 }
 
 func (self *WindowView) Draw() {
-	// self.status_line = &StatusLine2{screen: self.screen, window: self.window, window_view: self}
-
 	line_numbers_width := default_buffer_line_number_max_width(self.window.buffer)
 	status_line_height := self.status_line.GetHeight()
 
@@ -57,9 +55,9 @@ func (self *WindowView) Draw() {
 	self.text_offset = text_offset
 
 	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window.buffer, self.text_offset.row}
-	text_view := NewTextView2(self.screen, text_roi, text)
+	text_view := NewTextView(self.screen, text_roi, text)
 
-	var cursor_view View2
+	var cursor_view View
 
 	switch self.window.mode {
 	case InsertMode:
@@ -75,7 +73,7 @@ func (self *WindowView) Draw() {
 			tcell.StyleDefault.Reverse(true),
 		}
 	default:
-		cursor_view = &CharacterViewCursor2{self.screen, text_roi, self.window.buffer, self.window.cursor, self.text_offset}
+		cursor_view = &CharacterViewCursor{self.screen, text_roi, self.window.buffer, self.window.cursor, self.text_offset}
 	}
 
 	cursor_view.Draw()

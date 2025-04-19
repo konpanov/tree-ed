@@ -55,8 +55,8 @@ func TestDrawSingleLineTextView(t *testing.T) {
 	defer screen.Fini()
 
 	text := []rune("hello")
-	var view View2
-	view = NewTextView2(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{text})
+	var view View
+	view = NewTextView(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{text})
 	view.Draw()
 
 	screen.Show()
@@ -71,8 +71,8 @@ func TestDrawDoubleLineTextView(t *testing.T) {
 
 	line1 := []rune("hello")
 	line2 := []rune("world")
-	var view View2
-	view = NewTextView2(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{line1, line2})
+	var view View
+	view = NewTextView(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{line1, line2})
 	view.Draw()
 
 	screen.Show()
@@ -90,8 +90,8 @@ func TestDrawDoubleLineTextViewWithOffsetRoi(t *testing.T) {
 
 	line1 := []rune("hello")
 	line2 := []rune("world")
-	var view View2
-	view = NewTextView2(screen, Rect{Point{3, 4}, Point{10, 10}}, [][]rune{line1, line2})
+	var view View
+	view = NewTextView(screen, Rect{Point{3, 4}, Point{10, 10}}, [][]rune{line1, line2})
 	view.Draw()
 
 	screen.Show()
@@ -112,8 +112,8 @@ func TestDrawSkippedLineTextView(t *testing.T) {
 	line2 := []rune("")
 	line3 := []rune("world")
 
-	var view View2
-	view = NewTextView2(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{line1, line2, line3})
+	var view View
+	view = NewTextView(screen, Rect{Point{0, 0}, Point{10, 10}}, [][]rune{line1, line2, line3})
 	view.Draw()
 
 	screen.Show()
@@ -201,7 +201,7 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	w, h := screen.Size()
 	roi := Rect{Point{0, 0}, Point{h, w}}
 	window := windowFromBuffer(buffer, w, h)
-	var window_view View2
+	var window_view View
 	window_view = NewWindowView(screen, roi, window)
 	window_view.Draw()
 
@@ -236,7 +236,7 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	roi := Rect{Point{0, 0}, Point{h, w}}
 
 	// Setup window
-	var window_view View2
+	var window_view View
 	window_view = NewWindowView(screen, roi, window)
 	window_view.Draw()
 
@@ -407,8 +407,8 @@ func TestDrawCharacterCursor(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	var cursorView View2
-	cursorView = NewCharacterViewCursor2(screen, roi, buffer, cursor, Point{0, 0})
+	var cursorView View
+	cursorView = NewCharacterViewCursor(screen, roi, buffer, cursor, Point{0, 0})
 	cursorView.Draw()
 
 	screen.Show()
@@ -439,12 +439,12 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer, w, h)
-	window.moveCursor(Right)
-	window.moveCursor(Down)
+	window.cursorRight()
+	window.cursorDown()
 
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	var cursorView View2
-	cursorView = NewCharacterViewCursor2(screen, roi, buffer, window.cursor, Point{})
+	var cursorView View
+	cursorView = NewCharacterViewCursor(screen, roi, buffer, window.cursor, Point{})
 	cursorView.Draw()
 
 	screen.Show()
@@ -475,12 +475,12 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer, w, h)
-	window.moveCursor(Right)
-	window.moveCursor(Down)
+	window.cursorRight()
+	window.cursorDown()
 
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	var cursorView View2
-	cursorView = NewCharacterViewCursor2(screen, roi, buffer, window.cursor, Point{0, 0})
+	var cursorView View
+	cursorView = NewCharacterViewCursor(screen, roi, buffer, window.cursor, Point{0, 0})
 	cursorView.Draw()
 
 	screen.Show()
@@ -511,11 +511,11 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer, w, h)
-	window.moveCursor(Right)
-	window.moveCursor(Down)
+	window.cursorRight()
+	window.cursorDown()
 
 	roi := Rect{Point{0, 0}, Point{h, w}}
-	var cursorView View2
+	var cursorView View
 	cursorView = &IndexViewCursor{screen, roi, buffer, window.cursor, Point{0, 0}}
 	cursorView.Draw()
 
@@ -576,7 +576,7 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	)
 
 	for i := 0; i < 5; i++ {
-		window.moveCursor(Down)
+		window.cursorDown()
 		window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: w, row: h}})
 		window_view.Draw()
 	}
@@ -585,7 +585,7 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	window_view.Draw()
 
 	for i := 5; i < len(lines)-5; i++ {
-		window.moveCursor(Down)
+		window.cursorDown()
 		window_view.Update(Rect{Point{col: 0, row: 0}, Point{col: w, row: h}})
 		window_view.Draw()
 	}

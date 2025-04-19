@@ -2,10 +2,10 @@ package main
 
 import "github.com/gdamore/tcell/v2"
 
-type ViewCursor2 interface {
+type ViewCursor interface {
 }
 
-type CharacterViewCursor2 struct {
+type CharacterViewCursor struct {
 	screen      tcell.Screen
 	roi         Rect
 	buffer      IBuffer
@@ -13,14 +13,14 @@ type CharacterViewCursor2 struct {
 	text_offset Point
 }
 
-func NewCharacterViewCursor2(
+func NewCharacterViewCursor(
 	screen tcell.Screen,
 	roi Rect,
 	buffer IBuffer,
 	cursor BufferCursor,
 	text_offset Point,
-) *CharacterViewCursor2 {
-	return &CharacterViewCursor2{
+) *CharacterViewCursor {
+	return &CharacterViewCursor{
 		screen:      screen,
 		roi:         roi,
 		buffer:      buffer,
@@ -29,15 +29,15 @@ func NewCharacterViewCursor2(
 	}
 }
 
-func (self *CharacterViewCursor2) GetRoi() Rect {
+func (self *CharacterViewCursor) GetRoi() Rect {
 	return self.roi
 }
 
-func (self *CharacterViewCursor2) SetRoi(roi Rect) {
+func (self *CharacterViewCursor) SetRoi(roi Rect) {
 	self.roi = roi
 }
 
-func (self *CharacterViewCursor2) Draw() {
+func (self *CharacterViewCursor) Draw() {
 	coord := self.cursor.RunePosition()
 	pos := text_pos_to_view_pos(coord, self.text_offset, self.roi)
 	pos = view_pos_to_screen_pos(pos, self.roi)

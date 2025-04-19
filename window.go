@@ -18,21 +18,6 @@ const (
 	TreeMode   WindowMode = "Tree"
 )
 
-func modeToString(mode WindowMode) string {
-	switch mode {
-	case NormalMode:
-		return "Normal mode"
-	case InsertMode:
-		return "Insert mode"
-	case VisualMode:
-		return "Visual mode"
-	case TreeMode:
-		return "Tree mode"
-	default:
-		return "Unkown mode"
-	}
-}
-
 type Movement int
 
 const (
@@ -90,8 +75,17 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 
 func (window *Window) Parse(ev tcell.Event) (Operation, error) {
 	switch window.mode {
+	case InsertMode:
+		return InsertParser{}.Parse(ev)
+	case TreeMode:
+		return TreeParser{}.Parse(ev)
+	case VisualMode:
+		return VisualParser{}.Parse(ev)
+	case NormalMode:
+		return NormalParser{}.Parse(ev)
 	default:
-		return normal_operations.Parse(ev)
+		log.Println("Unkown window mode, assuming normal mode")
+		return VisualParser{}.Parse(ev)
 	}
 }
 
@@ -152,19 +146,6 @@ func (window *Window) nodeLeft() {
 	window.node = sibling
 	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
 	window.secondCursor, _ = window.cursor.ToIndex(int(window.node.EndByte()))
-}
-
-func (window *Window) moveCursor(move Movement) {
-	switch move {
-	case Up:
-		window.cursorUp()
-	case Down:
-		window.cursorDown()
-	case Left:
-		window.cursorLeft()
-	case Right:
-		window.cursorRight()
-	}
 }
 
 // Cursor movements
@@ -305,31 +286,6 @@ func (window *Window) remove() {
 	log.Println("Removed succesfully")
 }
 
-// TODO: update deleteRange call to not use returned range
 func (window *Window) deleteRange(r Region) {
-	// TODO
 	window.buffer.Erase(r)
-	// window.cursor.index = max(min(r.start, len(window.buffer.Content())-1), 0)
-	// window.cursor.invalidOriginColumn = true
-	// *window.secondCursor = *window.cursor
-	// window.normalizeCursor(window.cursor)
-	// // window.shiftToCursor(window.cursor)
-}
-
-func (window *Window) deleteNode() {
-	// TODO
-	// start := window.cursor.index
-	// end := window.secondCursor.index
-	// start, end = order(start, end)
-	// end--
-	// r := Region{start, end}
-	// window.deleteRange(r)
-	// window.node = window.buffer.Tree().RootNode()
-	// window.cursor.index = int(window.node.StartByte())
-	// window.secondCursor.index = int(window.node.EndByte())
-	// window.normalizeCursor(window.cursor)
-	// window.normalizeCursor(window.secondCursor)
-	// // window.shiftToCursor(window.secondCursor)
-	// // window.shiftToCursor(window.cursor)
-	// log.Printf("%d %d", window.cursor.index, window.secondCursor.index)
 }

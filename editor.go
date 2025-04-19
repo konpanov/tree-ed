@@ -13,7 +13,6 @@ type Editor struct {
 	buffers        []IBuffer
 	windows        []*Window
 	current_window *Window
-	table          *OperationTable
 
 	is_quiting bool
 }
@@ -23,7 +22,6 @@ func NewEditor(screen tcell.Screen) *Editor {
 		screen:  screen,
 		buffers: []IBuffer{},
 		windows: []*Window{},
-		table:   &OperationTable{},
 	}
 }
 
@@ -58,7 +56,7 @@ func (self *Editor) Start() {
 		self.screen.Show()
 
 		ev := self.screen.PollEvent()
-		op, _ := global_operations.Parse(ev)
+		op, _ := GlobalParser{}.Parse(ev)
 		if op == nil {
 			op, _ = self.current_window.Parse(ev)
 		}

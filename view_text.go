@@ -8,29 +8,29 @@ import (
 
 // Text view draws given text (splitted by lines) on the screen in a given ROI
 // Implements View interface
-type TextView2 struct {
+type TextView struct {
 	screen tcell.Screen
 	roi    Rect
 	text   [][]rune
 }
 
-func NewTextView2(screen tcell.Screen, roi Rect, text [][]rune) *TextView2 {
-	return &TextView2{
+func NewTextView(screen tcell.Screen, roi Rect, text [][]rune) *TextView {
+	return &TextView{
 		screen: screen,
 		roi:    roi,
 		text:   text,
 	}
 }
 
-func (self *TextView2) GetRoi() Rect {
+func (self *TextView) GetRoi() Rect {
 	return self.roi
 }
 
-func (self *TextView2) SetRoi(roi Rect) {
+func (self *TextView) SetRoi(roi Rect) {
 	self.roi = roi
 }
 
-func (self TextView2) Draw() {
+func (self TextView) Draw() {
 	log.Println("Drawing TextView")
 	number_of_lines := len(self.text)
 	height := self.roi.Height()
