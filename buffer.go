@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"unicode/utf8"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
@@ -30,6 +31,10 @@ type Point struct {
 	row, col int
 }
 
+func sitterPoint(p Point) sitter.Point {
+	return sitter.Point{Row: uint32(p.row), Column: uint32(p.col)}
+}
+
 func (self Point) Add(other Point) Point {
 	return Point{row: self.row + other.row, col: self.col + other.col}
 }
@@ -43,12 +48,22 @@ type IBuffer interface {
 	CheckIndex(index int) error
 	CheckLine(line int) error
 
+	// Modifications
 	Insert(index int, value []byte) error
-	Erase(r Region) error
+	EraseRune(index int) error
 	EraseLine(line_number int) error
+	Erase(r Region) error
+	Edit(input ReplacementInput) error
+
 	Coord(index int) (Point, error)
 	RuneCoord(index int) (Point, error)
 	IndexFromRuneCoord(p Point) (int, error)
+
+	Changes() []BufferChange
+	ChangeIndex() int
+	Undo() error
+	Redo() error
+	MergeLastChanges() error
 
 	Tree() *sitter.Tree
 
@@ -61,29 +76,56 @@ var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
 var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
+var ErrChangeIndexOutOfRange = fmt.Errorf("Change index does not exist")
+var ErrChangesAreNotContinuous = fmt.Errorf("Changes are not continuoues")
+var ErrNoChangesToMerge = fmt.Errorf("No changes to merge")
 
-type Buffer struct {
-	content []byte
-	nl_seq  []byte
-	tree    *sitter.Tree
-	quiting bool
+type ReplacementInput struct {
+	start       int
+	end         int
+	replacement []byte
 }
 
-func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
+type Buffer struct {
+	content      []byte
+	nl_seq       []byte
+	tree_parser  *sitter.Parser
+	tree         *sitter.Tree
+	quiting      bool
+	change_index int
+	changes      []BufferChange
+}
+
+func NewEmptyBuffer(nl_seq []byte) (*Buffer, error) {
+	content := []byte{}
 	parser := sitter.NewParser()
 	parser.SetLanguage(golang.GetLanguage())
 	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil {
-		log.Fatalln("Failed to parse buffer")
+		log.Fatalln("Failed to parse empty buffer")
 		return nil, err
 	}
 
 	buffer := &Buffer{
-		content: content,
-		nl_seq:  nl_seq,
-		tree:    tree,
+		content:      content,
+		nl_seq:       nl_seq,
+		tree_parser:  parser,
+		tree:         tree,
+		change_index: 0,
+		changes:      []BufferChange{},
 	}
 
+	return buffer, nil
+
+}
+
+func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
+	buffer, err := NewEmptyBuffer(nl_seq)
+	panic_if_error(err)
+	err = buffer.Edit(ReplacementInput{0, 0, content})
+	panic_if_error(err)
+	buffer.change_index = 0
+	buffer.changes = []BufferChange{}
 	return buffer, nil
 }
 
@@ -100,13 +142,13 @@ func (b *Buffer) SetQuiting(v bool) {
 }
 
 func (b *Buffer) Insert(index int, value []byte) error {
-	err := b.CheckIndex(index)
-	if err != nil {
-		return err
-	}
+	return b.Edit(ReplacementInput{index, index, value})
+}
 
-	b.content = slices.Insert(b.content, index, value...)
-	return nil
+func (b *Buffer) EraseRune(index int) error {
+	text := b.Content()[index:]
+	_, length := utf8.DecodeRune(text)
+	return b.Erase(NewRegion(index, index+length))
 }
 
 func (b *Buffer) EraseLine(line_number int) error {
@@ -121,19 +163,102 @@ func (b *Buffer) EraseLine(line_number int) error {
 }
 
 func (b *Buffer) Erase(r Region) error {
+	return b.Edit(ReplacementInput{r.start, r.end, nil})
+}
+
+func (b *Buffer) Edit(input ReplacementInput) error {
+	start := input.start
+	end := input.end
+	replacement := input.replacement
+	if err := b.CheckIndex(start); err != nil {
+		return err
+	}
+
+	if err := b.CheckIndex(end); err != nil {
+		return err
+	}
+
+	start_point, _ := b.Coord(start)
+	end_point, _ := b.Coord(end)
+
+	b.content = slices.Replace(b.content, start, end, replacement...)
+
+	new_end := start + len(replacement)
+	new_end_point, _ := b.Coord(new_end)
+
+	change := BufferChange{
+		start_index:   start,
+		new_end_index: new_end,
+		old_end_index: end,
+		start_pos:     start_point,
+		new_end_pos:   new_end_point,
+		old_end_pos:   end_point,
+		before:        b.content[start:end],
+		after:         replacement,
+	}
+	b.UpdateTree(change)
+	b.changes = b.changes[:b.change_index]
+	b.changes = append(b.changes, change)
+	b.change_index++
+	return nil
+}
+
+func (b *Buffer) UpdateTree(change BufferChange) {
+	edit := sitter.EditInput{}
+	edit.StartIndex = uint32(change.start_index)
+	edit.OldEndIndex = uint32(change.old_end_index)
+	edit.NewEndIndex = uint32(change.new_end_index)
+	edit.StartPoint = sitterPoint(change.start_pos)
+	edit.OldEndPoint = sitterPoint(change.old_end_pos)
+	edit.NewEndPoint = sitterPoint(change.new_end_pos)
+	b.tree.Edit(edit)
 	var err error
+	b.tree, err = b.tree_parser.ParseCtx(context.Background(), b.tree, b.Content())
+	panic_if_error(err)
+}
 
-	err = b.CheckIndex(r.start)
+func (b *Buffer) Undo() error {
+	if b.change_index <= 0 {
+		log.Println("No changes to undo")
+		return nil
+	}
+	if len(b.changes) < b.change_index {
+		log.Panicln("Change index is higher than number of changes which should not happen")
+	}
+
+	change := b.changes[b.change_index-1]
+	start := change.start_index
+	end := start + len(change.after)
+	b.content = slices.Replace(b.content, start, end, change.before...)
+	b.UpdateTree(change.Reverse())
+	b.change_index--
+	return nil
+}
+
+func (b *Buffer) Changes() []BufferChange {
+	return b.changes
+}
+
+func (b *Buffer) ChangeIndex() int {
+	return b.change_index
+}
+
+func (self *Buffer) MergeLastChanges() error {
+	if self.change_index <= 1 {
+		return ErrNoChangesToMerge
+	}
+	first := self.change_index - 2
+	second := self.change_index - 1
+	merged, err := self.changes[first].Merge(self.changes[second])
 	if err != nil {
 		return err
 	}
+	self.changes = slices.Replace(self.changes, first, self.change_index, merged)
+	self.change_index--
+	return nil
+}
 
-	err = b.CheckIndex(r.end)
-	if err != nil {
-		return err
-	}
-
-	b.content = slices.Delete(b.content, r.start, r.end)
+func (b *Buffer) Redo() error {
 	return nil
 }
 

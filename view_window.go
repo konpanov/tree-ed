@@ -1,6 +1,8 @@
 package main
 
-import "github.com/gdamore/tcell/v2"
+import (
+	"github.com/gdamore/tcell/v2"
+)
 
 type WindowView struct {
 	screen      tcell.Screen
@@ -49,13 +51,17 @@ func (self *WindowView) Draw() {
 
 	line_numbers_roi := self.roi.SetRight(line_numbers_end_col).SetBot(status_line_start_row)
 	self.status_line.SetRoi(self.roi.SetTop(status_line_start_row))
-	text_roi := self.roi.SetLeft(line_numbers_end_col).SetBot(status_line_start_row)
+	main_roi := self.roi.SetLeft(line_numbers_end_col).SetBot(status_line_start_row)
+	text_roi := main_roi
+	// text_roi := main_roi.SetRight(main_roi.Right() - main_roi.Width()/2)
+	// tree_roi := main_roi.SetLeft(main_roi.Left() + main_roi.Width()/2)
 
 	text, text_offset := self.get_text_from_buffer(text_roi, self.text_offset)
 	self.text_offset = text_offset
 
 	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window.buffer, self.text_offset.row}
 	text_view := NewTextView(self.screen, text_roi, text)
+	// tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
 
 	var cursor_view View
 
@@ -79,6 +85,7 @@ func (self *WindowView) Draw() {
 	cursor_view.Draw()
 	line_numbers.Draw()
 	text_view.Draw()
+	// tree_view.Draw()
 	self.status_line.Draw()
 
 }

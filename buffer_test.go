@@ -502,3 +502,23 @@ func TestBufferIndexFromRuneCoordWithEmptyLine(t *testing.T) {
 	assertNoErrors(t, err)
 	assertIntEqualMsg(t, index, 7, "Unexpected index: ")
 }
+
+func TestBufferUndoInsert(t *testing.T) {
+	var err error
+	nl := "\n"
+	content := ""
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrorsMsg(t, err, "Could not create buffer from content: ")
+
+	err = buffer.Insert(0, []byte("content"))
+	assertNoErrorsMsg(t, err, "Could not insert into buffer: ")
+	assertBytesEqual(t, buffer.Content(), []byte("content"))
+
+	err = buffer.Insert(3, []byte("___"))
+	assertNoErrorsMsg(t, err, "Could not insert into buffer: ")
+	assertBytesEqual(t, buffer.Content(), []byte("con___tent"))
+
+	err = buffer.Undo()
+	assertNoErrorsMsg(t, err, "Could not undo buffer change: ")
+	assertBytesEqual(t, buffer.Content(), []byte("content"))
+}

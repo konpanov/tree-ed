@@ -96,6 +96,10 @@ func (self BufferCursor) IsNewLine() bool {
 	return self.Match(self.buffer.Nl_seq())
 }
 
+func (self BufferCursor) IsLineStart() bool {
+	return self.BytePosition().col == 0
+}
+
 func (self BufferCursor) IsEnd() bool {
 	return self.Index() == len(self.buffer.Content())
 }
@@ -132,4 +136,17 @@ func (self BufferCursor) SearchBackward(seq []byte) (BufferCursor, error) {
 			return cursor, nil
 		}
 	}
+}
+
+func (self BufferCursor) UpdateToChange(change BufferChange) (BufferCursor, error) {
+	log.Println(change)
+	if change.start_index <= self.Index() {
+		offset := len(change.after) - len(change.before)
+		if offset > 0 {
+			return self.BytesForward(offset)
+		} else {
+			return self.BytesBackward(-offset)
+		}
+	}
+	return self, nil
 }

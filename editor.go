@@ -9,10 +9,10 @@ import (
 type IEditor interface{}
 
 type Editor struct {
-	screen         tcell.Screen
-	buffers        []IBuffer
-	windows        []*Window
-	current_window *Window
+	screen  tcell.Screen
+	buffers []IBuffer
+	windows []*Window
+	curwin  *Window
 
 	is_quiting bool
 }
@@ -37,7 +37,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	window := windowFromBuffer(buffer, width, height)
 	window.filename = filename
 	self.windows = append(self.windows, window)
-	self.current_window = window
+	self.curwin = window
 }
 
 func (self *Editor) GetRoi() Rect {
@@ -46,8 +46,8 @@ func (self *Editor) GetRoi() Rect {
 }
 
 func (self *Editor) Start() {
-	window_view := NewWindowView(self.screen, self.GetRoi(), self.current_window)
-	window_view.status_line = NewStatusLine(self.screen, self.current_window, window_view)
+	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
+	window_view.status_line = NewStatusLine(self.screen, self.curwin, window_view)
 
 	for !self.is_quiting {
 		window_view.Update(self.GetRoi())
@@ -58,7 +58,7 @@ func (self *Editor) Start() {
 		ev := self.screen.PollEvent()
 		op, _ := GlobalParser{}.Parse(ev)
 		if op == nil {
-			op, _ = self.current_window.Parse(ev)
+			op, _ = self.curwin.Parse(ev)
 		}
 		if op != nil {
 			op.Execute(self)

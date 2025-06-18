@@ -52,7 +52,7 @@ func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
 		case 'd':
 			return EraseLineAtCursor{}, nil
 		case 'x':
-			return EraseCharAtCursor{}, nil
+			return EraseCharNormalMode{}, nil
 		// Modes
 		case 'a':
 			return SwitchToInsertModeAsAppend{}, nil
@@ -62,27 +62,42 @@ func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
 			return SwitchToVisualmode{}, nil
 		case 't':
 			return SwitchToTreeMode{}, nil
+		case 'u':
+			return UndoChangeOperation{}, nil
 
 		}
 	}
 	return nil, ErrNoMatch
 }
 
-type InsertParser struct{}
+type InsertParser struct {
+	continuous bool
+	change     ReplacementInput
+	input      []byte
+}
 
-func (self InsertParser) Parse(ev tcell.Event) (Operation, error) {
+func (self *InsertParser) Parse(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
 	}
 	switch key_event.Key() {
 	case tcell.KeyRune:
-		return InsertChar{char: key_event.Rune()}, nil
+		operation := InsertContent{
+			content:              []byte(string(key_event.Rune())),
+			continue_last_insert: self.continuous,
+		}
+		self.continuous = true
+		return operation, nil
 	case tcell.KeyEsc:
+		self.continuous = false
 		return SwitchToNormalMode{}, nil
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		return EraseCharAtCursor{}, nil
+		operation := EraseCharInsertMode{continue_last_erase: self.continuous}
+		self.continuous = true
+		return operation, nil
 	case tcell.KeyEnter:
+		self.continuous = false
 		return InsertNewLine{}, nil
 	default:
 		return nil, ErrNoMatch

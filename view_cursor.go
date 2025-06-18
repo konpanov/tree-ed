@@ -105,7 +105,7 @@ func (self *SelectionViewCursor) Draw() {
 	}
 
 	height := self.roi.Height()
-	for cursor := start; cursor.index <= end.index; cursor, _ = cursor.RunesForward(1) {
+	for cursor := start; cursor.index < end.index; cursor, _ = cursor.RunesForward(1) {
 		rune_pos := cursor.RunePosition()
 
 		// If rune is below screen stop

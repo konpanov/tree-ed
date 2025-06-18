@@ -528,8 +528,6 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 	}
 }
 
-// TODO: Add test to selection cursor view
-
 func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	screen := mkTestScreen(t, "")
 	screen.SetSize(10, 5)
@@ -544,26 +542,6 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	for i := 0; i < h+10; i++ {
 		lines = append(lines, "line"+strconv.Itoa(i+1))
 	}
-	// line1
-	// line2
-	// line3
-	// line4
-	// line5
-	// Sine6
-	// line7
-	// line8
-	// line9
-	// line10
-	// line11
-	// line12
-	// line13
-	// line14
-	// line15
-	// line16
-	// line17
-	// line18
-	// line19
-	// line20
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
 
@@ -591,11 +569,4 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	}
 
 	screen.Show()
-
-	// x, y, visible := screen.GetCursor()
-	// assertIntEqual(t, x, 1)
-	// assertIntEqual(t, y, 1)
-	// if !visible {
-	// 	t.Errorf("Expected cursor to be visible")
-	// }
 }
