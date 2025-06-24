@@ -64,8 +64,11 @@ func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
 			return SwitchToTreeMode{}, nil
 		case 'u':
 			return UndoChangeOperation{}, nil
-
 		}
+	}
+	switch key_event.Key() {
+	case tcell.KeyCtrlR:
+		return RedoChangeOperation{}, nil
 	}
 	return nil, ErrNoMatch
 }

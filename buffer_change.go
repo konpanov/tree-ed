@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"slices"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -30,6 +29,10 @@ func (self BufferChange) Reverse() BufferChange {
 		new_end_pos:   self.old_end_pos,
 		old_end_pos:   self.new_end_pos,
 	}
+}
+
+func (self BufferChange) Undo(content []byte) []byte {
+	return slices.Replace(content, self.start_index, self.new_end_index, self.before...)
 }
 
 func (self BufferChange) Equal(other BufferChange) bool {
@@ -62,9 +65,6 @@ func (first BufferChange) Merge(second BufferChange) (BufferChange, error) {
 		if first.start_index != second.old_end_index {
 			return first, ErrChangesAreNotContinuous
 		}
-		log.Println("Merging two erasings")
-		log.Println("first before: " + string(first.before))
-		log.Println("second before: " + string(second.before))
 		// testabcde
 		//       ^^
 		// testabde

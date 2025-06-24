@@ -63,7 +63,6 @@ type IBuffer interface {
 	ChangeIndex() int
 	Undo() error
 	Redo() error
-	MergeLastChanges() error
 
 	Tree() *sitter.Tree
 
@@ -78,7 +77,8 @@ var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than 
 var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
 var ErrChangeIndexOutOfRange = fmt.Errorf("Change index does not exist")
 var ErrChangesAreNotContinuous = fmt.Errorf("Changes are not continuoues")
-var ErrNoChangesToMerge = fmt.Errorf("No changes to merge")
+var ErrNoChangesToUndo = fmt.Errorf("There are no changes to undo")
+var ErrNoChangesToRedo = fmt.Errorf("There are no changes to redo")
 
 type ReplacementInput struct {
 	start       int
@@ -169,7 +169,7 @@ func (b *Buffer) Erase(r Region) error {
 func (b *Buffer) Edit(input ReplacementInput) error {
 	start := input.start
 	end := input.end
-	replacement := input.replacement
+	after := input.replacement
 	if err := b.CheckIndex(start); err != nil {
 		return err
 	}
@@ -181,9 +181,13 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	start_point, _ := b.Coord(start)
 	end_point, _ := b.Coord(end)
 
-	b.content = slices.Replace(b.content, start, end, replacement...)
+	_before := b.content[start:end]
+	before := make([]byte, len(_before))
+	copy(before, _before)
 
-	new_end := start + len(replacement)
+	b.content = slices.Replace(b.content, start, end, after...)
+
+	new_end := start + len(after)
 	new_end_point, _ := b.Coord(new_end)
 
 	change := BufferChange{
@@ -193,8 +197,8 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 		start_pos:     start_point,
 		new_end_pos:   new_end_point,
 		old_end_pos:   end_point,
-		before:        b.content[start:end],
-		after:         replacement,
+		before:        before,
+		after:         after,
 	}
 	b.UpdateTree(change)
 	b.changes = b.changes[:b.change_index]
@@ -218,20 +222,35 @@ func (b *Buffer) UpdateTree(change BufferChange) {
 }
 
 func (b *Buffer) Undo() error {
-	if b.change_index <= 0 {
-		log.Println("No changes to undo")
-		return nil
+	if b.change_index == 0 {
+		return ErrNoChangesToUndo
 	}
 	if len(b.changes) < b.change_index {
 		log.Panicln("Change index is higher than number of changes which should not happen")
 	}
+	if b.change_index < 0 {
+		log.Panicln("Change index is negative, which should no happen")
+	}
 
 	change := b.changes[b.change_index-1]
-	start := change.start_index
-	end := start + len(change.after)
-	b.content = slices.Replace(b.content, start, end, change.before...)
+	b.content = change.Undo(b.content)
 	b.UpdateTree(change.Reverse())
 	b.change_index--
+	return nil
+}
+
+func (b *Buffer) Redo() error {
+	if b.change_index == len(b.changes) {
+		return ErrNoChangesToUndo
+	}
+	if b.change_index < 0 {
+		log.Panicln("Change index is negative, which should no happen")
+	}
+
+	change := b.changes[b.change_index]
+	b.content = change.Reverse().Undo(b.content)
+	b.UpdateTree(change)
+	b.change_index++
 	return nil
 }
 
@@ -241,25 +260,6 @@ func (b *Buffer) Changes() []BufferChange {
 
 func (b *Buffer) ChangeIndex() int {
 	return b.change_index
-}
-
-func (self *Buffer) MergeLastChanges() error {
-	if self.change_index <= 1 {
-		return ErrNoChangesToMerge
-	}
-	first := self.change_index - 2
-	second := self.change_index - 1
-	merged, err := self.changes[first].Merge(self.changes[second])
-	if err != nil {
-		return err
-	}
-	self.changes = slices.Replace(self.changes, first, self.change_index, merged)
-	self.change_index--
-	return nil
-}
-
-func (b *Buffer) Redo() error {
-	return nil
 }
 
 func (b *Buffer) Coord(index int) (Point, error) {

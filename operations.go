@@ -61,6 +61,10 @@ type SwitchToNormalMode struct{}
 
 func (self SwitchToNormalMode) Execute(editor *Editor) {
 	editor.curwin.switchToNormal()
+	new_cursor, _ := editor.curwin.cursor.RunesBackward(1)
+	if new_cursor.RunePosition().row == editor.curwin.cursor.RunePosition().row {
+		editor.curwin.cursor = new_cursor
+	}
 }
 
 type SwitchToTreeMode struct{}
@@ -114,11 +118,6 @@ func (self EraseCharInsertMode) Execute(editor *Editor) {
 		err = editor.curwin.buffer.EraseRune(prev.Index())
 		panic_if_error(err)
 		editor.curwin.cursor = prev
-
-		if self.continue_last_erase {
-			err := editor.curwin.buffer.MergeLastChanges()
-			panic_if_error(err)
-		}
 	}
 }
 
@@ -141,11 +140,6 @@ func (self InsertContent) Execute(editor *Editor) {
 	changes := editor.curwin.buffer.Changes()
 	last_change := changes[len(changes)-1]
 	editor.curwin.cursor, _ = editor.curwin.cursor.UpdateToChange(last_change)
-
-	if self.continue_last_insert {
-		err := editor.curwin.buffer.MergeLastChanges()
-		panic_if_error(err)
-	}
 }
 
 type InsertNewLine struct {
@@ -198,14 +192,19 @@ type UndoChangeOperation struct{}
 func (self UndoChangeOperation) Execute(editor *Editor) {
 	log.Println("Undoing a change")
 	buffer := editor.curwin.buffer
-	changes := buffer.Changes()
-	change_index := buffer.ChangeIndex()
-	if len(changes) == 0 || change_index == 0 {
-		log.Println("No changes to undo")
-		return
+	if buffer.Undo() == nil {
+		change := buffer.Changes()[buffer.ChangeIndex()]
+		editor.curwin.cursor, _ = editor.curwin.cursor.ToIndex(change.old_end_index - 1)
 	}
-	last_change := changes[change_index-1]
-	log.Println(string(last_change.before))
-	editor.curwin.cursor, _ = editor.curwin.cursor.UpdateToChange(last_change.Reverse())
-	editor.curwin.buffer.Undo()
+}
+
+type RedoChangeOperation struct{}
+
+func (self RedoChangeOperation) Execute(editor *Editor) {
+	log.Println("Redoing a change")
+	buffer := editor.curwin.buffer
+	if buffer.Redo() == nil {
+		change := buffer.Changes()[buffer.ChangeIndex()]
+		editor.curwin.cursor, _ = editor.curwin.cursor.ToIndex(change.old_end_index)
+	}
 }
