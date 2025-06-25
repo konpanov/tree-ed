@@ -29,7 +29,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	content, err := os.ReadFile(filename)
 	panic_if_error(err)
 
-	buffer, err := bufferFromContent(content, getSystemNewLine())
+	buffer, err := bufferFromContent(content, getContentNewLine(content))
 	panic_if_error(err)
 	self.buffers = append(self.buffers, buffer)
 
