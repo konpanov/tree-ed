@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -14,7 +15,9 @@ type BufferCursor struct {
 }
 
 var ErrReachBufferEnd = fmt.Errorf("Reached buffer end")
+var ErrReachBufferBeginning = fmt.Errorf("Reached buffer beginning")
 var ErrRuneError = fmt.Errorf("Unrecognized rune")
+var ErrLastWord = fmt.Errorf("Alread on the last word")
 
 func NewBufferCursor(buffer IBuffer) BufferCursor {
 	return BufferCursor{buffer: buffer, index: 0}
@@ -22,6 +25,11 @@ func NewBufferCursor(buffer IBuffer) BufferCursor {
 
 func (self BufferCursor) Index() int {
 	return self.index
+}
+
+func (self BufferCursor) Rune() rune {
+	value, _ := utf8.DecodeRune(self.buffer.Content()[self.index:])
+	return value
 }
 
 func (self BufferCursor) BytePosition() Point {
@@ -74,18 +82,34 @@ func (self BufferCursor) RunesForward(count int) (BufferCursor, error) {
 
 // Treats incorrect runes as a 1 byte rune
 func (self BufferCursor) RunesBackward(count int) (BufferCursor, error) {
-	if self.IsEnd() {
-		return self, ErrReachBufferEnd
+	if self.IsBegining() {
+		return self, ErrReachBufferBeginning
 	}
 	sum_size := 0
 	for i := 0; i < count; i++ {
 		value, size := utf8.DecodeLastRune(self.buffer.Content()[:self.index-sum_size])
 		if value == utf8.RuneError && size == 0 {
-			return self, ErrReachBufferEnd
+			return self, ErrReachBufferBeginning
 		}
 		sum_size += size
 	}
 	return self.BytesBackward(sum_size)
+}
+
+func (self BufferCursor) WordStartForward() (BufferCursor, error) {
+	var err error
+	prev := self
+	for err == nil && rune_class(self.Rune()) == rune_class(prev.Rune()) {
+		prev = self
+		self, err = self.RunesForward(1)
+	}
+	for err == nil && unicode.IsSpace(self.Rune()) {
+		self, err = self.RunesForward(1)
+	}
+	if err == nil && self.IsEnd() {
+		err = ErrLastWord
+	}
+	return self, err
 }
 
 func (self BufferCursor) Match(seq []byte) bool {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"unicode"
 )
 
 type Operation interface {
@@ -207,4 +208,58 @@ func (self RedoChangeOperation) Execute(editor *Editor) {
 		change := buffer.Changes()[buffer.ChangeIndex()]
 		editor.curwin.cursor, _ = editor.curwin.cursor.ToIndex(change.old_end_index)
 	}
+}
+
+type WordForwardOperation struct{}
+
+func (self WordForwardOperation) Execute(editor *Editor) {
+	log.Println("word forward")
+	new_cursor, err := editor.curwin.cursor.WordStartForward()
+	if err != nil {
+		log.Println("Error: ", err)
+	} else {
+		editor.curwin.cursor = new_cursor
+	}
+	// var err error
+	// cursor := editor.curwin.cursor
+	// next := cursor
+	// for rune_class(cursor.Rune()) == rune_class(next.Rune()) {
+	// 	cursor = next
+	// 	next, err = cursor.RunesForward(1)
+	// 	if err != nil {
+	// 		break
+	// 	}
+	// }
+	// for ok := true; ok; ok = unicode.IsSpace(cursor.Rune()) {
+	// 	prev, err := cursor.RunesForward(1)
+	// 	if err != nil {
+	// 		break
+	// 	}
+	// 	cursor = prev
+	// }
+	// editor.curwin.cursor = cursor
+}
+
+type WordBackwardOperation struct{}
+
+func (self WordBackwardOperation) Execute(editor *Editor) {
+	log.Println("word backward")
+	var err error
+	cursor := editor.curwin.cursor
+	for ok := true; ok; ok = unicode.IsSpace(cursor.Rune()) {
+		prev, err := cursor.RunesBackward(1)
+		if err != nil {
+			break
+		}
+		cursor = prev
+	}
+	prev := cursor
+	for rune_class(cursor.Rune()) == rune_class(prev.Rune()) {
+		cursor = prev
+		prev, err = cursor.RunesBackward(1)
+		if err != nil {
+			break
+		}
+	}
+	editor.curwin.cursor = cursor
 }

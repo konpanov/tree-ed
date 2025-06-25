@@ -6,6 +6,7 @@ import (
 	"log"
 	"runtime"
 	"testing"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -104,5 +105,17 @@ func list_colors() {
 func panic_if_error(err error) {
 	if err != nil {
 		log.Panicln(err)
+	}
+}
+
+func rune_class(value rune) int {
+	if unicode.IsSpace(value) {
+		return 0
+	} else if unicode.IsLetter(value) || unicode.IsDigit(value) || value == '_' {
+		return 1
+	} else if unicode.IsPunct(value) {
+		return 2
+	} else {
+		return 3
 	}
 }

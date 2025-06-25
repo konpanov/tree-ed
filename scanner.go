@@ -48,6 +48,10 @@ func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
 			return NormalCursorLeft{}, nil
 		case 'l':
 			return NormalCursorRight{}, nil
+		case 'w':
+			return WordForwardOperation{}, nil
+		case 'b':
+			return WordBackwardOperation{}, nil
 		// Modification
 		case 'd':
 			return EraseLineAtCursor{}, nil
