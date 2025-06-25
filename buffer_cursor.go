@@ -18,6 +18,7 @@ var ErrReachBufferEnd = fmt.Errorf("Reached buffer end")
 var ErrReachBufferBeginning = fmt.Errorf("Reached buffer beginning")
 var ErrRuneError = fmt.Errorf("Unrecognized rune")
 var ErrLastWord = fmt.Errorf("Alread on the last word")
+var ErrFirstWord = fmt.Errorf("Alread on the first word")
 
 func NewBufferCursor(buffer IBuffer) BufferCursor {
 	return BufferCursor{buffer: buffer, index: 0}
@@ -106,8 +107,31 @@ func (self BufferCursor) WordStartForward() (BufferCursor, error) {
 	for err == nil && unicode.IsSpace(self.Rune()) {
 		self, err = self.RunesForward(1)
 	}
-	if err == nil && self.IsEnd() {
-		err = ErrLastWord
+
+	// Move back if step on new line characters on last line
+	lines := self.buffer.Lines()
+	last_line := lines[len(lines)-1]
+	if self.Index() > last_line.end {
+		if last_line.end != last_line.start {
+			self, err = self.ToIndex(last_line.end-1)
+		} else {
+			self, err = self.ToIndex(last_line.start)
+		}
+	}
+
+	return self, err
+}
+
+func (self BufferCursor) WordStartBackward() (BufferCursor, error) {
+	var err error
+	self, err = self.RunesBackward(1)
+	for err == nil && unicode.IsSpace(self.Rune()){
+		self, err = self.RunesBackward(1)
+	}
+	prev := self
+	for err == nil && rune_class(self.Rune()) == rune_class(prev.Rune()) {
+		self = prev
+		prev, err = self.RunesBackward(1)
 	}
 	return self, err
 }
@@ -163,7 +187,6 @@ func (self BufferCursor) SearchBackward(seq []byte) (BufferCursor, error) {
 }
 
 func (self BufferCursor) UpdateToChange(change BufferChange) (BufferCursor, error) {
-	log.Println(change)
 	if change.start_index <= self.Index() {
 		offset := len(change.after) - len(change.before)
 		if offset > 0 {

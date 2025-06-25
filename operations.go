@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"unicode"
 )
 
 type Operation interface {
@@ -205,7 +204,7 @@ func (self RedoChangeOperation) Execute(editor *Editor) {
 	log.Println("Redoing a change")
 	buffer := editor.curwin.buffer
 	if buffer.Redo() == nil {
-		change := buffer.Changes()[buffer.ChangeIndex()]
+		change := buffer.Changes()[buffer.ChangeIndex()-1]
 		editor.curwin.cursor, _ = editor.curwin.cursor.ToIndex(change.old_end_index)
 	}
 }
@@ -213,53 +212,17 @@ func (self RedoChangeOperation) Execute(editor *Editor) {
 type WordForwardOperation struct{}
 
 func (self WordForwardOperation) Execute(editor *Editor) {
-	log.Println("word forward")
-	new_cursor, err := editor.curwin.cursor.WordStartForward()
-	if err != nil {
-		log.Println("Error: ", err)
-	} else {
-		editor.curwin.cursor = new_cursor
+	log.Println("Word forward")
+	if cursor, err := editor.curwin.cursor.WordStartForward(); err == nil || err == ErrReachBufferEnd {
+		editor.curwin.cursor = cursor
 	}
-	// var err error
-	// cursor := editor.curwin.cursor
-	// next := cursor
-	// for rune_class(cursor.Rune()) == rune_class(next.Rune()) {
-	// 	cursor = next
-	// 	next, err = cursor.RunesForward(1)
-	// 	if err != nil {
-	// 		break
-	// 	}
-	// }
-	// for ok := true; ok; ok = unicode.IsSpace(cursor.Rune()) {
-	// 	prev, err := cursor.RunesForward(1)
-	// 	if err != nil {
-	// 		break
-	// 	}
-	// 	cursor = prev
-	// }
-	// editor.curwin.cursor = cursor
 }
 
 type WordBackwardOperation struct{}
 
 func (self WordBackwardOperation) Execute(editor *Editor) {
-	log.Println("word backward")
-	var err error
-	cursor := editor.curwin.cursor
-	for ok := true; ok; ok = unicode.IsSpace(cursor.Rune()) {
-		prev, err := cursor.RunesBackward(1)
-		if err != nil {
-			break
-		}
-		cursor = prev
+	log.Println("Word backward")
+	if cursor, err := editor.curwin.cursor.WordStartBackward(); err == nil || err == ErrReachBufferBeginning {
+		editor.curwin.cursor = cursor
 	}
-	prev := cursor
-	for rune_class(cursor.Rune()) == rune_class(prev.Rune()) {
-		cursor = prev
-		prev, err = cursor.RunesBackward(1)
-		if err != nil {
-			break
-		}
-	}
-	editor.curwin.cursor = cursor
 }
