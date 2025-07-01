@@ -226,3 +226,15 @@ func (self WordBackwardOperation) Execute(editor *Editor) {
 		editor.curwin.cursor = cursor
 	}
 }
+
+type CountOperation struct{
+	count int
+	op Operation
+}
+
+func (self CountOperation) Execute(editor *Editor){
+	log.Println("Count operation, with count = ", self.count)
+	for i := 0; i < self.count; i++ {
+		self.op.Execute(editor)
+	}
+}

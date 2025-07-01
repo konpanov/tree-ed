@@ -55,7 +55,7 @@ type Window struct {
 	width, height     int
 	numberColumnWidth int
 	node              *sitter.Node
-	insert_parser     InsertParser
+	parser            Parser
 }
 
 func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
@@ -71,42 +71,34 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 		width:             width,
 		height:            height,
 		node:              buffer.Tree().RootNode(),
-		insert_parser:     InsertParser{},
+		parser:            &NormalParser{},
 	}
 }
 
 func (window *Window) Parse(ev tcell.Event) (Operation, error) {
-	switch window.mode {
-	case InsertMode:
-		return window.insert_parser.Parse(ev)
-	case TreeMode:
-		return TreeParser{}.Parse(ev)
-	case VisualMode:
-		return VisualParser{}.Parse(ev)
-	case NormalMode:
-		return NormalParser{}.Parse(ev)
-	default:
-		log.Println("Unkown window mode, assuming normal mode")
-		return VisualParser{}.Parse(ev)
-	}
+	return window.parser.Parse(ev)
 }
 
 func (window *Window) switchToInsert() {
 	window.mode = InsertMode
+	window.parser = &InsertParser{}
 }
 func (window *Window) switchToNormal() {
 	window.mode = NormalMode
+	window.parser = &NormalParser{}
 }
 
 func (window *Window) switchToVisual() {
 	window.mode = VisualMode
 	window.secondCursor = window.cursor
+	window.parser = &VisualParser{}
 }
 
 func (window *Window) switchToTree() {
 	log.Println("Switch to tree mode")
 	window.node = window.buffer.Tree().RootNode()
 	window.mode = TreeMode
+	window.parser = &TreeParser{}
 	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
 	window.secondCursor, _ = window.cursor.ToIndex(int(window.node.EndByte()))
 }

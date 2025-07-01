@@ -45,6 +45,19 @@ func (self *StatusLine) SetRoi(roi Rect) {
 func (self *StatusLine) Draw() {
 	pos := self.window.cursor.RunePosition()
 	offset := self.window_view.text_offset
+
+	input := ""
+	if self.window.mode == NormalMode {
+		history_parser, ok := self.window.parser.(*NormalParser)
+		if ok {
+			for i := 0; i < len(history_parser.history); i++ {
+				input += string(history_parser.history[i].Rune())
+			}
+		}
+		
+	}
+
+	
 	log.Println("Drawing status line")
 
 	text := [][]rune{
@@ -56,6 +69,7 @@ func (self *StatusLine) Draw() {
 				"col: " + strconv.Itoa(pos.col),
 				"mode: " + string(self.window.mode),
 				"offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
+				"input: " + input,
 			},
 			", ",
 		)),

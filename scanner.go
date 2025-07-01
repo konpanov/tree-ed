@@ -14,7 +14,7 @@ type KeyTable map[tcell.Key]Operation
 type RuneTable map[rune]Operation
 
 type Parser interface {
-	Prase(ev tcell.Event) (Operation, error)
+	Parse(ev tcell.Event) (Operation, error)
 }
 
 type GlobalParser struct{}
@@ -29,57 +29,9 @@ func (self GlobalParser) Parse(ev tcell.Event) (Operation, error) {
 	}
 	return nil, ErrNoMatch
 }
-
-type NormalParser struct{}
-
-func (self NormalParser) Parse(ev tcell.Event) (Operation, error) {
-	key_event, ok := ev.(*tcell.EventKey)
-	if !ok {
-		return nil, ErrNotAnEventKey
-	}
-	if key_event.Key() == tcell.KeyRune {
-		switch key_event.Rune() {
-		// Navigation
-		case 'j':
-			return NormalCursorDown{}, nil
-		case 'k':
-			return NormalCursorUp{}, nil
-		case 'h':
-			return NormalCursorLeft{}, nil
-		case 'l':
-			return NormalCursorRight{}, nil
-		case 'w':
-			return WordForwardOperation{}, nil
-		case 'b':
-			return WordBackwardOperation{}, nil
-		// Modification
-		case 'd':
-			return EraseLineAtCursor{}, nil
-		case 'x':
-			return EraseCharNormalMode{}, nil
-		// Modes
-		case 'a':
-			return SwitchToInsertModeAsAppend{}, nil
-		case 'i':
-			return SwitchToInsertMode{}, nil
-		case 'v':
-			return SwitchToVisualmode{}, nil
-		case 't':
-			return SwitchToTreeMode{}, nil
-		case 'u':
-			return UndoChangeOperation{}, nil
-		}
-	}
-	switch key_event.Key() {
-	case tcell.KeyCtrlR:
-		return RedoChangeOperation{}, nil
-	}
-	return nil, ErrNoMatch
-}
-
 type InsertParser struct {
 	continuous bool
-	change     ReplacementInput
+	change		ReplacementInput
 	input      []byte
 }
 
