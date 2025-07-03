@@ -61,7 +61,7 @@ func (self *Editor) Start() {
 			op, _ = self.curwin.Parse(ev)
 		}
 		if op != nil {
-			op.Execute(self)
+			op.Execute(self, 1)
 		}
 	}
 }

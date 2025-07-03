@@ -5,6 +5,8 @@ import (
 	"log"
 	"unicode"
 	"unicode/utf8"
+
+	sitter "github.com/smacker/go-tree-sitter"
 )
 
 // TODO Make updatable on buffer changes
@@ -19,6 +21,7 @@ var ErrReachBufferBeginning = fmt.Errorf("Reached buffer beginning")
 var ErrRuneError = fmt.Errorf("Unrecognized rune")
 var ErrLastWord = fmt.Errorf("Alread on the last word")
 var ErrFirstWord = fmt.Errorf("Alread on the first word")
+var ErrNodeNotFound = fmt.Errorf("Failed to find closes node")
 
 func NewBufferCursor(buffer IBuffer) BufferCursor {
 	return BufferCursor{buffer: buffer, index: 0}
@@ -196,4 +199,24 @@ func (self BufferCursor) UpdateToChange(change BufferChange) (BufferCursor, erro
 		}
 	}
 	return self, nil
+}
+
+func (self BufferCursor) TreeLeaf() (*sitter.Node, error) {
+	node := self.buffer.Tree().RootNode()
+	index := self.Index()
+	for node.ChildCount() != 0 {
+		found := false
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			found = int(child.StartByte()) <= index && int(child.EndByte()) > index 
+			if found {
+				node = child
+				break
+			} 
+		}
+		if !found {
+			return nil, ErrNodeNotFound
+		}
+	}
+	return node, nil
 }

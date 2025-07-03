@@ -117,6 +117,9 @@ func (self *NormalParser) ParseOperation() (Operation, error) {
 		case 'b':
 			self.Advance()
 			return WordBackwardOperation{}, nil
+		case 'g': 
+			self.Advance()
+			return GoOperation{}, nil
 		// Modification
 		case 'd':
 			self.Advance()
@@ -148,4 +151,18 @@ func (self *NormalParser) ParseOperation() (Operation, error) {
 		return RedoChangeOperation{}, nil
 	}
 	return nil, ErrNoMatch
+}
+
+func (self *NormalParser) ParseKeySequence(seq []*tcell.EventKey, op Operation) (Operation, error) {
+	for i := 0; i < len(seq); i++ {
+		key_event, err := self.Curr()
+		if err != nil {
+			return  nil, err
+		}
+		if key_event.Key() != seq[i].Key() || key_event.Rune() == seq[i].Rune() {
+			return nil, ErrNoMatch
+		}
+		self.Advance()
+	}
+	return op, nil
 }
