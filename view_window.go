@@ -12,6 +12,7 @@ type WindowView struct {
 
 	// Widgets
 	status_line IStatusLine
+	is_tree_view bool
 }
 
 func NewWindowView(
@@ -25,6 +26,7 @@ func NewWindowView(
 		window:      window,
 		text_offset: Point{0, 0},
 		status_line: NoStatusLine{},
+		is_tree_view: false, // TODO separate tree view from window view
 	}
 	view.Update(roi)
 	return view
@@ -52,16 +54,17 @@ func (self *WindowView) Draw() {
 	line_numbers_roi := self.roi.SetRight(line_numbers_end_col).SetBot(status_line_start_row)
 	self.status_line.SetRoi(self.roi.SetTop(status_line_start_row))
 	main_roi := self.roi.SetLeft(line_numbers_end_col).SetBot(status_line_start_row)
+
 	text_roi := main_roi
-	// text_roi := main_roi.SetRight(main_roi.Right() - main_roi.Width()/2)
-	// tree_roi := main_roi.SetLeft(main_roi.Left() + main_roi.Width()/2)
+	if self.is_tree_view{
+		text_roi = main_roi.SetRight(main_roi.Right() - main_roi.Width()/2)
+	}
 
 	text, text_offset := self.get_text_from_buffer(text_roi, self.text_offset)
 	self.text_offset = text_offset
 
 	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window.buffer, self.text_offset.row}
 	text_view := NewTextView(self.screen, text_roi, text)
-	// tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
 
 	var cursor_view View
 
@@ -76,16 +79,21 @@ func (self *WindowView) Draw() {
 			self.window.cursor,
 			self.window.secondCursor,
 			self.text_offset,
-			tcell.StyleDefault.Reverse(true),
+			tcell.StyleDefault.Reverse(true).Underline(true),
 		}
 	default:
 		cursor_view = &CharacterViewCursor{self.screen, text_roi, self.window.buffer, self.window.cursor, self.text_offset}
 	}
 
+	if self.is_tree_view {
+		tree_roi := main_roi.SetLeft(main_roi.Left() + main_roi.Width()/2)
+		tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
+		tree_view.Draw()
+	}
+
 	cursor_view.Draw()
 	line_numbers.Draw()
 	text_view.Draw()
-	// tree_view.Draw()
 	self.status_line.Draw()
 
 }
@@ -97,6 +105,10 @@ func (self *WindowView) get_text_from_buffer(roi Rect, text_offset Point) ([][]r
 	text_offset = Point{
 		col: max(min(text_offset.col, coord.col), coord.col-width+1),
 		row: max(min(text_offset.row, coord.row), coord.row-height+1),
+	}
+
+	if coord.col < width {
+		text_offset.col = 0
 	}
 
 	lines := self.window.buffer.Lines()

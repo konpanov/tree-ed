@@ -522,3 +522,24 @@ func TestBufferUndoInsert(t *testing.T) {
 	assertNoErrorsMsg(t, err, "Could not undo buffer change: ")
 	assertBytesEqual(t, buffer.Content(), []byte("content"))
 }
+
+func TestBufferIndexFromRuneCoordOutsideTheLine(t *testing.T){
+	var err error
+	nl := "\n"
+	content := strings.Join([]string{ "line 1", "line 2", "line 3" }, nl)
+	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	assertNoErrorsMsg(t, err, "Could not create buffer from content: ")
+	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 20})
+	assertNoErrorsMsg(t, err, "Could not find index from rune coord")
+	expected := 14
+	if index != expected {
+		t.Errorf("Unexpected index %d, expected %d", index, expected)
+	}
+
+	index, err = buffer.IndexFromRuneCoord(Point{row: 2, col: 20})
+	assertNoErrorsMsg(t, err, "Could not find index from rune coord")
+	expected = 20
+	if index != expected {
+		t.Errorf("Unexpected index %d, expected %d", index, expected)
+	}
+}

@@ -68,3 +68,20 @@ func Depth(node *sitter.Node) int {
 	}
 	return depth
 }
+
+func NodeLeaf(node *sitter.Node, index int) *sitter.Node {
+	if node == nil {
+		log.Panicln("Cannot find leaf from nil node")
+	}
+	if node.ChildCount() == 0 {
+		return node
+	}
+	for i := 0; i < int(node.ChildCount()); i++ {
+		child := node.Child(i)
+		if int(child.StartByte()) <= index && int(child.EndByte()) > index {
+			return NodeLeaf(child, index)
+		}
+		
+	}
+	return node
+}

@@ -78,11 +78,13 @@ func (self TreeParser) Parse(ev tcell.Event) (Operation, error) {
 		't': SwitchToNormalMode{},
 		'k': NodeUpOperation{},
 		'j': NodeDownOperation{},
-		'h': NodePrevSiblingOperation{},
-		'l': NodeNextSiblingOperation{},
-		'H': NodePrevCousinOperation{},
-		'L': NodeNextCousinOperation{},
+		'H': NodePrevSiblingOperation{},
+		'L': NodeNextSiblingOperation{},
+		'h': NodePrevCousinOperation{},
+		'l': NodeNextCousinOperation{},
 		'd': DeleteSelectionOperation{},
+		'u': UndoChangeOperation{},
+		'r': RedoChangeOperation{},
 	}
 	return parseKeysAndRunes(keys, runes, key_event)
 }

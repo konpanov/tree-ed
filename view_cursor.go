@@ -1,6 +1,11 @@
 package main
 
-import "github.com/gdamore/tcell/v2"
+import (
+	"errors"
+	"log"
+
+	"github.com/gdamore/tcell/v2"
+)
 
 type ViewCursor interface {
 }
@@ -39,9 +44,14 @@ func (self *CharacterViewCursor) SetRoi(roi Rect) {
 
 func (self *CharacterViewCursor) Draw() {
 	coord := self.cursor.RunePosition()
-	pos := text_pos_to_view_pos(coord, self.text_offset, self.roi)
+	pos, err := text_pos_to_view_pos(coord, self.text_offset, self.roi)
+	if errors.Is(err, ErrOutOfFrame) {
+		self.screen.ShowCursor(-1, -1)
+		return
+	} else if err != nil {
+		log.Panic(err)
+	}
 	pos = view_pos_to_screen_pos(pos, self.roi)
-
 	self.screen.SetCursorStyle(tcell.CursorStyleSteadyBlock)
 	self.screen.ShowCursor(pos.col, pos.row)
 }
@@ -64,9 +74,14 @@ func (self *IndexViewCursor) SetRoi(roi Rect) {
 
 func (self *IndexViewCursor) Draw() {
 	coord := self.cursor.RunePosition()
-	pos := text_pos_to_view_pos(coord, self.text_offset, self.roi)
+	pos, err := text_pos_to_view_pos(coord, self.text_offset, self.roi)
+	if errors.Is(err, ErrOutOfFrame) {
+		self.screen.ShowCursor(-1, -1)
+		return
+	} else if err != nil {
+		log.Panic(err)
+	}
 	pos = view_pos_to_screen_pos(pos, self.roi)
-
 	self.screen.SetCursorStyle(tcell.CursorStyleBlinkingBar)
 	self.screen.ShowCursor(pos.col, pos.row)
 }
@@ -90,9 +105,9 @@ func (self *SelectionViewCursor) SetRoi(roi Rect) {
 }
 
 func (self *SelectionViewCursor) Draw() {
-	// Get ordered start and end
+	// Order start and end cursors
 	start, end := self.cursorA, self.cursorB
-	if self.cursorA.index > self.cursorB.index {
+	if start.Index() > end.Index() {
 		start, end = end, start
 	}
 
@@ -104,21 +119,31 @@ func (self *SelectionViewCursor) Draw() {
 		panic_if_error(err)
 	}
 
-	height := self.roi.Height()
-	for cursor := start; cursor.index < end.index; cursor, _ = cursor.RunesForward(1) {
+	for cursor := start; cursor.index <= end.index && err == nil; cursor, err = cursor.RunesForward(1) {
 		rune_pos := cursor.RunePosition()
 
-		// If rune is below screen stop
-		if rune_pos.row > self.text_offset.row+height {
-			break
+		pos, err := text_pos_to_view_pos(rune_pos, self.text_offset, self.roi)
+		if err != nil {
+			if errors.Is(err, ErrAboveFrame) {
+				log.Panicf("Cursor is above frame during visual selection, but it should have been move to the start of the frame earlier, %s", err)
+			} else if errors.Is(err, ErrRightOfFrame) {
+				continue
+			} else if errors.Is(err, ErrLeftOfFrame) {
+				continue
+			} else if errors.Is(err, ErrBelowFrame) {
+				break
+			}
+		}
+		pos = view_pos_to_screen_pos(pos, self.roi)
+		set_style(self.screen, pos, self.style)
+
+		if cursor.IsNewLine(){
+			set_rune(self.screen, pos, '\u21B5')
 		}
 
-		if !cursor.IsNewLine() {
-			pos := text_pos_to_view_pos(rune_pos, self.text_offset, self.roi)
-			pos = view_pos_to_screen_pos(pos, self.roi)
-			set_style(self.screen, pos, self.style)
-		}
 	}
 
 	self.screen.ShowCursor(-1, -1)
 }
+
+

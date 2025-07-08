@@ -57,6 +57,9 @@ type IBuffer interface {
 
 	Coord(index int) (Point, error)
 	RuneCoord(index int) (Point, error)
+
+	// If point lies after the line end the index of the start of the next
+	// line or the eof index is give. 
 	IndexFromRuneCoord(p Point) (int, error)
 
 	Changes() []BufferChange
@@ -311,16 +314,21 @@ func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
 		return 0, err
 	}
 	lines := b.Lines()
-	in_runes := []rune(string(b.Content()[lines[p.row].start:lines[p.row].end]))
-	if (p.col >= 0 && p.col < len(in_runes)) || (p.col == 0 && len(in_runes) == 0) {
+	line := lines[p.row]
+	in_runes := []rune(string(b.Content()[line.start:line.end]))
+	if p.col < 0 {
+		return 0, fmt.Errorf("%w: coord col cannot be negative (%d)", ErrCoordOutOfRange, p.col)
+	} else if p.col > len(in_runes) {
+		next_line_row := p.row+1
+		if next_line_row != len(lines) {
+			return lines[next_line_row].start, nil
+		} else {
+			return len(b.Content()), nil
+		}
+	} else {
 		line_len_before_coord_in_bytes := len(string(in_runes[:p.col]))
 		return lines[p.row].start + line_len_before_coord_in_bytes, nil
-	} else if p.col < 0 {
-		return 0, fmt.Errorf("%w: coord col cannot be negative (%d)", ErrCoordOutOfRange, p.col)
-	} else {
-		return 0, fmt.Errorf("%w: coord col cannot be greater than the width of line (%d > %d)", ErrCoordOutOfRange, p.col, len(in_runes))
 	}
-
 }
 
 func (b *Buffer) Lines() []Region {

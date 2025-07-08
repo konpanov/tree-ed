@@ -9,18 +9,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-func mkTestScreen(t *testing.T, charset string) tcell.SimulationScreen {
-	s := tcell.NewSimulationScreen(charset)
-	if s == nil {
-		t.Fatalf("Failed to get simulation screen")
-	}
-	if e := s.Init(); e != nil {
-		t.Fatalf("Failed to initialize screen: %v", e)
-	}
-	s.SetSize(20, 20)
-	return s
-}
-
 func assertCells(t *testing.T, cells []tcell.SimCell, text []rune, msg string) {
 	if len(cells) != len(text) {
 		format := "%sExpected text length (%d) does not match cell slice length (%d)"

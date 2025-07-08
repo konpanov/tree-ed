@@ -59,6 +59,10 @@ func (self *StatusLine) Draw() {
 
 	
 	log.Println("Drawing status line")
+	parseError := "Correct"
+	if self.window.buffer.Tree().RootNode().HasError() {
+		parseError = "Error"
+	}
 
 	text := [][]rune{
 		[]rune(strings.Repeat("-", self.roi.Width())),
@@ -70,6 +74,7 @@ func (self *StatusLine) Draw() {
 				"mode: " + string(self.window.mode),
 				"offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
 				"input: " + input,
+				"parse state: " + parseError,
 			},
 			", ",
 		)),

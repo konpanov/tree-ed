@@ -227,7 +227,7 @@ func (self DeleteSelectionOperation) Execute(editor *Editor, count int) {
 		win.deleteRange(region)
 		win.cursor.ToIndex(region.start)
 		win.secondCursor.ToIndex(region.start)
-		win.switchToNormal()
+		win.setNode(NodeLeaf(win.buffer.Tree().RootNode(), region.start))
 	}
 }
 

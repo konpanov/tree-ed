@@ -5,12 +5,8 @@ import (
 	"log"
 	"unicode"
 	"unicode/utf8"
-
-	sitter "github.com/smacker/go-tree-sitter"
 )
 
-// TODO Make updatable on buffer changes
-// TODO Track their own lines and columns in bytes and runes
 type BufferCursor struct {
 	buffer IBuffer
 	index  int
@@ -199,24 +195,4 @@ func (self BufferCursor) UpdateToChange(change BufferChange) (BufferCursor, erro
 		}
 	}
 	return self, nil
-}
-
-func (self BufferCursor) TreeLeaf() (*sitter.Node, error) {
-	node := self.buffer.Tree().RootNode()
-	index := self.Index()
-	for node.ChildCount() != 0 {
-		found := false
-		for i := 0; i < int(node.ChildCount()); i++ {
-			child := node.Child(i)
-			found = int(child.StartByte()) <= index && int(child.EndByte()) > index 
-			if found {
-				node = child
-				break
-			} 
-		}
-		if !found {
-			return nil, ErrNodeNotFound
-		}
-	}
-	return node, nil
 }

@@ -60,7 +60,7 @@ type Window struct {
 }
 
 func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
-	return &Window{
+	window := &Window{
 		mode:              NormalMode,
 		buffer:            buffer,
 		cursor:            NewBufferCursor(buffer),
@@ -75,6 +75,8 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 		node:              buffer.Tree().RootNode(),
 		parser:            &NormalParser{},
 	}
+
+	return window
 }
 
 func (window *Window) Parse(ev tcell.Event) (Operation, error) {
@@ -98,58 +100,60 @@ func (window *Window) switchToVisual() {
 
 func (window *Window) switchToTree() {
 	log.Println("Switch to tree mode")
-	leaf, err := window.cursor.TreeLeaf()
-	if err != nil {
-		log.Panicln(err)
-	}
 	window.mode = TreeMode
 	window.parser = &TreeParser{}
-	window.setNode(leaf)
-	window.anchorDepth = Depth(window.node)
+	window.setNode(NodeLeaf(window.buffer.Tree().RootNode(), window.cursor.Index()))
+	window.anchorDepth = Depth(window.getNode())
 }
 
 func (window *Window) setNode(node *sitter.Node){
 	if node == nil {
 		log.Panic("Cannot set node do nil value")
 	}
+	log.Println("Setting node")
 	window.node = node
 	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
-	window.secondCursor, _ = window.cursor.ToIndex(int(window.node.EndByte()))
+	window.secondCursor, _ = window.cursor.ToIndex(max(int(window.node.EndByte())-1, 0))
+	log.Println("Node set")
+}
+
+func (window *Window) getNode() *sitter.Node {
+	return window.node
 }
 
 // Tree movements
 func (window *Window) nodeUp() {
-	parent := window.node.Parent()
+	parent := window.getNode().Parent()
 	if parent == nil {
 		return
 	}
 	window.setNode(parent)
-	window.anchorDepth = Depth(window.node)
+	window.anchorDepth = Depth(window.getNode())
 
 }
 
 func (window *Window) nodeDown() {
-	if window.node.ChildCount() == 0 {
+	if window.getNode().ChildCount() == 0 {
 		return
 	}
-	window.setNode(window.node.Child(0))
-	window.anchorDepth = Depth(window.node)
+	window.setNode(window.getNode().Child(0))
+	window.anchorDepth = Depth(window.getNode())
 }
 
 func (window *Window) nodeNextSibling() {
-	if sibling := window.node.NextSibling(); sibling != nil {
+	if sibling := window.getNode().NextSibling(); sibling != nil {
 		window.setNode(sibling)
 	}
 }
 
 func (window *Window) nodePrevSibling() {
-	if sibling := window.node.PrevSibling(); sibling != nil {
+	if sibling := window.getNode().PrevSibling(); sibling != nil {
 		window.setNode(sibling)
 	}
 }
 
 func (window *Window) nodeNextCousin() {
-	if cousin := NextCousin(window.node); cousin != nil {
+	if cousin := NextCousin(window.getNode()); cousin != nil {
 		if cousin.ChildCount() != 0 && Depth(cousin) < window.anchorDepth {
 			cousin = cousin.Child(0)
 		}
@@ -158,7 +162,7 @@ func (window *Window) nodeNextCousin() {
 }
 
 func (window *Window) nodePrevCousin() {
-	if cousin := PrevCousin(window.node); cousin != nil {
+	if cousin := PrevCousin(window.getNode()); cousin != nil {
 		if cousin.ChildCount() != 0 && Depth(cousin) < window.anchorDepth {
 			cousin = cousin.Child(int(cousin.ChildCount()) - 1)
 		}
