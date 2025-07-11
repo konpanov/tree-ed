@@ -14,19 +14,19 @@ import (
 const (
 	NewLineWindows string = "\r\n"
 	NewLineUnix    string = "\n"
-	NewLineMac string = "\r"
+	NewLineMac     string = "\r"
 )
 
 func getContentNewLine(content []byte) []byte {
 	nl_windows := []byte(NewLineWindows)
 	nl_unix := []byte(NewLineUnix)
 	nl_mac := []byte(NewLineMac)
-	for i := range content{
-		if matchBytes(content[i:], nl_windows){
+	for i := range content {
+		if matchBytes(content[i:], nl_windows) {
 			return nl_windows
 		} else if matchBytes(content[i:], nl_unix) {
 			return nl_unix
-		} else if matchBytes(content[i:], nl_mac){
+		} else if matchBytes(content[i:], nl_mac) {
 			return nl_mac
 		}
 	}

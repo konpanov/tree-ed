@@ -19,13 +19,13 @@ type View interface {
 /******************************************************/
 
 func view_pos_to_screen_pos(pos Point, roi Rect) Point {
-	col := pos.col + roi.top_left.col
-	row := pos.row + roi.top_left.row
+	col := pos.col + roi.left
+	row := pos.row + roi.top
 	screen_pos := Point{col: col, row: row}
-	if row >= roi.bot_right.row || row < roi.top_left.row {
+	if row >= roi.bot || row < roi.top {
 		log.Panicf("View should not draw outside it's roi (horizontal).\nView roi: %+v.\nView height: %d\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Height(), screen_pos, pos)
 	}
-	if col >= roi.bot_right.col || col < roi.top_left.col {
+	if col >= roi.right || col < roi.left {
 		log.Panicf("View should not draw outside it's roi (vertical).\nView roi: %+v.\nView width: %d.\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Width(), screen_pos, pos)
 	}
 	return screen_pos
@@ -54,11 +54,9 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error)
 	if err != nil {
 		return Point{}, fmt.Errorf("%w Text pos: %+v, Text offset: %+v, View roi: %+v", err, pos, text_offset, roi)
 	}
-	width := roi.bot_right.col - roi.top_left.col
-	height := roi.bot_right.row - roi.top_left.row
 	view_pos := Point{
-		col: min(pos.col-text_offset.col, width-1),
-		row: min(pos.row-text_offset.row, height-1),
+		col: min(pos.col-text_offset.col, roi.Width()-1),
+		row: min(pos.row-text_offset.row, roi.Height()-1),
 	}
 	if view_pos.row < 0 || view_pos.col < 0 {
 		log.Panicf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)

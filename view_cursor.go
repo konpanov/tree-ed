@@ -137,7 +137,7 @@ func (self *SelectionViewCursor) Draw() {
 		pos = view_pos_to_screen_pos(pos, self.roi)
 		set_style(self.screen, pos, self.style)
 
-		if cursor.IsNewLine(){
+		if cursor.IsNewLine() {
 			set_rune(self.screen, pos, '\u21B5')
 		}
 
@@ -145,5 +145,3 @@ func (self *SelectionViewCursor) Draw() {
 
 	self.screen.ShowCursor(-1, -1)
 }
-
-

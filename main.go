@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-
 	// Setup logging to file
 	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	panic_if_error(err)
@@ -44,7 +43,6 @@ func main() {
 	editor := NewEditor(screen)
 	editor.OpenFileInWindow(filename)
 	editor.Start()
-
 }
 
 func quit(screen tcell.Screen) {

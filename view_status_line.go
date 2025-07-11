@@ -48,7 +48,7 @@ func (self *StatusLine) Draw() {
 
 	input := ""
 	if self.window.mode == NormalMode {
-		history_parser, ok := self.window.parser.(*NormalParser)
+		history_parser, ok := self.window.parser.(*NormalScanner)
 		if ok {
 			for i := 0; i < len(history_parser.history); i++ {
 				input += string(history_parser.history[i].Rune())

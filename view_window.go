@@ -48,33 +48,30 @@ func (self *WindowView) Draw() {
 	line_numbers_width := default_buffer_line_number_max_width(self.window.buffer)
 	status_line_height := self.status_line.GetHeight()
 
-	status_line_start_row := self.roi.Bot() - status_line_height
-	line_numbers_end_col := self.roi.Left() + line_numbers_width
+	main_roi, status_line_roi := self.roi.SplitH(self.roi.Height()-status_line_height)
+	line_numbers_roi, main_roi := main_roi.SplitV(line_numbers_width)
+	self.status_line.SetRoi(status_line_roi)
 
-	line_numbers_roi := self.roi.SetRight(line_numbers_end_col).SetBot(status_line_start_row)
-	self.status_line.SetRoi(self.roi.SetTop(status_line_start_row))
-	main_roi := self.roi.SetLeft(line_numbers_end_col).SetBot(status_line_start_row)
-
-	text_roi := main_roi
+	var tree_roi Rect
 	if self.is_tree_view{
-		text_roi = main_roi.SetRight(main_roi.Right() - main_roi.Width()/2)
+		main_roi, tree_roi = main_roi.SplitV(main_roi.Width()/2)
 	}
 
-	text, text_offset := self.get_text_from_buffer(text_roi, self.text_offset)
+	text, text_offset := self.get_text_from_buffer(main_roi, self.text_offset)
 	self.text_offset = text_offset
 
 	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window.buffer, self.text_offset.row}
-	text_view := NewTextView(self.screen, text_roi, text)
+	text_view := NewTextView(self.screen, main_roi, text)
 
 	var cursor_view View
 
 	switch self.window.mode {
 	case InsertMode:
-		cursor_view = &IndexViewCursor{self.screen, text_roi, self.window.buffer, self.window.cursor, self.text_offset}
+		cursor_view = &IndexViewCursor{self.screen, main_roi, self.window.buffer, self.window.cursor, self.text_offset}
 	case VisualMode, TreeMode:
 		cursor_view = &SelectionViewCursor{
 			self.screen,
-			text_roi,
+			main_roi,
 			self.window.buffer,
 			self.window.cursor,
 			self.window.secondCursor,
@@ -82,11 +79,10 @@ func (self *WindowView) Draw() {
 			tcell.StyleDefault.Reverse(true).Underline(true),
 		}
 	default:
-		cursor_view = &CharacterViewCursor{self.screen, text_roi, self.window.buffer, self.window.cursor, self.text_offset}
+		cursor_view = &CharacterViewCursor{self.screen, main_roi, self.window.buffer, self.window.cursor, self.text_offset}
 	}
 
 	if self.is_tree_view {
-		tree_roi := main_roi.SetLeft(main_roi.Left() + main_roi.Width()/2)
 		tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
 		tree_view.Draw()
 	}

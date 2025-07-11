@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"slices"
-	"unicode/utf8"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
@@ -49,39 +48,27 @@ type IBuffer interface {
 	CheckLine(line int) error
 
 	// Modifications
-	Insert(index int, value []byte) error
-	EraseRune(index int) error
-	EraseLine(line_number int) error
-	Erase(r Region) error
 	Edit(input ReplacementInput) error
 
 	Coord(index int) (Point, error)
 	RuneCoord(index int) (Point, error)
 
 	// If point lies after the line end the index of the start of the next
-	// line or the eof index is give. 
+	// line or the eof index is given.
 	IndexFromRuneCoord(p Point) (int, error)
-
-	Changes() []BufferChange
-	ChangeIndex() int
-	Undo() error
-	Redo() error
 
 	Tree() *sitter.Tree
 
 	// Returns ranges in which lines are contained, without the new line sequences.
 	// New lines must be left out to treat the same last lines with new lines and without.
 	Lines() []Region
+	LastIndex() int
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
 var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
-var ErrChangeIndexOutOfRange = fmt.Errorf("Change index does not exist")
-var ErrChangesAreNotContinuous = fmt.Errorf("Changes are not continuoues")
-var ErrNoChangesToUndo = fmt.Errorf("There are no changes to undo")
-var ErrNoChangesToRedo = fmt.Errorf("There are no changes to redo")
 
 type ReplacementInput struct {
 	start       int
@@ -90,13 +77,12 @@ type ReplacementInput struct {
 }
 
 type Buffer struct {
-	content      []byte
-	nl_seq       []byte
-	tree_parser  *sitter.Parser
-	tree         *sitter.Tree
-	quiting      bool
-	change_index int
-	changes      []BufferChange
+	content     []byte
+	nl_seq      []byte
+	tree_parser *sitter.Parser
+	tree        *sitter.Tree
+	quiting     bool
+	lines       []Region
 }
 
 func NewEmptyBuffer(nl_seq []byte) (*Buffer, error) {
@@ -110,12 +96,11 @@ func NewEmptyBuffer(nl_seq []byte) (*Buffer, error) {
 	}
 
 	buffer := &Buffer{
-		content:      content,
-		nl_seq:       nl_seq,
-		tree_parser:  parser,
-		tree:         tree,
-		change_index: 0,
-		changes:      []BufferChange{},
+		content:     content,
+		nl_seq:      nl_seq,
+		tree_parser: parser,
+		tree:        tree,
+		lines:       []Region{{0, 0}},
 	}
 
 	return buffer, nil
@@ -127,8 +112,6 @@ func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
 	panic_if_error(err)
 	err = buffer.Edit(ReplacementInput{0, 0, content})
 	panic_if_error(err)
-	buffer.change_index = 0
-	buffer.changes = []BufferChange{}
 	return buffer, nil
 }
 
@@ -144,125 +127,38 @@ func (b *Buffer) SetQuiting(v bool) {
 	b.quiting = v
 }
 
-func (b *Buffer) Insert(index int, value []byte) error {
-	return b.Edit(ReplacementInput{index, index, value})
-}
-
-func (b *Buffer) EraseRune(index int) error {
-	text := b.Content()[index:]
-	_, length := utf8.DecodeRune(text)
-	return b.Erase(NewRegion(index, index+length))
-}
-
-func (b *Buffer) EraseLine(line_number int) error {
-	lines := b.Lines()
-	if line_number < 0 || len(lines) <= line_number {
-		return ErrLineIndexOutOfRange
-	}
-	line := lines[line_number]
-	line.end += len(b.nl_seq)
-	b.Erase(line)
-	return nil
-}
-
-func (b *Buffer) Erase(r Region) error {
-	return b.Edit(ReplacementInput{r.start, r.end, nil})
-}
-
 func (b *Buffer) Edit(input ReplacementInput) error {
-	start := input.start
-	end := input.end
-	after := input.replacement
-	if err := b.CheckIndex(start); err != nil {
+	var err error
+	if err = b.CheckIndex(input.start); err != nil {
 		return err
 	}
 
-	if err := b.CheckIndex(end); err != nil {
+	if err = b.CheckIndex(input.end); err != nil {
 		return err
 	}
 
-	start_point, _ := b.Coord(start)
-	end_point, _ := b.Coord(end)
+	start_point, err := b.Coord(input.start)
+	panic_if_error(err)
+	end_point, err := b.Coord(input.end)
+	panic_if_error(err)
 
-	_before := b.content[start:end]
-	before := make([]byte, len(_before))
-	copy(before, _before)
+	b.content = slices.Replace(b.content, input.start, input.end, input.replacement...)
+	b.lines = b.calculateLines()
 
-	b.content = slices.Replace(b.content, start, end, after...)
-
-	new_end := start + len(after)
+	new_end := input.start + len(input.replacement)
 	new_end_point, _ := b.Coord(new_end)
 
-	change := BufferChange{
-		start_index:   start,
-		new_end_index: new_end,
-		old_end_index: end,
-		start_pos:     start_point,
-		new_end_pos:   new_end_point,
-		old_end_pos:   end_point,
-		before:        before,
-		after:         after,
-	}
-	b.UpdateTree(change)
-	b.changes = b.changes[:b.change_index]
-	b.changes = append(b.changes, change)
-	b.change_index++
-	return nil
-}
-
-func (b *Buffer) UpdateTree(change BufferChange) {
 	edit := sitter.EditInput{}
-	edit.StartIndex = uint32(change.start_index)
-	edit.OldEndIndex = uint32(change.old_end_index)
-	edit.NewEndIndex = uint32(change.new_end_index)
-	edit.StartPoint = sitterPoint(change.start_pos)
-	edit.OldEndPoint = sitterPoint(change.old_end_pos)
-	edit.NewEndPoint = sitterPoint(change.new_end_pos)
+	edit.StartIndex = uint32(input.start)
+	edit.OldEndIndex = uint32(input.end)
+	edit.NewEndIndex = uint32(new_end)
+	edit.StartPoint = sitterPoint(start_point)
+	edit.OldEndPoint = sitterPoint(end_point)
+	edit.NewEndPoint = sitterPoint(new_end_point)
 	b.tree.Edit(edit)
-	var err error
 	b.tree, err = b.tree_parser.ParseCtx(context.Background(), b.tree, b.Content())
 	panic_if_error(err)
-}
-
-func (b *Buffer) Undo() error {
-	if b.change_index == 0 {
-		return ErrNoChangesToUndo
-	}
-	if len(b.changes) < b.change_index {
-		log.Panicln("Change index is higher than number of changes which should not happen")
-	}
-	if b.change_index < 0 {
-		log.Panicln("Change index is negative, which should no happen")
-	}
-
-	change := b.changes[b.change_index-1]
-	b.content = change.Undo(b.content)
-	b.UpdateTree(change.Reverse())
-	b.change_index--
 	return nil
-}
-
-func (b *Buffer) Redo() error {
-	if b.change_index == len(b.changes) {
-		return ErrNoChangesToUndo
-	}
-	if b.change_index < 0 {
-		log.Panicln("Change index is negative, which should no happen")
-	}
-
-	change := b.changes[b.change_index]
-	b.content = change.Reverse().Undo(b.content)
-	b.UpdateTree(change)
-	b.change_index++
-	return nil
-}
-
-func (b *Buffer) Changes() []BufferChange {
-	return b.changes
-}
-
-func (b *Buffer) ChangeIndex() int {
-	return b.change_index
 }
 
 func (b *Buffer) Coord(index int) (Point, error) {
@@ -319,7 +215,7 @@ func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
 	if p.col < 0 {
 		return 0, fmt.Errorf("%w: coord col cannot be negative (%d)", ErrCoordOutOfRange, p.col)
 	} else if p.col > len(in_runes) {
-		next_line_row := p.row+1
+		next_line_row := p.row + 1
 		if next_line_row != len(lines) {
 			return lines[next_line_row].start, nil
 		} else {
@@ -331,7 +227,7 @@ func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
 	}
 }
 
-func (b *Buffer) Lines() []Region {
+func (b *Buffer) calculateLines() []Region {
 	lines := []Region{}
 	line_finished := false
 	lines = append(lines, Region{0, 0})
@@ -353,6 +249,10 @@ func (b *Buffer) Lines() []Region {
 		lines[len(lines)-1].end = len(b.content)
 	}
 	return lines
+}
+
+func (b *Buffer) Lines() []Region {
+	return b.lines
 }
 
 func (b *Buffer) CheckIndex(index int) error {
@@ -382,4 +282,11 @@ func (b *Buffer) Tree() *sitter.Tree {
 
 func (b *Buffer) Nl_seq() []byte {
 	return b.nl_seq
+}
+
+func (b *Buffer) LastIndex() int {
+	lines := b.Lines()
+	last_line := lines[len(lines)-1]
+	last_index := max(last_line.start, last_line.end)
+	return last_index
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"unicode"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -9,17 +10,40 @@ import (
 var ErrNotAnEventKey = fmt.Errorf("Accepting only event keys")
 var ErrAmbiguous = fmt.Errorf("Ambiguous sequence")
 var ErrNoMatch = fmt.Errorf("No match for sequence")
+var ErrNoKey = fmt.Errorf("No more keys to scan")
 
 type KeyTable map[tcell.Key]Operation
 type RuneTable map[rune]Operation
 
-type Parser interface {
-	Parse(ev tcell.Event) (Operation, error)
+type Scanner interface {
+	Scan(ev tcell.Event) (Operation, error)
+	Advance() (*tcell.EventKey, error)
+	Curr() (*tcell.EventKey, error)
+	Clear()
 }
 
-type GlobalParser struct{}
+func IsDigit(key_event *tcell.EventKey) bool {
+	return key_event.Key() == tcell.KeyRune && unicode.IsDigit(key_event.Rune())
+}
 
-func (self GlobalParser) Parse(ev tcell.Event) (Operation, error) {
+func ScanInteger(scanner Scanner) (int, error) {
+	count := 0
+	ev, err := scanner.Curr()
+	if err != nil {
+		return count, err
+	}
+	if !IsDigit(ev) {
+		return count, ErrNoMatch
+	}
+	for ; err == nil && IsDigit(ev); ev, err = scanner.Advance() {
+		count = count*10 + int(ev.Rune()) - int('0')
+	}
+	return count, nil
+}
+
+type GlobalScanner struct{}
+
+func (self GlobalScanner) Scan(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
@@ -29,21 +53,60 @@ func (self GlobalParser) Parse(ev tcell.Event) (Operation, error) {
 	}
 	return nil, ErrNoMatch
 }
-type InsertParser struct {
+
+func (self GlobalScanner) Advance() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self InsertScanner) Advance() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self VisualScanner) Advance() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self TreeScanner) Advance() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self GlobalScanner) Curr() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self InsertScanner) Curr() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self VisualScanner) Curr() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self TreeScanner) Curr() (*tcell.EventKey, error) {
+	return nil, nil
+}
+func (self GlobalScanner) Clear() {
+}
+func (self InsertScanner) Clear() {
+}
+func (self VisualScanner) Clear() {
+}
+func (self TreeScanner) Clear() {
+}
+
+type InsertScanner struct {
 	continuous bool
-	change		ReplacementInput
+	change     ReplacementInput
 	input      []byte
 }
 
-func (self *InsertParser) Parse(ev tcell.Event) (Operation, error) {
+// TODO Make erasing after insert continuous (single modification, single undo)
+func (self *InsertScanner) Scan(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
 	}
 	switch key_event.Key() {
 	case tcell.KeyRune:
+		if !self.continuous {
+			self.input = []byte{}
+		}
+		self.input = append(self.input, string(key_event.Rune())...)
 		operation := InsertContent{
-			content:              []byte(string(key_event.Rune())),
+			content:              self.input,
 			continue_last_insert: self.continuous,
 		}
 		self.continuous = true
@@ -53,7 +116,7 @@ func (self *InsertParser) Parse(ev tcell.Event) (Operation, error) {
 		return SwitchToNormalMode{}, nil
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		operation := EraseCharInsertMode{continue_last_erase: self.continuous}
-		self.continuous = true
+		self.continuous = false
 		return operation, nil
 	case tcell.KeyEnter:
 		self.continuous = false
@@ -64,9 +127,9 @@ func (self *InsertParser) Parse(ev tcell.Event) (Operation, error) {
 	}
 }
 
-type TreeParser struct{}
+type TreeScanner struct{}
 
-func (self TreeParser) Parse(ev tcell.Event) (Operation, error) {
+func (self TreeScanner) Scan(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
@@ -82,16 +145,16 @@ func (self TreeParser) Parse(ev tcell.Event) (Operation, error) {
 		'L': NodeNextSiblingOperation{},
 		'h': NodePrevCousinOperation{},
 		'l': NodeNextCousinOperation{},
-		'd': DeleteSelectionOperation{},
+		'd': EraseNodeOperation{},
 		'u': UndoChangeOperation{},
 		'r': RedoChangeOperation{},
 	}
-	return parseKeysAndRunes(keys, runes, key_event)
+	return scanKeysAndRunes(keys, runes, key_event)
 }
 
-type VisualParser struct{}
+type VisualScanner struct{}
 
-func (self VisualParser) Parse(ev tcell.Event) (Operation, error) {
+func (self VisualScanner) Scan(ev tcell.Event) (Operation, error) {
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
@@ -103,7 +166,7 @@ func (self VisualParser) Parse(ev tcell.Event) (Operation, error) {
 		'i': SwitchToInsertMode{},
 		'a': SwitchToInsertModeAsAppend{},
 		'v': SwitchToNormalMode{},
-		'd': DeleteSelectionOperation{},
+		'd': EraseSelectionOperation{},
 
 		// Navigation
 		'j': NormalCursorDown{},
@@ -111,10 +174,10 @@ func (self VisualParser) Parse(ev tcell.Event) (Operation, error) {
 		'h': NormalCursorLeft{},
 		'l': NormalCursorRight{},
 	}
-	return parseKeysAndRunes(keys, runes, key_event)
+	return scanKeysAndRunes(keys, runes, key_event)
 }
 
-func parseKeysAndRunes(keys KeyTable, runes RuneTable, ev *tcell.EventKey) (Operation, error) {
+func scanKeysAndRunes(keys KeyTable, runes RuneTable, ev *tcell.EventKey) (Operation, error) {
 	if op, ok := keys[ev.Key()]; ok {
 		return op, nil
 	}

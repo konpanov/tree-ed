@@ -33,8 +33,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	panic_if_error(err)
 	self.buffers = append(self.buffers, buffer)
 
-	width, height := self.screen.Size()
-	window := windowFromBuffer(buffer, width, height)
+	window := windowFromBuffer(buffer)
 	window.filename = filename
 	self.windows = append(self.windows, window)
 	self.curwin = window
@@ -42,7 +41,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 
 func (self *Editor) GetRoi() Rect {
 	width, height := self.screen.Size()
-	return Rect{Point{col: 0, row: 0}, Point{col: width, row: height}}
+	return Rect{left: 0, right: width, top: 0, bot: height}
 }
 
 func (self *Editor) Start() {
@@ -56,9 +55,9 @@ func (self *Editor) Start() {
 		self.screen.Show()
 
 		ev := self.screen.PollEvent()
-		op, _ := GlobalParser{}.Parse(ev)
+		op, _ := GlobalScanner{}.Scan(ev)
 		if op == nil {
-			op, _ = self.curwin.Parse(ev)
+			op, _ = self.curwin.Scan(ev)
 		}
 		if op != nil {
 			op.Execute(self, 1)
