@@ -31,12 +31,12 @@ func view_pos_to_screen_pos(pos Point, roi Rect) Point {
 	return screen_pos
 }
 
-
 var ErrOutOfFrame = fmt.Errorf("")
 var ErrLeftOfFrame = fmt.Errorf("Text position is left of window frame.%w", ErrOutOfFrame)
 var ErrRightOfFrame = fmt.Errorf("Text position is right of window frame.%w", ErrOutOfFrame)
 var ErrAboveFrame = fmt.Errorf("Text position is above window frame.%w", ErrOutOfFrame)
 var ErrBelowFrame = fmt.Errorf("Text position is below window frame.%w", ErrOutOfFrame)
+
 func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error) {
 	if pos.col < 0 || pos.row < 0 {
 		log.Panicf("Text position coordinates should not be negative %+v", pos)
@@ -44,11 +44,11 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error)
 	var err error
 	if pos.col < text_offset.col {
 		err = ErrLeftOfFrame
-	} else if pos.col >= text_offset.col + roi.Width() {
+	} else if pos.col >= text_offset.col+roi.Width() {
 		err = ErrRightOfFrame
 	} else if pos.row < text_offset.row {
 		err = ErrAboveFrame
-	} else if pos.row >= text_offset.row + roi.Height(){
+	} else if pos.row >= text_offset.row+roi.Height() {
 		err = ErrBelowFrame
 	}
 	if err != nil {
@@ -62,6 +62,14 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error)
 		log.Panicf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)
 	}
 	return view_pos, nil
+}
+
+func text_pos_to_screen(pos Point, offset Point, roi Rect) (Point, error) {
+	in_view, err := text_pos_to_view_pos(pos, offset, roi)
+	if err != nil {
+		return Point{}, err
+	}
+	return view_pos_to_screen_pos(in_view, roi), nil
 }
 
 func set_rune(screen tcell.Screen, pos Point, value rune) {

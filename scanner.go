@@ -113,7 +113,7 @@ func (self *InsertScanner) Scan(ev tcell.Event) (Operation, error) {
 		return operation, nil
 	case tcell.KeyEsc:
 		self.continuous = false
-		return SwitchToNormalMode{}, nil
+		return SwitchFromInsertToNormalMode{}, nil
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		operation := EraseCharInsertMode{continue_last_erase: self.continuous}
 		self.continuous = false
@@ -127,29 +127,44 @@ func (self *InsertScanner) Scan(ev tcell.Event) (Operation, error) {
 	}
 }
 
-type TreeScanner struct{}
+type TreeScanner struct {
+	prev Operation
+}
 
 func (self TreeScanner) Scan(ev tcell.Event) (Operation, error) {
-	key_event, ok := ev.(*tcell.EventKey)
+	ek, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey
 	}
-	keys := KeyTable{
-		tcell.KeyEsc: SwitchToNormalMode{},
+	var op Operation
+	switch {
+	case ek.Key() == tcell.KeyEsc:
+		op = SwitchToNormalMode{}
+	case ek.Rune() == 't':
+		op = SwitchToNormalMode{}
+	case ek.Rune() == 'k':
+		op = NodeUpOperation{}
+	case ek.Rune() == 'j':
+		op = NodeDownOperation{}
+	case ek.Rune() == 'H':
+		op = NodePrevSiblingOperation{}
+	case ek.Rune() == 'L':
+		op = NodeNextSiblingOperation{}
+	case ek.Rune() == 'h':
+		op = NodePrevCousinOperation{}
+	case ek.Rune() == 'l':
+		op = NodeNextCousinOperation{}
+	case ek.Rune() == 'd':
+		op = EraseSelectionOperation{}
+	case ek.Rune() == 'f':
+		op = ShiftNodeForwardOperation{}
+	case ek.Rune() == 'b':
+		op = ShiftNodeBackwardOperation{}
 	}
-	runes := RuneTable{
-		't': SwitchToNormalMode{},
-		'k': NodeUpOperation{},
-		'j': NodeDownOperation{},
-		'H': NodePrevSiblingOperation{},
-		'L': NodeNextSiblingOperation{},
-		'h': NodePrevCousinOperation{},
-		'l': NodeNextCousinOperation{},
-		'd': EraseNodeOperation{},
-		'u': UndoChangeOperation{},
-		'r': RedoChangeOperation{},
+	if op != nil {
+		return op, nil
 	}
-	return scanKeysAndRunes(keys, runes, key_event)
+	return nil, ErrNoMatch
 }
 
 type VisualScanner struct{}

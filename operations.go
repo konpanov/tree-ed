@@ -18,9 +18,12 @@ func (self QuitOperation) Execute(editor *Editor, count int) {
 type NormalCursorDown struct{}
 
 func (self NormalCursorDown) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.cursorDown()
-	}
+	var err error
+	pos := editor.curwin.cursor.RunePosition()
+	pos.col = editor.curwin.cursorAnchor
+	pos.row += count
+	editor.curwin.cursor, err = editor.curwin.cursor.MoveToRunePos(pos)
+	panic_if_error(err)
 }
 
 type NormalCursorUp struct{}
@@ -69,6 +72,12 @@ func (self SwitchToVisualmode) Execute(editor *Editor, count int) {
 type SwitchToNormalMode struct{}
 
 func (self SwitchToNormalMode) Execute(editor *Editor, count int) {
+	editor.curwin.switchToNormal()
+}
+
+type SwitchFromInsertToNormalMode struct{}
+
+func (self SwitchFromInsertToNormalMode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToNormal()
 	new_cursor, _ := editor.curwin.cursor.RunesBackward(1)
 	if new_cursor.RunePosition().row == editor.curwin.cursor.RunePosition().row {
@@ -220,19 +229,9 @@ type EraseSelectionOperation struct{}
 
 func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
 	win := editor.curwin
-	mod := NewEraseModification(win, win.cursor.Index(), win.secondCursor.Index())
-	mod.cursorBefore = win.cursor.Index()
-	mod.cursorAfter = win.cursor.Index()
-	mod.Apply(win)
-	win.undotree.Push(mod)
-	win.switchToNormal()
-}
-
-type EraseNodeOperation struct{}
-
-func (self EraseNodeOperation) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	mod := NewEraseModification(win, int(win.node.StartByte()), int(win.node.EndByte()))
+	start, end := win.cursor.Index(), win.secondCursor.Index()
+	start, end = min(start, end), max(start, end)
+	mod := NewEraseModification(win, start, end+1)
 	mod.cursorBefore = win.cursor.Index()
 	mod.cursorAfter = win.cursor.Index()
 	mod.Apply(win)
@@ -308,13 +307,104 @@ type GoOperation struct {
 }
 
 func (self GoOperation) Execute(editor *Editor, count int) {
-	row := editor.curwin.cursor.RunePosition().row
-	for row < min(count-1, len(editor.curwin.buffer.Lines())) {
-		editor.curwin.cursorDown()
-		row = editor.curwin.cursor.RunePosition().row
+	var err error
+	pos := editor.curwin.cursor.RunePosition()
+	pos.col = editor.curwin.cursorAnchor
+	pos.row = max(0, count-1)
+	editor.curwin.cursor, err = editor.curwin.cursor.MoveToRunePos(pos)
+	panic_if_error(err)
+}
+
+type ShiftNodeForwardOperation struct {
+	continuous bool
+}
+
+func (self ShiftNodeForwardOperation) Execute(editor *Editor, count int) {
+	win := editor.curwin
+	node := win.shift_node
+	cousin := NextCousin(node)
+	if cousin == nil {
+		return
 	}
-	for row > max(count-1, 0) {
-		editor.curwin.cursorUp()
-		row = editor.curwin.cursor.RunePosition().row
+
+	// Erase selected text
+	start, end := order(win.cursor.Index(), win.secondCursor.Index())
+	mod1 := NewEraseModification(win, start, end+1)
+	mod1.cursorBefore = win.cursor.Index()
+	mod1.cursorAfter = win.cursor.Index()
+	mod1.Apply(win)
+
+	// Paste erased text after the sibling
+	mod2 := ReplacementModification{
+		at:           int(cousin.EndByte()) - len(mod1.before),
+		before:       []byte{},
+		after:        mod1.before,
+		cursorBefore: win.cursor.Index(),
+		cursorAfter:  win.cursor.Index(),
 	}
+	mod2.Apply(win)
+
+	// Move selection to newly pasted text
+	var err error
+	offset := int(cousin.EndByte()) - end - 1
+	win.cursor, err = win.cursor.ToIndex(win.cursor.Index() + offset)
+	win.secondCursor, err = win.secondCursor.ToIndex(win.secondCursor.Index() + offset)
+	panic_if_error(err)
+
+	win.shift_node = cousin
+	comp_mod := CompositeModification{[]Modification{mod1, mod2}}
+	win.undotree.Push(comp_mod)
+
+	// mod.cursorBefore = win.cursor.Index()
+	// mod.cursorAfter = win.cursor.Index()
+	// mod.Apply(win)
+	// win.undotree.Push(mod)
+	// win.switchToNormal()
+}
+
+type ShiftNodeBackwardOperation struct {
+	continuous bool
+}
+
+func (self ShiftNodeBackwardOperation) Execute(editor *Editor, count int) {
+	win := editor.curwin
+	node := win.shift_node
+	cousin := PrevCousin(node)
+	if cousin == nil {
+		return
+	}
+
+	// Erase selected text
+	start, end := order(win.cursor.Index(), win.secondCursor.Index())
+	mod1 := NewEraseModification(win, start, end+1)
+	mod1.cursorBefore = win.cursor.Index()
+	mod1.cursorAfter = win.cursor.Index()
+	mod1.Apply(win)
+
+	// Paste erased text after the sibling
+	mod2 := ReplacementModification{
+		at:           int(cousin.EndByte()) - len(mod1.before),
+		before:       []byte{},
+		after:        mod1.before,
+		cursorBefore: win.cursor.Index(),
+		cursorAfter:  win.cursor.Index(),
+	}
+	mod2.Apply(win)
+
+	// Move selection to newly pasted text
+	var err error
+	offset := int(cousin.EndByte()) - end - 1
+	win.cursor, err = win.cursor.ToIndex(win.cursor.Index() + offset)
+	win.secondCursor, err = win.secondCursor.ToIndex(win.secondCursor.Index() + offset)
+	panic_if_error(err)
+
+	win.shift_node = cousin
+	comp_mod := CompositeModification{[]Modification{mod1, mod2}}
+	win.undotree.Push(comp_mod)
+
+	// mod.cursorBefore = win.cursor.Index()
+	// mod.cursorAfter = win.cursor.Index()
+	// mod.Apply(win)
+	// win.undotree.Push(mod)
+	// win.switchToNormal()
 }

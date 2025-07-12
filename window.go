@@ -46,8 +46,11 @@ type Window struct {
 	secondCursor BufferCursor
 	anchorDepth  int
 	node         *sitter.Node
+	tree         *sitter.Tree
 	parser       Scanner
 	undotree     *ChangeTree
+	shift_node   *sitter.Node
+	shift_tree   *sitter.Tree
 }
 
 func windowFromBuffer(buffer IBuffer) *Window {
@@ -59,16 +62,12 @@ func windowFromBuffer(buffer IBuffer) *Window {
 		secondCursor: NewBufferCursor(buffer),
 		anchorDepth:  0,
 		node:         buffer.Tree().RootNode(),
+		tree:         buffer.Tree(),
 		parser:       &NormalScanner{},
 		undotree:     &ChangeTree{buffer, []Modification{}, 0},
 	}
 
 	return window
-}
-
-func (window *Window) Modify(mod Modification) {
-	mod.Apply(window)
-	window.undotree.Push(mod)
 }
 
 func (window *Window) Scan(ev tcell.Event) (Operation, error) {
@@ -104,6 +103,7 @@ func (window *Window) setNode(node *sitter.Node) {
 	}
 	log.Println("Setting node")
 	window.node = node
+	window.shift_node = node
 	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
 	window.secondCursor, _ = window.cursor.ToIndex(max(int(window.node.EndByte())-1, 0))
 	log.Println("Node set")
@@ -145,19 +145,13 @@ func (window *Window) nodePrevSibling() {
 }
 
 func (window *Window) nodeNextCousin() {
-	if cousin := NextCousin(window.getNode()); cousin != nil {
-		for cousin.ChildCount() != 0 && Depth(cousin) < window.anchorDepth {
-			cousin = cousin.Child(0)
-		}
+	if cousin := NextCousinDepth(window.getNode(), window.anchorDepth); cousin != nil {
 		window.setNode(cousin)
 	}
 }
 
 func (window *Window) nodePrevCousin() {
-	if cousin := PrevCousin(window.getNode()); cousin != nil {
-		if cousin.ChildCount() != 0 && Depth(cousin) < window.anchorDepth {
-			cousin = cousin.Child(int(cousin.ChildCount()) - 1)
-		}
+	if cousin := PrevCousinDepth(window.getNode(), window.anchorDepth); cousin != nil {
 		window.setNode(cousin)
 	}
 }

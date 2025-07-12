@@ -9,6 +9,7 @@ type TreeView struct {
 	screen tcell.Screen
 	roi    Rect
 	window *Window
+	style  tcell.Style
 }
 
 func (self *TreeView) GetRoi() Rect {
@@ -27,7 +28,7 @@ func (self *TreeView) DrawNode(node *sitter.Node, row int, depth int) int {
 	if row >= self.roi.Height() {
 		return row
 	}
-	style := tcell.StyleDefault
+	style := self.style
 	pos := self.window.cursor.Index()
 	if self.window.mode == TreeMode {
 		if node == self.window.getNode() {
@@ -56,16 +57,15 @@ func (self *TreeView) DrawNode(node *sitter.Node, row int, depth int) int {
 	}
 	prev_row := row
 	row += 1
-	for i := 0; i < int(node.ChildCount()); i++{
-		for r := prev_row + 1; r < row; r++{
-			pos := Point{row: r, col: depth * 2 }
+	for i := 0; i < int(node.ChildCount()); i++ {
+		for r := prev_row + 1; r < row; r++ {
+			pos := Point{row: r, col: depth * 2}
 			pos = view_pos_to_screen_pos(pos, self.roi)
 			set_rune(self.screen, pos, '|')
 		}
-		next_row := self.DrawNode(node.Child(i), row, depth + 1)
+		next_row := self.DrawNode(node.Child(i), row, depth+1)
 		prev_row = row
 		row = next_row
 	}
-	return row;
+	return row
 }
-

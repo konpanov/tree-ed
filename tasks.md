@@ -1,5 +1,4 @@
 ## WIP
-15. Rewriting undo system
 14. Add word end operator
 ## TODO
 1. In tree mode make window shift to show as much of the node as possible. Example: when go couple of nodes forward and screen moves down only the first line of the function show instead of the whole function or its top part
@@ -22,3 +21,4 @@
 7. Fix selection to the right of window frame beging processed.
 9. Fix window node not being updated on edits
 2. Improve buffer.Lines() to not recalculate every time (recalculates after change)
+15. Rewriting undo system

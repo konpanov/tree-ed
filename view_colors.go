@@ -1,0 +1,8 @@
+package main
+
+const (
+	SPACE_CADET    = 0x24273a
+	GLACIOUS       = 0x687B9C
+	TAUPE_GRAY     = 0xA59D9C
+	CHINESE_VIOLET = 0x7A607A
+)

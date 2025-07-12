@@ -18,6 +18,7 @@ var ErrRuneError = fmt.Errorf("Unrecognized rune")
 var ErrLastWord = fmt.Errorf("Alread on the last word")
 var ErrFirstWord = fmt.Errorf("Alread on the first word")
 var ErrNodeNotFound = fmt.Errorf("Failed to find closes node")
+var ErrSequenceNotFount = fmt.Errorf("Sequence not found")
 
 func NewBufferCursor(buffer IBuffer) BufferCursor {
 	return BufferCursor{buffer: buffer, index: 0}
@@ -210,8 +211,6 @@ func (self BufferCursor) IsEnd() bool {
 func (self BufferCursor) IsBegining() bool {
 	return self.Index() == 0
 }
-
-var ErrSequenceNotFount = fmt.Errorf("Sequence not found")
 
 func (self BufferCursor) SearchForward(seq []byte) (BufferCursor, error) {
 	var err error

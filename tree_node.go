@@ -81,7 +81,23 @@ func NodeLeaf(node *sitter.Node, index int) *sitter.Node {
 		if int(child.StartByte()) <= index && int(child.EndByte()) > index {
 			return NodeLeaf(child, index)
 		}
-		
+
 	}
 	return node
+}
+
+func NextCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	cousin := NextCousin(node)
+	for cousin != nil && cousin.ChildCount() != 0 && Depth(cousin) < depth {
+		cousin = cousin.Child(0)
+	}
+	return cousin
+}
+
+func PrevCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	cousin := PrevCousin(node)
+	for cousin != nil && cousin.ChildCount() != 0 && Depth(cousin) < depth {
+		cousin = cousin.Child(int(cousin.ChildCount()) - 1)
+	}
+	return cousin
 }

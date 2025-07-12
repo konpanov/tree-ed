@@ -50,7 +50,7 @@ func (self *Editor) Start() {
 
 	for !self.is_quiting {
 		window_view.Update(self.GetRoi())
-		self.screen.Clear()
+		self.screen.Fill(' ', window_view.base_style)
 		window_view.Draw()
 		self.screen.Show()
 
