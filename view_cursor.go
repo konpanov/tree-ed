@@ -112,8 +112,7 @@ func (self *SelectionViewCursor) Draw() {
 	screen_start_index, err := self.buffer.IndexFromRuneCoord(self.text_offset)
 	panic_if_error(err)
 	if start.Index() < screen_start_index {
-		start, err = start.ToIndex(screen_start_index)
-		panic_if_error(err)
+		start = start.ToIndex(screen_start_index)
 	}
 
 	for cursor := start; cursor.index <= end.index && err == nil; cursor = cursor.RuneNext() {

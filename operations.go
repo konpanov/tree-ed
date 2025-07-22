@@ -301,19 +301,16 @@ func (self CountOperation) Execute(editor *Editor, count int) {
 type GoOperation struct{}
 
 func (self GoOperation) Execute(editor *Editor, count int) {
-	var err error
 	pos := editor.curwin.cursor.RunePosition()
 	pos.col = editor.curwin.cursorAnchor
 	pos.row = max(0, count-1)
-	editor.curwin.cursor, err = editor.curwin.cursor.MoveToRunePos(pos)
-	panic_if_error(err)
+	editor.curwin.cursor = editor.curwin.cursor.MoveToRunePos(pos)
 }
 
 type ShiftNodeForwardEndOperation struct{}
 
 func (self ShiftNodeForwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
-		var err error
 		win := editor.curwin
 
 		node := win.getNode()
@@ -329,10 +326,8 @@ func (self ShiftNodeForwardEndOperation) Execute(editor *Editor, count int) {
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
 
-		win.cursor, err = win.cursor.ToIndex(-endA + startA + endB)
-		panic_if_error(err)
-		win.secondCursor, err = win.secondCursor.ToIndex(endB - 1)
-		panic_if_error(err)
+		win.cursor = win.cursor.ToIndex(-endA + startA + endB)
+		win.secondCursor = win.secondCursor.ToIndex(endB - 1)
 		win.undotree.Push(change)
 	}
 }
@@ -341,7 +336,6 @@ type ShiftNodeBackwardEndOperation struct{}
 
 func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
-		var err error
 		win := editor.curwin
 
 		node := win.getNode()
@@ -357,10 +351,8 @@ func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
 
-		win.cursor, err = win.cursor.ToIndex(startA)
-		panic_if_error(err)
-		win.secondCursor, err = win.secondCursor.ToIndex(startA + endB - startB - 1)
-		panic_if_error(err)
+		win.cursor = win.cursor.ToIndex(startA)
+		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB - 1)
 		win.undotree.Push(change)
 	}
 }

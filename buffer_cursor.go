@@ -12,7 +12,7 @@ type BufferCursor struct {
 	as_edge bool
 }
 
-var ErrSequenceNotFount = fmt.Errorf("Sequence not found")
+var ErrSequenceNotFound = fmt.Errorf("Sequence not found")
 
 func (self BufferCursor) Index() int {
 	return self.index
@@ -59,20 +59,16 @@ func (self BufferCursor) RunePosition() Point {
 	return coord
 }
 
-func (self BufferCursor) ToIndex(index int) (BufferCursor, error) {
-	index = clip(index, 0, self.Hardstop())
-	err := self.buffer.CheckIndex(index)
-	if err == nil {
-		self.index = index
-	}
-	return self, err
+func (self BufferCursor) ToIndex(index int) BufferCursor {
+	self.index = clip(index, 0, self.Hardstop())
+	return self
 }
 
-func (self BufferCursor) BytesForward(count int) (BufferCursor, error) {
+func (self BufferCursor) BytesForward(count int) BufferCursor {
 	return self.ToIndex(self.index + count)
 }
 
-func (self BufferCursor) BytesBackward(count int) (BufferCursor, error) {
+func (self BufferCursor) BytesBackward(count int) BufferCursor {
 	return self.ToIndex(self.index - count)
 }
 
@@ -80,11 +76,10 @@ func (self BufferCursor) MoveToRow(row int) BufferCursor {
 	lines := self.buffer.Lines()
 	row_clipped := clip(row, 0, len(lines)-1)
 	line := lines[row_clipped]
-	self.index = line.start
-	return self
+	return self.ToIndex(line.start)
 }
 
-func (self BufferCursor) MoveToCol(number int) (BufferCursor, error) {
+func (self BufferCursor) MoveToCol(number int) BufferCursor {
 	row := self.Row()
 	line := self.buffer.Lines()[row]
 	width := utf8.RuneCount(self.buffer.Content()[line.start:line.end])
@@ -94,17 +89,14 @@ func (self BufferCursor) MoveToCol(number int) (BufferCursor, error) {
 	col := clip(number, 0, max(width, 0))
 	index, err := self.buffer.IndexFromRuneCoord(Point{col: col, row: row})
 	panic_if_error(err)
-	cursor, err := self.ToIndex(index)
-	panic_if_error(err)
-	return cursor, nil
+	cursor := self.ToIndex(index)
+	return cursor
 }
 
-func (self BufferCursor) MoveToRunePos(pos Point) (BufferCursor, error) {
-	var err error
+func (self BufferCursor) MoveToRunePos(pos Point) BufferCursor {
 	self = self.MoveToRow(pos.row)
-	self, err = self.MoveToCol(pos.col)
-	panic_if_error(err)
-	return self, nil
+	self = self.MoveToCol(pos.col)
+	return self
 }
 
 func (self BufferCursor) RuneNext() BufferCursor {
@@ -189,29 +181,24 @@ func (self BufferCursor) IsBegining() bool {
 }
 
 func (self BufferCursor) SearchForward(seq []byte) (BufferCursor, error) {
-	var err error
 	cursor := self
-	for {
-		cursor, err = cursor.BytesForward(1)
-		if err != nil {
-			return self, fmt.Errorf("%w: %s", ErrSequenceNotFount, seq)
-		}
+	hardstop := cursor.Hardstop()
+	for cursor.Index() != hardstop {
+		cursor = cursor.BytesForward(1)
 		if cursor.Match(seq) {
 			return cursor, nil
 		}
 	}
+	return self, ErrSequenceNotFound
 }
 
 func (self BufferCursor) SearchBackward(seq []byte) (BufferCursor, error) {
-	var err error
 	cursor := self
-	for {
-		cursor, err = cursor.BytesBackward(1)
-		if err != nil {
-			return self, fmt.Errorf("%w: %s", ErrSequenceNotFount, seq)
-		}
+	for cursor.Index() != 0 {
+		cursor = cursor.BytesBackward(1)
 		if cursor.Match(seq) {
 			return cursor, nil
 		}
 	}
+	return self, ErrSequenceNotFound
 }

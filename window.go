@@ -89,8 +89,8 @@ func (self *Window) setNode(node *sitter.Node, updateDepth bool) {
 		log.Panic("Cannot set node to nil value")
 	}
 	log.Println("Setting node")
-	self.cursor, _ = self.cursor.ToIndex(int(node.StartByte()))
-	self.secondCursor, _ = self.cursor.ToIndex(int(node.EndByte()) - 1)
+	self.cursor = self.cursor.ToIndex(int(node.StartByte()))
+	self.secondCursor = self.cursor.ToIndex(int(node.EndByte()) - 1)
 	if updateDepth {
 		self.anchorDepth = Depth(node)
 	}
@@ -181,31 +181,27 @@ func (self *Window) nodePrevCousin() {
 
 func (self *Window) cursorRight(count int) {
 	col := self.cursor.RunePosition().col + count
-	next, err := self.cursor.MoveToCol(col)
-	panic_if_error(err)
+	next := self.cursor.MoveToCol(col)
 	self.cursor = next
 	self.cursorAnchor = next.RunePosition().col
 }
 
 func (self *Window) cursorLeft(count int) {
 	col := self.cursor.RunePosition().col - count
-	next, err := self.cursor.MoveToCol(col)
-	panic_if_error(err)
+	next := self.cursor.MoveToCol(col)
 	self.cursor = next
 	self.cursorAnchor = next.RunePosition().col
 }
 
 func (self *Window) cursorUp(count int) {
 	pos := Point{row: self.cursor.Row() - count, col: self.cursorAnchor}
-	next, err := self.cursor.MoveToRunePos(pos)
-	panic_if_error(err)
+	next := self.cursor.MoveToRunePos(pos)
 	self.cursor = next
 }
 
 func (self *Window) cursorDown(count int) {
 	pos := Point{row: self.cursor.Row() + count, col: self.cursorAnchor}
-	next, err := self.cursor.MoveToRunePos(pos)
-	panic_if_error(err)
+	next := self.cursor.MoveToRunePos(pos)
 	self.cursor = next
 }
 
@@ -216,7 +212,7 @@ func (self *Window) eraseLineAtCursor(count int) {
 		mod := NewEraseLineModification(self, self.cursor.Row())
 		mod.cursorBefore = self.cursor.Index()
 		mod.Apply(self)
-		self.cursor, _ = self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor})
+		self.cursor = self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor})
 		self.secondCursor = self.cursor
 		mod.cursorAfter = self.cursor.Index()
 		composite.changes = append(composite.changes, mod)

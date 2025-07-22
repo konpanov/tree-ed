@@ -20,9 +20,7 @@ func (self ReplaceChange) Apply(win *Window) {
 		end:         self.at + len(self.before),
 		replacement: self.after,
 	})
-	var err error
-	win.cursor, err = win.cursor.ToIndex(self.cursorAfter)
-	panic_if_error(err)
+	win.cursor = win.cursor.ToIndex(self.cursorAfter)
 }
 
 func (self ReplaceChange) Reverse() Change {
