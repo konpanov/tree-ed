@@ -289,6 +289,13 @@ func (self WordBackwardOperation) Execute(editor *Editor, count int) {
 	}
 }
 
+type LineEndOperation struct{}
+
+func (self LineEndOperation) Execute(editor *Editor, count int) {
+	NormalCursorDown{}.Execute(editor, count-1)
+	editor.curwin.cursor = editor.curwin.cursor.ToRowEnd()
+}
+
 type CountOperation struct {
 	count int
 	op    Operation

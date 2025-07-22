@@ -35,6 +35,14 @@ func (self BufferCursor) Hardstop() int {
 	return hardstop
 }
 
+func (self BufferCursor) Rowend(row Region) int {
+	if self.as_edge {
+		return row.end
+	} else {
+		return max(row.start, row.end-1)
+	}
+}
+
 func (self BufferCursor) Row() int {
 	row, err := self.buffer.Row(self.Index())
 	if err != nil {
@@ -154,11 +162,11 @@ func (self BufferCursor) WordEndPrev() BufferCursor {
 	return self
 }
 
-// func (self BufferCursor) LineEnd() BufferCursor {
-// 	line, err := self.buffer.Line(self.Row())
-// 	panic_if_error(err)
-// 	return self.MoveToCol(line.end)
-// }
+func (self BufferCursor) ToRowEnd() BufferCursor {
+	line, err := self.buffer.Line(self.Row())
+	panic_if_error(err)
+	return self.ToIndex(self.Rowend(line))
+}
 
 func (self BufferCursor) Match(seq []byte) bool {
 	return matchBytes(self.buffer.Content()[self.index:], seq)

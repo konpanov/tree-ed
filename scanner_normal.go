@@ -60,6 +60,8 @@ func (self *NormalScanner) ScanOperation() (Operation, error) {
 			return WordEndBackwardOperation{}, nil
 		case 'g':
 			return GoOperation{}, nil
+		case '$':
+			return LineEndOperation{}, nil
 		// Modification
 		case 'd':
 			return EraseLineAtCursor{}, nil
