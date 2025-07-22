@@ -7,9 +7,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type ViewCursor interface {
-}
-
 type CharacterViewCursor struct {
 	screen      tcell.Screen
 	roi         Rect
@@ -119,7 +116,7 @@ func (self *SelectionViewCursor) Draw() {
 		panic_if_error(err)
 	}
 
-	for cursor := start; cursor.index <= end.index && err == nil; cursor, err = cursor.RunesForward(1) {
+	for cursor := start; cursor.index <= end.index && err == nil; cursor = cursor.RuneNext() {
 		rune_pos := cursor.RunePosition()
 
 		pos, err := text_pos_to_view_pos(rune_pos, self.text_offset, self.roi)
@@ -132,10 +129,13 @@ func (self *SelectionViewCursor) Draw() {
 				continue
 			} else if errors.Is(err, ErrBelowFrame) {
 				break
+			} else {
+				panic_if_error(err)
 			}
 		}
 		pos = view_pos_to_screen_pos(pos, self.roi)
-		set_style(self.screen, pos, self.style)
+		_, _, style, _ := self.screen.GetContent(pos.col, pos.row)
+		set_style(self.screen, pos, style.Background(tcell.NewHexColor(GLACIOUS)))
 
 		if cursor.IsNewLine() {
 			set_rune(self.screen, pos, '\u21B5')

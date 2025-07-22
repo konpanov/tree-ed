@@ -1,9 +1,6 @@
 package main
 
-import (
-	"log"
-	// sitter "github.com/smacker/go-tree-sitter"
-)
+import ()
 
 type Operation interface {
 	Execute(editor *Editor, count int)
@@ -18,36 +15,25 @@ func (self QuitOperation) Execute(editor *Editor, count int) {
 type NormalCursorDown struct{}
 
 func (self NormalCursorDown) Execute(editor *Editor, count int) {
-	var err error
-	pos := editor.curwin.cursor.RunePosition()
-	pos.col = editor.curwin.cursorAnchor
-	pos.row += count
-	editor.curwin.cursor, err = editor.curwin.cursor.MoveToRunePos(pos)
-	panic_if_error(err)
+	editor.curwin.cursorDown(count)
 }
 
 type NormalCursorUp struct{}
 
 func (self NormalCursorUp) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.cursorUp()
-	}
+	editor.curwin.cursorUp(count)
 }
 
 type NormalCursorLeft struct{}
 
 func (self NormalCursorLeft) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.cursorLeft()
-	}
+	editor.curwin.cursorLeft(count)
 }
 
 type NormalCursorRight struct{}
 
 func (self NormalCursorRight) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.cursorRight()
-	}
+	editor.curwin.cursorRight(count)
 }
 
 type SwitchToInsertMode struct{}
@@ -60,7 +46,7 @@ type SwitchToInsertModeAsAppend struct{}
 
 func (self SwitchToInsertModeAsAppend) Execute(editor *Editor, count int) {
 	editor.curwin.switchToInsert()
-	editor.curwin.cursorRight()
+	editor.curwin.cursorRight(1)
 }
 
 type SwitchToVisualmode struct{}
@@ -79,7 +65,7 @@ type SwitchFromInsertToNormalMode struct{}
 
 func (self SwitchFromInsertToNormalMode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToNormal()
-	new_cursor, _ := editor.curwin.cursor.RunesBackward(1)
+	new_cursor := editor.curwin.cursor.RunePrev()
 	if new_cursor.RunePosition().row == editor.curwin.cursor.RunePosition().row {
 		editor.curwin.cursor = new_cursor
 	}
@@ -88,37 +74,45 @@ func (self SwitchFromInsertToNormalMode) Execute(editor *Editor, count int) {
 type SwitchToTreeMode struct{}
 
 func (self SwitchToTreeMode) Execute(editor *Editor, count int) {
-	editor.curwin.switchToTree()
+	if editor.curwin.buffer.Tree() != nil {
+		index := editor.curwin.cursor.Index()
+		node := NodeLeaf(editor.curwin.buffer.Tree().RootNode(), index)
+		editor.curwin.setNode(node, true)
+		editor.curwin.switchToTree()
+	}
+}
+
+type SwitchFromVisualToTreeMode struct{}
+
+func (self SwitchFromVisualToTreeMode) Execute(editor *Editor, count int) {
+	if editor.curwin.buffer.Tree() != nil {
+		start, end := editor.curwin.getSelection()
+		node := MinimalNode(editor.curwin.buffer.Tree().RootNode(), start, end)
+		editor.curwin.setNode(node, true)
+		editor.curwin.switchToTree()
+	}
 }
 
 type EraseLineAtCursor struct{}
 
 func (self EraseLineAtCursor) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	composite := CompositeModification{}
-	pos := win.cursor.RunePosition()
-	for i := 0; i < count; i++ {
-		mod := NewEraseLineModification(win, win.cursor.BytePosition().row)
-		mod.cursorBefore = win.cursor.Index()
-		mod.Apply(win)
-		win.cursor, _ = win.cursor.MoveToRunePos(Point{pos.row, win.cursorAnchor})
-		mod.cursorAfter = win.cursor.Index()
-		composite.modifications = append(composite.modifications, mod)
-	}
-	win.undotree.Push(composite)
+	editor.curwin.eraseLineAtCursor(count)
 }
 
 type EraseCharNormalMode struct{}
 
 func (self EraseCharNormalMode) Execute(editor *Editor, count int) {
 	win := editor.curwin
-	composite := CompositeModification{}
-	for i := 0; i < count && !win.cursor.IsNewLine(); i++ {
+	composite := CompositeChange{}
+	for range count {
+		if win.cursor.IsNewLine() {
+			break
+		}
 		mod := NewEraseRuneModification(win, win.cursor.Index())
 		mod.cursorBefore = win.cursor.Index()
 		mod.cursorAfter = win.cursor.Index()
 		mod.Apply(win)
-		composite.modifications = append(composite.modifications, mod)
+		composite.changes = append(composite.changes, mod)
 	}
 	win.undotree.Push(composite)
 
@@ -132,9 +126,9 @@ type EraseCharInsertMode struct {
 func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
 	var err error
 	win := editor.curwin
-	for i := 0; i < count; i++ {
+	for range count {
 		if !win.cursor.IsBegining() {
-			win.cursor, err = win.cursor.RunesBackward(1)
+			win.cursor = win.cursor.RunePrev()
 			panic_if_error(err)
 			mod := NewEraseRuneModification(win, win.cursor.Index())
 			mod.cursorBefore = win.cursor.Index()
@@ -151,24 +145,14 @@ type InsertContent struct {
 }
 
 func (self InsertContent) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	if self.continue_last_insert {
-		if mod := win.undotree.Back(); mod != nil {
-			mod.Reverse().Apply(win)
-		}
-	}
-	mod := NewReplacementModification(win.cursor.Index(), []byte{}, self.content)
-	mod.cursorBefore = win.cursor.Index()
-	mod.cursorAfter = win.cursor.Index() + len(mod.after)
-	mod.Apply(win)
-	win.undotree.Push(mod)
+	editor.curwin.insertContent(self.continue_last_insert, self.content)
 }
 
 type InsertNewLine struct{}
 
 func (self InsertNewLine) Execute(editor *Editor, count int) {
 	win := editor.curwin
-	for i := 0; i < count; i++ {
+	for range count {
 		mod := NewReplacementModification(win.cursor.Index(), []byte{}, win.buffer.Nl_seq())
 		mod.cursorBefore = win.cursor.Index()
 		mod.cursorAfter = win.cursor.Index() + len(mod.after)
@@ -180,48 +164,60 @@ func (self InsertNewLine) Execute(editor *Editor, count int) {
 type NodeUpOperation struct{}
 
 func (self NodeUpOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodeUp()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodeUp()
+		}
 	}
 }
 
 type NodeDownOperation struct{}
 
 func (self NodeDownOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodeDown()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodeDown()
+		}
 	}
 }
 
 type NodeNextSiblingOperation struct{}
 
 func (self NodeNextSiblingOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodeNextSibling()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodeNextSibling()
+		}
 	}
 }
 
 type NodeNextCousinOperation struct{}
 
 func (self NodeNextCousinOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodeNextCousin()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodeNextCousin()
+		}
 	}
 }
 
 type NodePrevSiblingOperation struct{}
 
 func (self NodePrevSiblingOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodePrevSibling()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodePrevSibling()
+		}
 	}
 }
 
 type NodePrevCousinOperation struct{}
 
 func (self NodePrevCousinOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		editor.curwin.nodePrevCousin()
+	if editor.curwin.buffer.Tree() != nil {
+		for range count {
+			editor.curwin.nodePrevCousin()
+		}
 	}
 }
 
@@ -243,7 +239,7 @@ type UndoChangeOperation struct{}
 
 func (self UndoChangeOperation) Execute(editor *Editor, count int) {
 	win := editor.curwin
-	for i := 0; i < count; i++ {
+	for range count {
 		if mod := win.undotree.Back(); mod != nil {
 			mod.Reverse().Apply(win)
 		}
@@ -254,7 +250,7 @@ type RedoChangeOperation struct{}
 
 func (self RedoChangeOperation) Execute(editor *Editor, count int) {
 	win := editor.curwin
-	for i := 0; i < count; i++ {
+	for range count {
 		if mod := win.undotree.Forward(); mod != nil {
 			mod.Apply(win)
 		}
@@ -264,33 +260,32 @@ func (self RedoChangeOperation) Execute(editor *Editor, count int) {
 type WordStartForwardOperation struct{}
 
 func (self WordStartForwardOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		log.Println("Word start forward")
-		if cursor, err := editor.curwin.cursor.WordStartForward(); err == nil || err == ErrReachBufferEnd {
-			editor.curwin.cursor = cursor
-		}
+	for range count {
+		editor.curwin.cursor = editor.curwin.cursor.WordStartNext()
 	}
 }
 
 type WordEndForwardOperation struct{}
 
 func (self WordEndForwardOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		log.Println("Word end forward")
-		if cursor, err := editor.curwin.cursor.WordEndForward(); err == nil || err == ErrReachBufferEnd {
-			editor.curwin.cursor = cursor
-		}
+	for range count {
+		editor.curwin.cursor = editor.curwin.cursor.WordEndNext()
+	}
+}
+
+type WordEndBackwardOperation struct{}
+
+func (self WordEndBackwardOperation) Execute(editor *Editor, count int) {
+	for range count {
+		editor.curwin.cursor = editor.curwin.cursor.WordEndPrev()
 	}
 }
 
 type WordBackwardOperation struct{}
 
 func (self WordBackwardOperation) Execute(editor *Editor, count int) {
-	for i := 0; i < count; i++ {
-		log.Println("Word backward")
-		if cursor, err := editor.curwin.cursor.WordStartBackward(); err == nil || err == ErrReachBufferBeginning {
-			editor.curwin.cursor = cursor
-		}
+	for range count {
+		editor.curwin.cursor = editor.curwin.cursor.WordStartPrev()
 	}
 }
 
@@ -303,8 +298,7 @@ func (self CountOperation) Execute(editor *Editor, count int) {
 	self.op.Execute(editor, self.count)
 }
 
-type GoOperation struct {
-}
+type GoOperation struct{}
 
 func (self GoOperation) Execute(editor *Editor, count int) {
 	var err error
@@ -315,96 +309,58 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 	panic_if_error(err)
 }
 
-type ShiftNodeForwardOperation struct {
-	continuous bool
+type ShiftNodeForwardEndOperation struct{}
+
+func (self ShiftNodeForwardEndOperation) Execute(editor *Editor, count int) {
+	if editor.curwin.buffer.Tree() != nil {
+		var err error
+		win := editor.curwin
+
+		node := win.getNode()
+		cousin := node
+		for range count {
+			if cousin = NextCousinDepth(cousin, win.anchorDepth); cousin == nil {
+				return
+			}
+		}
+
+		startA, endA := int(node.StartByte()), int(node.EndByte())
+		startB, endB := int(cousin.StartByte()), int(cousin.EndByte())
+		change := NewSwapChange(win, startA, endA, startB, endB)
+		change.Apply(win)
+
+		win.cursor, err = win.cursor.ToIndex(-endA + startA + endB)
+		panic_if_error(err)
+		win.secondCursor, err = win.secondCursor.ToIndex(endB - 1)
+		panic_if_error(err)
+		win.undotree.Push(change)
+	}
 }
 
-func (self ShiftNodeForwardOperation) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	node := win.shift_node
-	cousin := NextCousin(node)
-	if cousin == nil {
-		return
+type ShiftNodeBackwardEndOperation struct{}
+
+func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
+	if editor.curwin.buffer.Tree() != nil {
+		var err error
+		win := editor.curwin
+
+		node := win.getNode()
+		cousin := node
+		for range count {
+			if cousin = PrevCousinDepth(cousin, win.anchorDepth); cousin == nil {
+				return
+			}
+		}
+
+		startA, endA := int(cousin.StartByte()), int(cousin.EndByte())
+		startB, endB := int(node.StartByte()), int(node.EndByte())
+		change := NewSwapChange(win, startA, endA, startB, endB)
+		change.Apply(win)
+
+		win.cursor, err = win.cursor.ToIndex(startA)
+		panic_if_error(err)
+		win.secondCursor, err = win.secondCursor.ToIndex(startA + endB - startB - 1)
+		panic_if_error(err)
+		win.undotree.Push(change)
 	}
-
-	// Erase selected text
-	start, end := order(win.cursor.Index(), win.secondCursor.Index())
-	mod1 := NewEraseModification(win, start, end+1)
-	mod1.cursorBefore = win.cursor.Index()
-	mod1.cursorAfter = win.cursor.Index()
-	mod1.Apply(win)
-
-	// Paste erased text after the sibling
-	mod2 := ReplacementModification{
-		at:           int(cousin.EndByte()) - len(mod1.before),
-		before:       []byte{},
-		after:        mod1.before,
-		cursorBefore: win.cursor.Index(),
-		cursorAfter:  win.cursor.Index(),
-	}
-	mod2.Apply(win)
-
-	// Move selection to newly pasted text
-	var err error
-	offset := int(cousin.EndByte()) - end - 1
-	win.cursor, err = win.cursor.ToIndex(win.cursor.Index() + offset)
-	win.secondCursor, err = win.secondCursor.ToIndex(win.secondCursor.Index() + offset)
-	panic_if_error(err)
-
-	win.shift_node = cousin
-	comp_mod := CompositeModification{[]Modification{mod1, mod2}}
-	win.undotree.Push(comp_mod)
-
-	// mod.cursorBefore = win.cursor.Index()
-	// mod.cursorAfter = win.cursor.Index()
-	// mod.Apply(win)
-	// win.undotree.Push(mod)
-	// win.switchToNormal()
-}
-
-type ShiftNodeBackwardOperation struct {
-	continuous bool
-}
-
-func (self ShiftNodeBackwardOperation) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	node := win.shift_node
-	cousin := PrevCousin(node)
-	if cousin == nil {
-		return
-	}
-
-	// Erase selected text
-	start, end := order(win.cursor.Index(), win.secondCursor.Index())
-	mod1 := NewEraseModification(win, start, end+1)
-	mod1.cursorBefore = win.cursor.Index()
-	mod1.cursorAfter = win.cursor.Index()
-	mod1.Apply(win)
-
-	// Paste erased text after the sibling
-	mod2 := ReplacementModification{
-		at:           int(cousin.EndByte()) - len(mod1.before),
-		before:       []byte{},
-		after:        mod1.before,
-		cursorBefore: win.cursor.Index(),
-		cursorAfter:  win.cursor.Index(),
-	}
-	mod2.Apply(win)
-
-	// Move selection to newly pasted text
-	var err error
-	offset := int(cousin.EndByte()) - end - 1
-	win.cursor, err = win.cursor.ToIndex(win.cursor.Index() + offset)
-	win.secondCursor, err = win.secondCursor.ToIndex(win.secondCursor.Index() + offset)
-	panic_if_error(err)
-
-	win.shift_node = cousin
-	comp_mod := CompositeModification{[]Modification{mod1, mod2}}
-	win.undotree.Push(comp_mod)
-
-	// mod.cursorBefore = win.cursor.Index()
-	// mod.cursorAfter = win.cursor.Index()
-	// mod.Apply(win)
-	// win.undotree.Push(mod)
-	// win.switchToNormal()
 }

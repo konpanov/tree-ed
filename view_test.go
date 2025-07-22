@@ -302,7 +302,9 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer)
-	window.cursor, _ = window.cursor.RunesForward(4)
+	for range 4 {
+		window.cursor = window.cursor.RuneNext()
+	}
 	assertIntEqualMsg(t, w, 4, "")
 	assertIntEqualMsg(t, h, 8, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
@@ -340,7 +342,9 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer)
-	window.cursor, _ = window.cursor.RunesForward(4)
+	for range 4 {
+		window.cursor = window.cursor.RuneNext()
+	}
 	assertIntEqualMsg(t, w, 4, "")
 	assertIntEqualMsg(t, h, 8, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
@@ -348,7 +352,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view := NewWindowView(screen, roi, window)
 	window_view.Draw()
 
-	window.cursor, _ = window.cursor.RunesBackward(1)
+	window.cursor = window.cursor.RunePrev()
 	window_view.Update(roi)
 	window_view.Draw()
 
@@ -360,7 +364,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
 	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
 
-	window.cursor, _ = window.cursor.RunesBackward(1)
+	window.cursor = window.cursor.RunePrev()
 	window_view.Update(roi)
 	window_view.Draw()
 
@@ -390,7 +394,7 @@ func TestDrawCharacterCursor(t *testing.T) {
 	buffer := mkTestBuffer(t, content+nl, nl)
 
 	// Setup cursor
-	cursor := NewBufferCursor(buffer)
+	cursor := BufferCursor{buffer: buffer, index: 0}
 
 	// Setup window
 	w, h := screen.Size()
@@ -427,8 +431,8 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer)
-	window.cursorRight()
-	window.cursorDown()
+	window.cursorRight(1)
+	window.cursorDown(1)
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
@@ -463,8 +467,8 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer)
-	window.cursorRight()
-	window.cursorDown()
+	window.cursorRight(1)
+	window.cursorDown(1)
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
@@ -499,8 +503,8 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer)
-	window.cursorRight()
-	window.cursorDown()
+	window.cursorRight(1)
+	window.cursorDown(1)
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
@@ -541,8 +545,8 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 		window,
 	)
 
-	for i := 0; i < 5; i++ {
-		window.cursorDown()
+	for range 5 {
+		window.cursorDown(1)
 		window_view.Update(Rect{left: 0, top: 0, right: w, bot: h})
 		window_view.Draw()
 	}
@@ -551,10 +555,140 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	window_view.Draw()
 
 	for i := 5; i < len(lines)-5; i++ {
-		window.cursorDown()
+		window.cursorDown(1)
 		window_view.Update(Rect{left: 0, top: 0, right: w, bot: h})
 		window_view.Draw()
 	}
 
 	screen.Show()
+}
+
+func TestDrawWindowEraseAtCursor(t *testing.T) {
+	var err error
+	content := []byte(strings.Join([]string{
+		"package main",
+		"",
+		"func main() {",
+		"	print(\"Hello, World!\")",
+		"}",
+	}, string(NewLineUnix)))
+	nl_seq := []byte(NewLineUnix)
+	buffer, err := bufferFromContent(content, nl_seq)
+	assertNoErrors(t, err)
+	window := windowFromBuffer(buffer)
+	screen := mkTestScreen(t, "")
+	defer screen.Fini()
+	w, h := screen.Size()
+	window_view := NewWindowView(
+		screen,
+		Rect{left: 0, top: 0, right: w, bot: h},
+		window,
+	)
+	window_view.Draw()
+	window.eraseLineAtCursor(1)
+	window_view.Draw()
+}
+
+func TestDrawWindowInsertCursor(t *testing.T) {
+	var err error
+	content := []byte(strings.Join([]string{
+		"package main",
+		"",
+		"func main() {",
+		"	print(\"Hello, World!\")",
+		"}",
+	}, string(NewLineUnix)))
+	nl_seq := []byte(NewLineUnix)
+	buffer, err := bufferFromContent(content, nl_seq)
+	assertNoErrors(t, err)
+	window := windowFromBuffer(buffer)
+	screen := mkTestScreen(t, "")
+	defer screen.Fini()
+	w, h := screen.Size()
+	window_view := NewWindowView(
+		screen,
+		Rect{left: 0, top: 0, right: w, bot: h},
+		window,
+	)
+	window_view.Draw()
+	x, y, visible := screen.GetCursor()
+	if !visible || x != 2 || y != 0 {
+		t.Errorf(
+			"Cursor in an unexpected state: %+v, %+v, %+v",
+			visible,
+			x,
+			y,
+		)
+	}
+	window.switchToInsert()
+	x, y, visible = screen.GetCursor()
+	if !visible || x != 2 || y != 0 {
+		t.Errorf(
+			"Cursor in an unexpected state: %+v, %+v, %+v",
+			visible,
+			x,
+			y,
+		)
+	}
+}
+
+func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
+	var err error
+	content := []byte{}
+	nl_seq := []byte(NewLineUnix)
+	buffer, err := bufferFromContent(content, nl_seq)
+	assertNoErrors(t, err)
+	window := windowFromBuffer(buffer)
+	screen := mkTestScreen(t, "")
+	defer screen.Fini()
+	w, h := screen.Size()
+	window_view := NewWindowView(
+		screen,
+		Rect{left: 0, top: 0, right: w, bot: h},
+		window,
+	)
+	window.switchToInsert()
+	window.insertContent(false, []byte("a"))
+	window_view.Draw()
+	x, y, visible := screen.GetCursor()
+	if !visible || x != 3 || y != 0 {
+		t.Errorf(
+			"Cursor in an unexpected state: %+v, %+v, %+v",
+			visible,
+			x,
+			y,
+		)
+	}
+}
+
+func TestDrawWindowAppendMode(t *testing.T) {
+	var err error
+	content := []byte("a")
+	nl_seq := []byte(NewLineUnix)
+	buffer, err := bufferFromContent(content, nl_seq)
+	assertNoErrors(t, err)
+	window := windowFromBuffer(buffer)
+	screen := mkTestScreen(t, "")
+	defer screen.Fini()
+	// w, h := screen.Size()
+	// window_view := NewWindowView(
+	// 	screen,
+	// 	Rect{left: 0, top: 0, right: w, bot: h},
+	// 	window,
+	// )
+	window.switchToInsert()
+	window.cursorRight(1)
+	if window.cursor.index != 1 {
+		t.Errorf("Unexpected cursor index %+v", window.cursor.index)
+	}
+	// window_view.Draw()
+	// x, y, visible := screen.GetCursor()
+	// if !visible || x != 3 || y != 0 {
+	// 	t.Errorf(
+	// 		"Cursor in an unexpected state: %+v, %+v, %+v",
+	// 		visible,
+	// 		x,
+	// 		y,
+	// 	)
+	// }
 }

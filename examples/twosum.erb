@@ -1,0 +1,18 @@
+<%
+  nums = [2, 7, 11, 15]
+  target = 9
+
+  def two_sum(nums, target)
+    lookup = {}
+    nums.each_with_index do |num, index|
+      complement = target - num
+      return [lookup[complement], index] if lookup.has_key?(complement)
+      lookup[num] = index
+    end
+    []
+  end
+
+  result = two_sum(nums, target)
+%>
+
+<p>The indices of the numbers that add up to <%= target %> are: <%= result.inspect %></p>

@@ -3,26 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
-	"unicode"
 	"unicode/utf8"
 )
 
 type BufferCursor struct {
-	buffer IBuffer
-	index  int
+	buffer  IBuffer
+	index   int
+	as_edge bool
 }
 
-var ErrReachBufferEnd = fmt.Errorf("Reached buffer end")
-var ErrReachBufferBeginning = fmt.Errorf("Reached buffer beginning")
-var ErrRuneError = fmt.Errorf("Unrecognized rune")
-var ErrLastWord = fmt.Errorf("Alread on the last word")
-var ErrFirstWord = fmt.Errorf("Alread on the first word")
-var ErrNodeNotFound = fmt.Errorf("Failed to find closes node")
 var ErrSequenceNotFount = fmt.Errorf("Sequence not found")
-
-func NewBufferCursor(buffer IBuffer) BufferCursor {
-	return BufferCursor{buffer: buffer, index: 0}
-}
 
 func (self BufferCursor) Index() int {
 	return self.index
@@ -31,6 +21,26 @@ func (self BufferCursor) Index() int {
 func (self BufferCursor) Rune() rune {
 	value, _ := utf8.DecodeRune(self.buffer.Content()[self.index:])
 	return value
+}
+
+func (self BufferCursor) Class() RuneClass {
+	return rune_class(self.Rune())
+}
+
+func (self BufferCursor) Hardstop() int {
+	hardstop := self.buffer.LastIndex()
+	if self.as_edge {
+		hardstop++
+	}
+	return hardstop
+}
+
+func (self BufferCursor) Row() int {
+	row, err := self.buffer.Row(self.Index())
+	if err != nil {
+		log.Panicln(err)
+	}
+	return row
 }
 
 func (self BufferCursor) BytePosition() Point {
@@ -50,11 +60,12 @@ func (self BufferCursor) RunePosition() Point {
 }
 
 func (self BufferCursor) ToIndex(index int) (BufferCursor, error) {
-	if err := self.buffer.CheckIndex(index); err == nil {
-		return BufferCursor{buffer: self.buffer, index: index}, nil
-	} else {
-		return self, err
+	index = clip(index, 0, self.Hardstop())
+	err := self.buffer.CheckIndex(index)
+	if err == nil {
+		self.index = index
 	}
+	return self, err
 }
 
 func (self BufferCursor) BytesForward(count int) (BufferCursor, error) {
@@ -65,132 +76,97 @@ func (self BufferCursor) BytesBackward(count int) (BufferCursor, error) {
 	return self.ToIndex(self.index - count)
 }
 
-func (self BufferCursor) MoveToRow(number int) (BufferCursor, error) {
+func (self BufferCursor) MoveToRow(row int) BufferCursor {
 	lines := self.buffer.Lines()
-	number = clip(number, 0, len(lines)-1)
-	line := lines[number]
-	return BufferCursor{self.buffer, line.start}, nil
+	row_clipped := clip(row, 0, len(lines)-1)
+	line := lines[row_clipped]
+	self.index = line.start
+	return self
 }
 
 func (self BufferCursor) MoveToCol(number int) (BufferCursor, error) {
-	pos := self.RunePosition()
-	line := self.buffer.Lines()[pos.row]
+	row := self.Row()
+	line := self.buffer.Lines()[row]
 	width := utf8.RuneCount(self.buffer.Content()[line.start:line.end])
-	pos.col = clip(number, 0, max(width-1, 0))
-	index, err := self.buffer.IndexFromRuneCoord(pos)
+	if !self.as_edge {
+		width--
+	}
+	col := clip(number, 0, max(width, 0))
+	index, err := self.buffer.IndexFromRuneCoord(Point{col: col, row: row})
 	panic_if_error(err)
-	return self.ToIndex(index)
+	cursor, err := self.ToIndex(index)
+	panic_if_error(err)
+	return cursor, nil
 }
 
 func (self BufferCursor) MoveToRunePos(pos Point) (BufferCursor, error) {
 	var err error
-	self, err = self.MoveToRow(pos.row)
-	panic_if_error(err)
+	self = self.MoveToRow(pos.row)
 	self, err = self.MoveToCol(pos.col)
 	panic_if_error(err)
 	return self, nil
 }
 
-func (self BufferCursor) VerticalShift(number int, column_anchor int) (BufferCursor, error) {
-	lines := self.buffer.Lines()
-	pos := self.RunePosition()
-	pos.row += number
-	if pos.row < 0 || pos.row >= len(lines) {
-		return self, nil
+func (self BufferCursor) RuneNext() BufferCursor {
+	if !self.IsEnd() {
+		self.index += utf8.RuneLen(self.Rune())
 	}
-	line := lines[pos.row]
-	width := utf8.RuneCount(self.buffer.Content()[line.start:line.end])
-	pos.col = clip(column_anchor, 0, width-1)
-	index, err := self.buffer.IndexFromRuneCoord(pos)
-	if err != nil {
-		return self, err
-	}
-	return self.ToIndex(index)
+	return self
 }
 
-// Treats incorrect runes as a 1 byte rune
-func (self BufferCursor) RunesForward(count int) (BufferCursor, error) {
-	if self.IsEnd() {
-		return self, ErrReachBufferEnd
+func (self BufferCursor) RunePrev() BufferCursor {
+	if !self.IsBegining() {
+		_, size := utf8.DecodeLastRune(self.buffer.Content()[:self.index])
+		self.index -= size
 	}
-	sum_size := 0
-	for i := 0; i < count; i++ {
-		value, size := utf8.DecodeRune(self.buffer.Content()[self.index+sum_size:])
-		if value == utf8.RuneError && size == 0 {
-			return self, ErrReachBufferEnd
+	return self
+}
+
+func (self BufferCursor) WordStartNext() BufferCursor {
+	hardstop := self.buffer.LastIndex()
+	for prev := self; self.Index() < hardstop; prev, self = self, self.RuneNext() {
+		if self.Class() != RuneClassSpace && self.Class() != prev.Class() {
+			break
 		}
-		sum_size += size
 	}
-	return self.BytesForward(sum_size)
+	return self
 }
 
-// Treats incorrect runes as a 1 byte rune
-func (self BufferCursor) RunesBackward(count int) (BufferCursor, error) {
-	if self.IsBegining() {
-		return self, ErrReachBufferBeginning
-	}
-	sum_size := 0
-	for i := 0; i < count; i++ {
-		value, size := utf8.DecodeLastRune(self.buffer.Content()[:self.index-sum_size])
-		if value == utf8.RuneError && size == 0 {
-			return self, ErrReachBufferBeginning
+func (self BufferCursor) WordEndNext() BufferCursor {
+	hardstop := self.buffer.LastIndex()
+	self = self.RuneNext()
+	for next := self; self.Index() < hardstop; self, next = next, next.RuneNext() {
+		if self.Class() != RuneClassSpace && self.Class() != next.Class() {
+			break
 		}
-		sum_size += size
 	}
-	return self.BytesBackward(sum_size)
+	return self
 }
 
-func (self BufferCursor) WordStartForward() (BufferCursor, error) {
-	var err error
-	lines := self.buffer.Lines()
-	self, err = self.SkipRuneClassForward()
-	if err == nil {
-		self, err = self.SkipSpace(lines[len(lines)-1].end)
+func (self BufferCursor) WordStartPrev() BufferCursor {
+	self = self.RunePrev()
+	for prev := self; self.Index() > 0; self, prev = prev, prev.RunePrev() {
+		if self.Class() != RuneClassSpace && self.Class() != prev.Class() {
+			break
+		}
 	}
-	return self, err
+	return self
 }
 
-func (self BufferCursor) WordEndForward() (BufferCursor, error) {
-	var err error
-	lines := self.buffer.Lines()
-	self, err = self.SkipSpace(lines[len(lines)-1].end)
-	if err == nil {
-		self, err = self.SkipRuneClassForward()
+func (self BufferCursor) WordEndPrev() BufferCursor {
+	for next := self; self.Index() > 0; next, self = self, self.RunePrev() {
+		if self.Class() != RuneClassSpace && self.Class() != next.Class() {
+			break
+		}
 	}
-	return self, err
+	return self
 }
 
-func (self BufferCursor) SkipSpace(stop int) (BufferCursor, error) {
-	var err error
-	for err == nil && self.Index() < stop && unicode.IsSpace(self.Rune()) {
-		self, err = self.RunesForward(1)
-	}
-	return self, nil
-}
-
-func (self BufferCursor) SkipRuneClassForward() (BufferCursor, error) {
-	var err error
-	prev := self
-	for err == nil && rune_class(self.Rune()) == rune_class(prev.Rune()) {
-		prev = self
-		self, err = self.RunesForward(1)
-	}
-	return self, err
-}
-
-func (self BufferCursor) WordStartBackward() (BufferCursor, error) {
-	var err error
-	self, err = self.RunesBackward(1)
-	for err == nil && unicode.IsSpace(self.Rune()) {
-		self, err = self.RunesBackward(1)
-	}
-	prev := self
-	for err == nil && rune_class(self.Rune()) == rune_class(prev.Rune()) {
-		self = prev
-		prev, err = self.RunesBackward(1)
-	}
-	return self, err
-}
+// func (self BufferCursor) LineEnd() BufferCursor {
+// 	line, err := self.buffer.Line(self.Row())
+// 	panic_if_error(err)
+// 	return self.MoveToCol(line.end)
+// }
 
 func (self BufferCursor) Match(seq []byte) bool {
 	return matchBytes(self.buffer.Content()[self.index:], seq)

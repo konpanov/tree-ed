@@ -10,7 +10,7 @@ func TestBufferCursorIndexAtTheBeginning(t *testing.T) {
 	content := "line1"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor := NewBufferCursor(buffer)
+	cursor := BufferCursor{buffer: buffer, index: 0}
 	assertIntEqualMsg(t, cursor.Index(), 0, "Expected cursor to be at the begining: ")
 	assertPointsEqual(t, cursor.BytePosition(), Point{0, 0})
 	assertPointsEqual(t, cursor.RunePosition(), Point{0, 0})
@@ -26,7 +26,7 @@ func TestBufferCursorAfterMovementToTheNextByte(t *testing.T) {
 	content := strings.Join(lines, nl)
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor, err := NewBufferCursor(buffer).BytesForward(1)
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.BytesForward(1)
 	assertNoErrors(t, err)
 	assertIntEqualMsg(t, cursor.Index(), 1, "Expected cursor to be at the second byte: ")
 	assertPointsEqual(t, cursor.BytePosition(), Point{row: 0, col: 1})
@@ -43,7 +43,7 @@ func TestBufferCursorAfterMovementForwardAndBackward(t *testing.T) {
 	content := strings.Join(lines, nl)
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor := NewBufferCursor(buffer)
+	cursor := BufferCursor{buffer: buffer, index: 0}
 	cursor, err = cursor.BytesForward(3)
 	assertNoErrors(t, err)
 	cursor, err = cursor.BytesBackward(1)
@@ -64,7 +64,7 @@ func TestBufferCursorIsNewLine(t *testing.T) {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 
-	cursor := NewBufferCursor(buffer)
+	cursor := BufferCursor{buffer: buffer, index: 0}
 	if cursor.IsNewLine() {
 		t.Errorf("Expected cursor not to be on new line")
 	}
@@ -86,7 +86,7 @@ func TestBufferSearchForward(t *testing.T) {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 
-	cursor, err := NewBufferCursor(buffer).SearchForward(buffer.Nl_seq())
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.SearchForward(buffer.Nl_seq())
 	if !cursor.IsNewLine() {
 		t.Errorf("Expected cursor to be on new line, rune: %+q", buffer.Content()[cursor.Index()])
 	}
@@ -106,7 +106,7 @@ func TestBufferSearchBackward(t *testing.T) {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
 
-	cursor, err := NewBufferCursor(buffer).ToIndex(14)
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(14)
 	assertNoErrors(t, err)
 	cursor, err = cursor.SearchBackward(buffer.Nl_seq())
 	if !cursor.IsNewLine() {
@@ -122,9 +122,9 @@ func TestBufferCursorRunesForwardOnce(t *testing.T) {
 	content := "aąłb"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor, err := NewBufferCursor(buffer).ToIndex(1)
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(1)
 	assertNoErrors(t, err)
-	cursor, err = cursor.RunesForward(1)
+	cursor = cursor.RuneNext()
 	assertNoErrors(t, err)
 	assertIntEqualMsg(t, cursor.Index(), 3, "Expected cursor to be at the third byte: ")
 	assertPointsEqual(t, cursor.BytePosition(), Point{row: 0, col: 3})
@@ -136,10 +136,11 @@ func TestBufferCursorMultipleRunesForward(t *testing.T) {
 	content := "aąłbźg"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor, err := NewBufferCursor(buffer).ToIndex(1)
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(1)
 	assertNoErrors(t, err)
-	cursor, err = cursor.RunesForward(3)
-	assertNoErrors(t, err)
+	for range 3 {
+		cursor = cursor.RuneNext()
+	}
 	assertIntEqualMsg(t, cursor.Index(), 6, "Expected cursor to be at the third byte: ")
 	assertPointsEqual(t, cursor.BytePosition(), Point{row: 0, col: 6})
 	assertPointsEqual(t, cursor.RunePosition(), Point{row: 0, col: 4})
@@ -150,9 +151,11 @@ func TestBufferCursorMultipleRunesBackward(t *testing.T) {
 	content := "aąłbźg"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl))
 	assertNoErrors(t, err)
-	cursor, err := NewBufferCursor(buffer).ToIndex(8)
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(8)
 	assertNoErrors(t, err)
-	cursor, err = cursor.RunesBackward(3)
+	for range 3 {
+		cursor = cursor.RunePrev()
+	}
 	assertNoErrors(t, err)
 	assertIntEqualMsg(t, cursor.Index(), 3, "Expected cursor to be at the third byte: ")
 	assertPointsEqual(t, cursor.BytePosition(), Point{row: 0, col: 3})

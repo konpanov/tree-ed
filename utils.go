@@ -60,6 +60,10 @@ func order[T cmp.Ordered](a T, b T) (T, T) {
 	return min(a, b), max(a, b)
 }
 
+func last[T any](stuff []T) T {
+	return stuff[len(stuff)-1]
+}
+
 func assertIntEqual(t *testing.T, a int, b int) {
 	if a != b {
 		t.Errorf("%d != %d", a, b)
@@ -126,14 +130,23 @@ func panic_if_error(err error) {
 	}
 }
 
-func rune_class(value rune) int {
+type RuneClass int
+
+const (
+	RuneClassSpace RuneClass = iota
+	RuneClassChar
+	RuneClassPunct
+	RuneClassOther
+)
+
+func rune_class(value rune) RuneClass {
 	if unicode.IsSpace(value) {
-		return 0
+		return RuneClassSpace
 	} else if unicode.IsLetter(value) || unicode.IsDigit(value) || value == '_' {
-		return 1
+		return RuneClassChar
 	} else if unicode.IsPunct(value) {
-		return 2
+		return RuneClassPunct
 	} else {
-		return 3
+		return RuneClassOther
 	}
 }

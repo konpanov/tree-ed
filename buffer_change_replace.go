@@ -1,0 +1,71 @@
+package main
+
+import (
+	"log"
+	"slices"
+	"unicode/utf8"
+)
+
+type ReplaceChange struct {
+	at           int
+	before       []byte
+	after        []byte
+	cursorBefore int
+	cursorAfter  int
+}
+
+func (self ReplaceChange) Apply(win *Window) {
+	win.buffer.Edit(ReplacementInput{
+		start:       self.at,
+		end:         self.at + len(self.before),
+		replacement: self.after,
+	})
+	var err error
+	win.cursor, err = win.cursor.ToIndex(self.cursorAfter)
+	panic_if_error(err)
+}
+
+func (self ReplaceChange) Reverse() Change {
+	self.after, self.before = self.before, self.after
+	self.cursorAfter, self.cursorBefore = self.cursorBefore, self.cursorAfter
+	return self
+}
+
+func (self ReplaceChange) Shift(index int) int {
+	if index < self.at {
+		return index
+	} else if index > self.at+len(self.before) {
+		return index - len(self.before) + len(self.after)
+	} else {
+		return min(index, self.at+len(self.after))
+	}
+}
+
+func (self ReplaceChange) IsEmpty() bool {
+	return slices.Compare(self.before, self.after) == 0
+}
+
+func NewReplacementModification(at int, before []byte, after []byte) ReplaceChange {
+	return ReplaceChange{at: at, before: slices.Clone(before), after: slices.Clone(after)}
+}
+
+func NewEraseModification(win *Window, start int, end int) ReplaceChange {
+	start, end = min(start, end), max(start, end)
+	return NewReplacementModification(start, win.buffer.Content()[start:end], []byte{})
+}
+
+func NewEraseRuneModification(win *Window, index int) ReplaceChange {
+	_, length := utf8.DecodeRune(win.buffer.Content()[index:])
+	return NewEraseModification(win, index, index+length)
+}
+
+func NewEraseLineModification(win *Window, row int) ReplaceChange {
+	buf := win.buffer
+	lines := buf.Lines()
+	if row < 0 || row >= len(lines) {
+		log.Panicf("Cannot erase nonexisting line %d. number of line: %d.", row, len(lines))
+	}
+	line := lines[row]
+	end := min(line.end+len(buf.Nl_seq()), len(buf.Content()))
+	return NewEraseModification(win, line.start, end)
+}

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
+
 	"github.com/gdamore/tcell/v2"
-	sitter "github.com/smacker/go-tree-sitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 type WindowView struct {
@@ -25,14 +27,13 @@ func NewWindowView(
 ) *WindowView {
 	base_style := tcell.StyleDefault
 	base_style = base_style.Background(tcell.NewHexColor(SPACE_CADET))
-	// base_style = base_style.Foreground(tcell.NewHexColor(0xC3A995))
 	view := &WindowView{
 		screen:       screen,
 		roi:          roi,
 		window:       window,
 		text_offset:  Point{0, 0},
 		status_line:  NoStatusLine{},
-		is_tree_view: true, // TODO separate tree view from window view
+		is_tree_view: window.buffer.Tree() != nil && false, // TODO separate tree view from window view
 		base_style:   base_style,
 	}
 	view.Update(roi)
@@ -84,7 +85,7 @@ func (self *WindowView) Draw() {
 			self.window.cursor,
 			self.window.secondCursor,
 			self.text_offset,
-			tcell.StyleDefault.Reverse(true).Underline(true),
+			tcell.StyleDefault.Background(tcell.NewHexColor(GLACIOUS)),
 		}
 	default:
 		cursor_view = &CharacterViewCursor{self.screen, main_roi, self.window.buffer, self.window.cursor, self.text_offset}
@@ -97,24 +98,39 @@ func (self *WindowView) Draw() {
 		base_style:  self.base_style,
 	}
 	tree_color.SetRoi(main_roi)
-
-	if self.is_tree_view {
-		tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
-		tree_view.style = self.base_style
-		tree_view.Draw()
-	}
-
-	cursor_view.Draw()
 	line_numbers.Draw()
 	text_view.Draw()
-	tree_color.Draw()
 	self.status_line.Draw()
+	if self.window.buffer.Tree() != nil {
+		tree_color.Draw()
+		if self.is_tree_view {
+			tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
+			tree_view.style = self.base_style
+			tree_view.Draw()
+		}
+	}
+	cursor_view.Draw()
+
+	pos, err := text_pos_to_screen(self.window.secondCursor.RunePosition(), text_offset, main_roi)
+	if !errors.Is(err, ErrOutOfFrame) {
+		panic_if_error(err)
+		set_style(self.screen, pos, get_style(self.screen, pos).Background(tcell.NewHexColor(GLACIOUS)))
+	}
 
 }
 
 func (self *WindowView) get_text_from_buffer(roi Rect, text_offset Point) ([][]rune, Point) {
 	width := roi.Width()
 	height := roi.Height()
+
+	if self.window.mode == VisualMode || self.window.mode == TreeMode {
+		coord := self.window.secondCursor.RunePosition()
+		text_offset = Point{
+			col: max(min(text_offset.col, coord.col), coord.col-width+1),
+			row: max(min(text_offset.row, coord.row), coord.row-height+1),
+		}
+	}
+
 	coord := self.window.cursor.RunePosition()
 	text_offset = Point{
 		col: max(min(text_offset.col, coord.col), coord.col-width+1),
@@ -159,8 +175,7 @@ func (self *TreeColorView) Draw() {
 		}
 
 		odd := true
-		node = first_node
-		for cousin := NextCousinDepth(node, depth); cousin != nil; cousin = NextCousinDepth(cousin, depth) {
+		for cousin := first_node; cousin != nil; cousin = NextCousinDepth(cousin, depth) {
 			var style tcell.Style
 			if odd {
 				style = self.base_style.Background(tcell.NewHexColor(0x384251))
@@ -170,24 +185,26 @@ func (self *TreeColorView) Draw() {
 			odd = !odd
 			self.ColorNode(cousin, style)
 		}
-
-		node = self.window.getNode()
-		self.ColorNode(node, self.base_style.Background(tcell.NewHexColor(GLACIOUS)).Underline(true))
-
 	} else {
-		node := NodeLeaf(self.window.buffer.Tree().RootNode(), self.window.cursor.Index())
-		self.ColorNode(node, self.base_style.Background(tcell.NewHexColor(GLACIOUS)))
+		node := self.window.getNode()
+		self.ColorNode(node, self.base_style.Underline(true))
 	}
-
 }
 
 func (self *TreeColorView) ColorNode(node *sitter.Node, style tcell.Style) {
-	for index := int(node.StartByte()); index < int(node.EndByte()); index++ {
+	for index := int(node.StartByte()); index < int(node.EndByte()); {
 		pos, err := self.window.buffer.RuneCoord(index)
 		panic_if_error(err)
 		pos, err = text_pos_to_screen(pos, self.text_offset, self.roi)
 		if err == nil {
 			set_style(self.screen, pos, style)
+		}
+		is_nl, err := self.window.buffer.IsNewLine(index)
+		panic_if_error(err)
+		if is_nl {
+			index += len(self.window.buffer.Nl_seq())
+		} else {
+			index++
 		}
 	}
 }

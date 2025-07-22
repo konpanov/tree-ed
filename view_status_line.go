@@ -47,20 +47,13 @@ func (self *StatusLine) Draw() {
 	offset := self.window_view.text_offset
 
 	input := ""
-	if self.window.mode == NormalMode {
-		history_parser, ok := self.window.parser.(*NormalScanner)
-		if ok {
-			for i := 0; i < len(history_parser.history); i++ {
-				input += string(history_parser.history[i].Rune())
-			}
-		}
-		
-	}
+	// for _, key := range self.window.parser.History() {
+	// 	input += string(key.Rune())
+	// }
 
-	
 	log.Println("Drawing status line")
 	parseError := "Correct"
-	if self.window.buffer.Tree().RootNode().HasError() {
+	if self.window.buffer.Tree() != nil && self.window.buffer.Tree().RootNode().HasError() {
 		parseError = "Error"
 	}
 

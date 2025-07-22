@@ -1,13 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"slices"
+	"unicode/utf8"
 
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 // start and end specify "fenceposts" in between characters.
@@ -31,7 +30,7 @@ type Point struct {
 }
 
 func sitterPoint(p Point) sitter.Point {
-	return sitter.Point{Row: uint32(p.row), Column: uint32(p.col)}
+	return sitter.Point{Row: uint(p.row), Column: uint(p.col)}
 }
 
 func (self Point) Add(other Point) Point {
@@ -46,6 +45,7 @@ type IBuffer interface {
 	SetQuiting(v bool)
 	CheckIndex(index int) error
 	CheckLine(line int) error
+	Row(index int) (int, error)
 
 	// Modifications
 	Edit(input ReplacementInput) error
@@ -62,13 +62,18 @@ type IBuffer interface {
 	// Returns ranges in which lines are contained, without the new line sequences.
 	// New lines must be left out to treat the same last lines with new lines and without.
 	Lines() []Region
+	Line(line int) (Region, error)
+	IsNewLine(index int) (bool, error)
 	LastIndex() int
+
+	Close()
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
 var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
+var ErrUnexpected = fmt.Errorf("An unexpected error occured")
 
 type ReplacementInput struct {
 	start       int
@@ -85,15 +90,9 @@ type Buffer struct {
 	lines       []Region
 }
 
-func NewEmptyBuffer(nl_seq []byte) (*Buffer, error) {
+func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
 	content := []byte{}
-	parser := sitter.NewParser()
-	parser.SetLanguage(golang.GetLanguage())
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
-	if err != nil {
-		log.Fatalln("Failed to parse empty buffer")
-		return nil, err
-	}
+	tree := parser.Parse(content, nil)
 
 	buffer := &Buffer{
 		content:     content,
@@ -107,12 +106,23 @@ func NewEmptyBuffer(nl_seq []byte) (*Buffer, error) {
 
 }
 
-func bufferFromContent(content []byte, nl_seq []byte) (*Buffer, error) {
-	buffer, err := NewEmptyBuffer(nl_seq)
+func bufferFromContent(content []byte, nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
+	buffer, err := NewEmptyBuffer(nl_seq, parser)
 	panic_if_error(err)
 	err = buffer.Edit(ReplacementInput{0, 0, content})
 	panic_if_error(err)
 	return buffer, nil
+}
+
+func (b *Buffer) Close() {
+	if b.tree != nil {
+		log.Println("Closing tree")
+		b.tree.Close()
+	}
+	if b.tree_parser != nil {
+		log.Println("Closing tree parser")
+		b.tree_parser.Close()
+	}
 }
 
 func (b *Buffer) Content() []byte {
@@ -148,61 +158,55 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	new_end := input.start + len(input.replacement)
 	new_end_point, _ := b.Coord(new_end)
 
-	edit := sitter.EditInput{}
-	edit.StartIndex = uint32(input.start)
-	edit.OldEndIndex = uint32(input.end)
-	edit.NewEndIndex = uint32(new_end)
-	edit.StartPoint = sitterPoint(start_point)
-	edit.OldEndPoint = sitterPoint(end_point)
-	edit.NewEndPoint = sitterPoint(new_end_point)
-	b.tree.Edit(edit)
-	b.tree, err = b.tree_parser.ParseCtx(context.Background(), b.tree, b.Content())
-	panic_if_error(err)
+	if b.tree_parser != nil {
+		b.tree.Edit(&sitter.InputEdit{
+			StartByte:      uint(input.start),
+			OldEndByte:     uint(input.end),
+			NewEndByte:     uint(new_end),
+			StartPosition:  sitterPoint(start_point),
+			OldEndPosition: sitterPoint(end_point),
+			NewEndPosition: sitterPoint(new_end_point),
+		})
+		b.tree = b.tree_parser.Parse(b.Content(), nil)
+		panic_if_error(err)
+	}
 	return nil
 }
 
-func (b *Buffer) Coord(index int) (Point, error) {
-	var err error
-	p := Point{0, 0}
-
-	err = b.CheckIndex(index)
-	if err != nil {
-		log.Fatalln("Could not find cursor index: ", err)
-		return p, err
+func (b *Buffer) Row(index int) (int, error) {
+	if err := b.CheckIndex(index); err != nil {
+		return 0, err
 	}
-
-	for i := 0; i < index; {
-		if matchBytes(b.content[i:], b.nl_seq) {
-			i += len(b.nl_seq)
-			p.row++
-			p.col = 0
-		} else {
-			p.col++
-			i++
+	for i, line := range b.Lines() {
+		if line.start <= index && index < line.end+len(b.Nl_seq()) {
+			return i, nil
 		}
 	}
+	if index == len(b.Content()) {
+		return len(b.Lines()) - 1, nil
+	}
+	log.Panicf("Could not find index that is in buffer range.\n Index: %d\n Buffer %+v", index, b)
+	return 0, ErrUnexpected
+}
 
-	return p, nil
+func (b *Buffer) Coord(index int) (Point, error) {
+	row, err := b.Row(index)
+	if err != nil {
+		return Point{}, err
+	}
+	line, err := b.Line(row)
+	panic_if_error(err)
+	return Point{row: row, col: index - line.start}, nil
 }
 
 func (b *Buffer) RuneCoord(index int) (Point, error) {
-	var err error
-	p := Point{0, 0}
-
-	err = b.CheckIndex(index)
+	row, err := b.Row(index)
 	if err != nil {
-		log.Fatalln("Could not find cursor index: ", err)
-		return p, err
+		return Point{}, err
 	}
-
-	for row, line := range b.Lines() {
-		if line.start <= index && index <= line.end {
-			col := len([]rune(string(b.content[line.start:index])))
-			return Point{row: row, col: col}, nil
-		}
-	}
-
-	return p, nil
+	line, err := b.Line(row)
+	panic_if_error(err)
+	return Point{row: row, col: utf8.RuneCount(b.Content()[line.start:index])}, nil
 }
 
 func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
@@ -255,6 +259,13 @@ func (b *Buffer) Lines() []Region {
 	return b.lines
 }
 
+func (b *Buffer) Line(line int) (Region, error) {
+	if err := b.CheckLine(line); err != nil {
+		return Region{}, err
+	}
+	return b.Lines()[line], nil
+}
+
 func (b *Buffer) CheckIndex(index int) error {
 	if index < 0 {
 		return ErrIndexLessThanZero
@@ -285,8 +296,21 @@ func (b *Buffer) Nl_seq() []byte {
 }
 
 func (b *Buffer) LastIndex() int {
-	lines := b.Lines()
-	last_line := lines[len(lines)-1]
-	last_index := max(last_line.start, last_line.end)
+	line, err := b.Line(len(b.Lines()) - 1)
+	panic_if_error(err)
+	last_index := max(line.start, line.end-1)
 	return last_index
+}
+
+func (b *Buffer) IsNewLine(index int) (bool, error) {
+	row, err := b.Row(index)
+	if err != nil {
+		return false, err
+	}
+	line, err := b.Line(row)
+	if err != nil {
+		return false, err
+	}
+	return index == line.end, nil
+
 }

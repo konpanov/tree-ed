@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/gdamore/tcell/v2"
-	sitter "github.com/smacker/go-tree-sitter"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 type WindowMode string
@@ -16,27 +16,6 @@ const (
 	TreeMode   WindowMode = "Tree"
 )
 
-type Movement int
-
-const (
-	Right Movement = iota
-	Left
-	Up
-	Down
-	NodeUp
-	NodeDown
-	NodeLeft
-	NodeRight
-)
-
-type WindowCursor struct {
-	index               int
-	row                 int
-	col                 int
-	originColumn        int
-	invalidOriginColumn bool
-}
-
 type Window struct {
 	filename     string
 	mode         WindowMode
@@ -47,169 +26,213 @@ type Window struct {
 	anchorDepth  int
 	node         *sitter.Node
 	tree         *sitter.Tree
-	parser       Scanner
+	scanner      Scanner
 	undotree     *ChangeTree
-	shift_node   *sitter.Node
-	shift_tree   *sitter.Tree
 }
 
 func windowFromBuffer(buffer IBuffer) *Window {
 	window := &Window{
 		mode:         NormalMode,
 		buffer:       buffer,
-		cursor:       NewBufferCursor(buffer),
+		cursor:       BufferCursor{buffer: buffer, index: 0, as_edge: false},
 		cursorAnchor: 0,
-		secondCursor: NewBufferCursor(buffer),
+		secondCursor: BufferCursor{buffer: buffer, index: 0, as_edge: false},
 		anchorDepth:  0,
-		node:         buffer.Tree().RootNode(),
 		tree:         buffer.Tree(),
-		parser:       &NormalScanner{},
-		undotree:     &ChangeTree{buffer, []Modification{}, 0},
+		scanner:      &NormalScanner{},
+		undotree:     &ChangeTree{buffer, []Change{}, 0},
 	}
 
 	return window
 }
 
-func (window *Window) Scan(ev tcell.Event) (Operation, error) {
-	return window.parser.Scan(ev)
+func (self *Window) Scan(ev tcell.Event) (Operation, error) {
+	return self.scanner.Scan(ev)
 }
 
-func (window *Window) switchToInsert() {
-	window.mode = InsertMode
-	window.parser = &InsertScanner{}
+func (self *Window) switchToInsert() {
+	self.mode = InsertMode
+	self.cursor.as_edge = true
+	self.secondCursor.as_edge = true
+	self.scanner = &InsertScanner{}
 }
-func (window *Window) switchToNormal() {
-	window.mode = NormalMode
-	window.parser = &NormalScanner{}
-}
-
-func (window *Window) switchToVisual() {
-	window.mode = VisualMode
-	window.secondCursor = window.cursor
-	window.parser = &VisualScanner{}
+func (self *Window) switchToNormal() {
+	self.mode = NormalMode
+	self.cursor.as_edge = false
+	self.secondCursor.as_edge = false
+	self.scanner = &NormalScanner{}
 }
 
-func (window *Window) switchToTree() {
-	log.Println("Switch to tree mode")
-	window.mode = TreeMode
-	window.parser = &TreeScanner{}
-	window.setNode(NodeLeaf(window.buffer.Tree().RootNode(), window.cursor.Index()))
-	window.anchorDepth = Depth(window.getNode())
+func (self *Window) switchToVisual() {
+	self.mode = VisualMode
+	self.secondCursor = self.cursor
+	self.cursor.as_edge = false
+	self.secondCursor.as_edge = false
+	self.scanner = &VisualScanner{}
 }
 
-func (window *Window) setNode(node *sitter.Node) {
+func (self *Window) switchToTree() {
+	if self.buffer.Tree() != nil {
+		log.Println("Switch to tree mode")
+		self.mode = TreeMode
+		self.cursor.as_edge = false
+		self.secondCursor.as_edge = false
+		self.scanner = &TreeScanner{}
+	}
+}
+
+func (self *Window) setNode(node *sitter.Node, updateDepth bool) {
+	if self.buffer.Tree() == nil {
+		return
+	}
 	if node == nil {
-		log.Panic("Cannot set node do nil value")
+		log.Panic("Cannot set node to nil value")
 	}
 	log.Println("Setting node")
-	window.node = node
-	window.shift_node = node
-	window.cursor, _ = window.cursor.ToIndex(int(window.node.StartByte()))
-	window.secondCursor, _ = window.cursor.ToIndex(max(int(window.node.EndByte())-1, 0))
+	self.cursor, _ = self.cursor.ToIndex(int(node.StartByte()))
+	self.secondCursor, _ = self.cursor.ToIndex(int(node.EndByte()) - 1)
+	if updateDepth {
+		self.anchorDepth = Depth(node)
+	}
 	log.Println("Node set")
 }
 
-func (window *Window) getNode() *sitter.Node {
-	return window.node
+func (self *Window) getNode() *sitter.Node {
+	if self.buffer.Tree() == nil {
+		return nil
+	}
+	var start, end uint
+	if self.mode == VisualMode || self.mode == TreeMode {
+		start, end = order(uint(self.cursor.Index()), uint(self.secondCursor.Index()))
+	} else {
+		start, end = order(uint(self.cursor.Index()), uint(self.cursor.Index()))
+	}
+	end++
+	node := MinimalNodeDepth(self.buffer.Tree().RootNode(), start, end, self.anchorDepth)
+	if node == nil {
+		node = self.buffer.Tree().RootNode()
+	}
+	return node
+}
+
+func (self *Window) getSelection() (uint, uint) {
+	start, end := order(uint(self.cursor.Index()), uint(self.secondCursor.Index()))
+	return start, end + 1
 }
 
 // Tree movements
-func (window *Window) nodeUp() {
-	parent := window.getNode().Parent()
+func (self *Window) nodeUp() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	node := self.getNode()
+	parent := node.Parent()
 	if parent == nil {
 		return
 	}
-	window.setNode(parent)
-	window.anchorDepth = Depth(window.getNode())
-
+	self.setNode(parent, true)
 }
 
-func (window *Window) nodeDown() {
-	if window.getNode().ChildCount() == 0 {
+func (self *Window) nodeDown() {
+	if self.buffer.Tree() == nil {
 		return
 	}
-	window.setNode(window.getNode().Child(0))
-	window.anchorDepth = Depth(window.getNode())
-}
-
-func (window *Window) nodeNextSibling() {
-	if sibling := window.getNode().NextSibling(); sibling != nil {
-		window.setNode(sibling)
-	}
-}
-
-func (window *Window) nodePrevSibling() {
-	if sibling := window.getNode().PrevSibling(); sibling != nil {
-		window.setNode(sibling)
-	}
-}
-
-func (window *Window) nodeNextCousin() {
-	if cousin := NextCousinDepth(window.getNode(), window.anchorDepth); cousin != nil {
-		window.setNode(cousin)
-	}
-}
-
-func (window *Window) nodePrevCousin() {
-	if cousin := PrevCousinDepth(window.getNode(), window.anchorDepth); cousin != nil {
-		window.setNode(cousin)
-	}
-}
-
-// Cursor movements
-func (window *Window) cursorRight() {
-	log.Println("Moving cursor to the right")
-	log.Printf("Cursor at index: %d\n", window.cursor.index)
-	if window.cursor.IsNewLine() {
-		log.Println("Cursor at the end of the line. Cursor stays in place")
+	if self.getNode().ChildCount() == 0 {
 		return
 	}
-	next, err := window.cursor.RunesForward(1)
-	if err != nil {
-		log.Println("Cannot move cursor right: %w", err)
-		return
-	}
-	if window.mode != InsertMode && (next.IsEnd() || next.IsNewLine()) {
-		log.Println("Only in insert mode cursor can be at the end of the line")
-		return
-	}
-	window.cursor = next
-	window.cursorAnchor = next.RunePosition().col
-	log.Printf("Cursor moved to index: %d\n", window.cursor.Index())
+	self.setNode(self.getNode().Child(0), true)
 }
 
-func (window *Window) cursorLeft() {
-	log.Println("Moving cursor to the left")
-	log.Printf("Cursor at index: %d\n", window.cursor.index)
-
-	prev, err := window.cursor.RunesBackward(1)
-	if err != nil {
-		log.Println("Cannot move cursor left: %w", err)
+func (self *Window) nodeNextSibling() {
+	if self.buffer.Tree() == nil {
 		return
 	}
-	line_start, err := window.cursor.SearchBackward(window.buffer.Nl_seq())
-	if err != nil {
-		line_start, _ = line_start.ToIndex(0)
-	} else {
-		line_start, _ = line_start.BytesForward(len(window.buffer.Nl_seq()))
+	if sibling := self.getNode().NextSibling(); sibling != nil {
+		self.setNode(sibling, false)
 	}
-	if prev.index < line_start.index {
-		log.Println("Cursor at the start of the line. Cursor stays in place")
-		return
-	}
-	window.cursor = prev
-	window.cursorAnchor = prev.RunePosition().col
-	log.Printf("Cursor moved to index: %d\n", window.cursor.index)
 }
 
-func (window *Window) cursorDown() {
-	next, err := window.cursor.VerticalShift(1, window.cursorAnchor)
+func (self *Window) nodePrevSibling() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	if sibling := self.getNode().PrevSibling(); sibling != nil {
+		self.setNode(sibling, false)
+	}
+}
+
+func (self *Window) nodeNextCousin() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	if cousin := NextCousinDepth(self.getNode(), self.anchorDepth); cousin != nil {
+		self.setNode(cousin, false)
+	}
+}
+
+func (self *Window) nodePrevCousin() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	if cousin := PrevCousinDepth(self.getNode(), self.anchorDepth); cousin != nil {
+		self.setNode(cousin, false)
+	}
+}
+
+func (self *Window) cursorRight(count int) {
+	col := self.cursor.RunePosition().col + count
+	next, err := self.cursor.MoveToCol(col)
 	panic_if_error(err)
-	window.cursor = next
+	self.cursor = next
+	self.cursorAnchor = next.RunePosition().col
 }
 
-func (window *Window) cursorUp() {
-	next, err := window.cursor.VerticalShift(-1, window.cursorAnchor)
+func (self *Window) cursorLeft(count int) {
+	col := self.cursor.RunePosition().col - count
+	next, err := self.cursor.MoveToCol(col)
 	panic_if_error(err)
-	window.cursor = next
+	self.cursor = next
+	self.cursorAnchor = next.RunePosition().col
+}
+
+func (self *Window) cursorUp(count int) {
+	pos := Point{row: self.cursor.Row() - count, col: self.cursorAnchor}
+	next, err := self.cursor.MoveToRunePos(pos)
+	panic_if_error(err)
+	self.cursor = next
+}
+
+func (self *Window) cursorDown(count int) {
+	pos := Point{row: self.cursor.Row() + count, col: self.cursorAnchor}
+	next, err := self.cursor.MoveToRunePos(pos)
+	panic_if_error(err)
+	self.cursor = next
+}
+
+func (self *Window) eraseLineAtCursor(count int) {
+	composite := CompositeChange{}
+	pos := self.cursor.RunePosition()
+	for range count {
+		mod := NewEraseLineModification(self, self.cursor.Row())
+		mod.cursorBefore = self.cursor.Index()
+		mod.Apply(self)
+		self.cursor, _ = self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor})
+		self.secondCursor = self.cursor
+		mod.cursorAfter = self.cursor.Index()
+		composite.changes = append(composite.changes, mod)
+	}
+	self.undotree.Push(composite)
+}
+
+func (self *Window) insertContent(continuous bool, content []byte) {
+	if continuous {
+		if mod := self.undotree.Back(); mod != nil {
+			mod.Reverse().Apply(self)
+		}
+	}
+	mod := NewReplacementModification(self.cursor.Index(), []byte{}, content)
+	mod.cursorBefore = self.cursor.Index()
+	mod.cursorAfter = self.cursor.Index() + len(mod.after)
+	mod.Apply(self)
+	self.undotree.Push(mod)
 }

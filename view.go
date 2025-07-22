@@ -85,6 +85,11 @@ func set_style(screen tcell.Screen, pos Point, style tcell.Style) {
 	screen.SetContent(pos.col, pos.row, value, nil, style)
 }
 
+func get_style(screen tcell.Screen, pos Point) tcell.Style {
+	_, _, style, _ := screen.GetContent(pos.col, pos.row)
+	return style
+}
+
 func default_buffer_line_number_max_width(buffer IBuffer) int {
 	return int(math.Log10(float64(len(buffer.Lines())))) + 2
 }

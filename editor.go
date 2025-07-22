@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/gdamore/tcell/v2"
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 type IEditor interface{}
@@ -29,7 +30,10 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	content, err := os.ReadFile(filename)
 	panic_if_error(err)
 
-	buffer, err := bufferFromContent(content, getContentNewLine(content))
+	language := ParserLanguageByFileType(GetFiletype(filename))
+	parser := sitter.NewParser()
+	parser.SetLanguage(language)
+	buffer, err := bufferFromContent(content, getContentNewLine(content), parser)
 	panic_if_error(err)
 	self.buffers = append(self.buffers, buffer)
 
@@ -37,6 +41,12 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	window.filename = filename
 	self.windows = append(self.windows, window)
 	self.curwin = window
+}
+
+func (self *Editor) Close() {
+	for _, buf := range self.buffers {
+		buf.Close()
+	}
 }
 
 func (self *Editor) GetRoi() Rect {
@@ -48,6 +58,7 @@ func (self *Editor) Start() {
 	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
 	window_view.status_line = NewStatusLine(self.screen, self.curwin, window_view)
 
+	defer self.Close()
 	for !self.is_quiting {
 		window_view.Update(self.GetRoi())
 		self.screen.Fill(' ', window_view.base_style)

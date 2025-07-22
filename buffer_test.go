@@ -247,7 +247,7 @@ func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
 
 	coord, err := buffer.Coord(6)
 	assertNoErrors(t, err)
-	assertPointsEqual(t, coord, Point{row: 1, col: 0})
+	assertPointsEqual(t, coord, Point{row: 0, col: 6})
 
 	coord, err = buffer.Coord(7)
 	assertNoErrors(t, err)
@@ -255,7 +255,7 @@ func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
 
 	coord, err = buffer.Coord(8)
 	assertNoErrors(t, err)
-	assertPointsEqual(t, coord, Point{row: 2, col: 0})
+	assertPointsEqual(t, coord, Point{row: 1, col: 1})
 }
 
 func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
