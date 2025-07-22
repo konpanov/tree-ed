@@ -179,6 +179,20 @@ func (self *Window) nodePrevCousin() {
 	}
 }
 
+func (self *Window) nodeToFirstSibling() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	self.setNode(FirstSibling(self.getNode()), false)
+}
+
+func (self *Window) nodeToLastSibling() {
+	if self.buffer.Tree() == nil {
+		return
+	}
+	self.setNode(LastSibling(self.getNode()), false)
+}
+
 func (self *Window) cursorRight(count int) {
 	col := self.cursor.RunePosition().col + count
 	next := self.cursor.MoveToCol(col)

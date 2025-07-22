@@ -17,7 +17,7 @@ func (self *NormalScanner) Scan(ev tcell.Event) (Operation, error) {
 	}
 	self.state.Reset()
 
-	count, count_err := ScanInteger(self.state)
+	count, count_err := ScanCount(self.state)
 	op, err := self.ScanOperation()
 	if count_err != nil {
 		self.state.Clear()
@@ -34,55 +34,60 @@ func (self *NormalScanner) Scan(ev tcell.Event) (Operation, error) {
 }
 
 func (self *NormalScanner) ScanOperation() (Operation, error) {
-	key_event, err := self.state.Curr()
+	ek, err := self.state.Curr()
 	if err != nil {
 		return nil, err
 	}
+	var op Operation
 	self.state.Advance()
-	if key_event.Key() == tcell.KeyRune {
-		switch key_event.Rune() {
-		// Navigation
-		case 'j':
-			return NormalCursorDown{}, nil
-		case 'k':
-			return NormalCursorUp{}, nil
-		case 'h':
-			return NormalCursorLeft{}, nil
-		case 'l':
-			return NormalCursorRight{}, nil
-		case 'w':
-			return WordStartForwardOperation{}, nil
-		case 'b':
-			return WordBackwardOperation{}, nil
-		case 'e':
-			return WordEndForwardOperation{}, nil
-		case 'E':
-			return WordEndBackwardOperation{}, nil
-		case 'g':
-			return GoOperation{}, nil
-		case '$':
-			return LineEndOperation{}, nil
-		// Modification
-		case 'd':
-			return EraseLineAtCursor{}, nil
-		case 'x':
-			return EraseCharNormalMode{}, nil
-		// Modes
-		case 'a':
-			return SwitchToInsertModeAsAppend{}, nil
-		case 'i':
-			return SwitchToInsertMode{}, nil
-		case 'v':
-			return SwitchToVisualmode{}, nil
-		case 't':
-			return SwitchToTreeMode{}, nil
-		case 'u':
-			return UndoChangeOperation{}, nil
-		}
+	switch {
+	case ek.Rune() == 'j':
+		op = NormalCursorDown{}
+	case ek.Rune() == 'k':
+		op = NormalCursorUp{}
+	case ek.Rune() == 'h':
+		op = NormalCursorLeft{}
+	case ek.Rune() == 'l':
+		op = NormalCursorRight{}
+	case ek.Rune() == 'w':
+		op = WordStartForwardOperation{}
+	case ek.Rune() == 'b':
+		op = WordBackwardOperation{}
+	case ek.Rune() == 'e':
+		op = WordEndForwardOperation{}
+	case ek.Rune() == 'E':
+		op = WordEndBackwardOperation{}
+	case ek.Rune() == 'g':
+		op = GoOperation{}
+	case ek.Rune() == '$':
+		op = LineEndOperation{}
+	case ek.Rune() == '0':
+		op = LineStartOperation{}
+	case ek.Rune() == '_':
+		op = LineTextStartOperation{}
+	// Modification
+	case ek.Rune() == 'd':
+		op = EraseLineAtCursor{}
+	case ek.Rune() == 'x':
+		op = EraseCharNormalMode{}
+	// Modes
+	case ek.Rune() == 'a':
+		op = SwitchToInsertModeAsAppend{}
+	case ek.Rune() == 'i':
+		op = SwitchToInsertMode{}
+	case ek.Rune() == 'v':
+		op = SwitchToVisualmode{}
+	case ek.Rune() == 't':
+		op = SwitchToTreeMode{}
+	case ek.Rune() == 'p':
+		op = GetClipboardOperation{}
+	case ek.Rune() == 'u':
+		op = UndoChangeOperation{}
+	case ek.Key() == tcell.KeyCtrlR:
+		op = RedoChangeOperation{}
 	}
-	switch key_event.Key() {
-	case tcell.KeyCtrlR:
-		return RedoChangeOperation{}, nil
+	if op != nil {
+		return op, nil
 	}
 	return nil, ErrNoMatch
 }

@@ -1,10 +1,15 @@
 package main
 
-import ()
+import "log"
+
+// import "github.com/gdamore/tcell/v2"
 
 type Operation interface {
 	Execute(editor *Editor, count int)
 }
+
+// type ClipboardOperation interface {
+// }
 
 type QuitOperation struct{}
 
@@ -221,6 +226,22 @@ func (self NodePrevCousinOperation) Execute(editor *Editor, count int) {
 	}
 }
 
+type NodeFirstSiblingOperation struct{}
+
+func (self NodeFirstSiblingOperation) Execute(editor *Editor, count int) {
+	if editor.curwin.buffer.Tree() != nil {
+		editor.curwin.nodeToFirstSibling()
+	}
+}
+
+type NodeLastSiblingOperation struct{}
+
+func (self NodeLastSiblingOperation) Execute(editor *Editor, count int) {
+	if editor.curwin.buffer.Tree() != nil {
+		editor.curwin.nodeToLastSibling()
+	}
+}
+
 type EraseSelectionOperation struct{}
 
 func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
@@ -294,6 +315,23 @@ type LineEndOperation struct{}
 func (self LineEndOperation) Execute(editor *Editor, count int) {
 	NormalCursorDown{}.Execute(editor, count-1)
 	editor.curwin.cursor = editor.curwin.cursor.ToRowEnd()
+
+}
+
+type LineStartOperation struct{}
+
+func (self LineStartOperation) Execute(editor *Editor, count int) {
+	NormalCursorDown{}.Execute(editor, count-1)
+	editor.curwin.cursor = editor.curwin.cursor.ToRowStart()
+
+}
+
+type LineTextStartOperation struct{}
+
+func (self LineTextStartOperation) Execute(editor *Editor, count int) {
+	NormalCursorDown{}.Execute(editor, count-1)
+	editor.curwin.cursor = editor.curwin.cursor.ToRowTextStart()
+
 }
 
 type CountOperation struct {
@@ -363,3 +401,23 @@ func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 		win.undotree.Push(change)
 	}
 }
+
+type GetClipboardOperation struct{}
+
+func (self GetClipboardOperation) Execute(editor *Editor, count int) {
+	editor.screen.SetClipboard([]byte("Enjoy your new clipboard content!"))
+	log.Println("Requesting clipboard")
+	editor.screen.GetClipboard()
+	// InsertContent{content: []byte("paste"), continue_last_insert: false}.Execute(editor, count)
+	// if paste_event, ok := editor.screen.PollEvent().(*tcell.EventClipboard); ok {
+	// 	InsertContent{content: paste_event.Data(), continue_last_insert: false}.Execute(editor, count)
+	// }
+}
+
+// type PasteClipboardOperation struct {
+// 	data []byte
+// }
+//
+// func (self PasteClipboardOperation) Execute(editor *Editor, count int) {
+// 	InsertContent{content: self.data, continue_last_insert: false}.Execute(editor, count)
+// }

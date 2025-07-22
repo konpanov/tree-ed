@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
@@ -61,13 +62,13 @@ func IsDigit(key_event *tcell.EventKey) bool {
 	return key_event.Key() == tcell.KeyRune && unicode.IsDigit(key_event.Rune())
 }
 
-func ScanInteger(self *ScannerState) (int, error) {
+func ScanCount(self *ScannerState) (int, error) {
 	count := 0
 	ev, err := self.Curr()
 	if err != nil {
 		return count, err
 	}
-	if !IsDigit(ev) {
+	if !IsDigit(ev) || ev.Rune() == '0' {
 		return count, ErrNoMatch
 	}
 	for ; err == nil && IsDigit(ev); ev, err = self.Advance() {
@@ -79,6 +80,11 @@ func ScanInteger(self *ScannerState) (int, error) {
 type GlobalScanner struct{}
 
 func (self GlobalScanner) Scan(ev tcell.Event) (Operation, error) {
+	if paste_event, ok := ev.(*tcell.EventClipboard); ok {
+		log.Println("Got clipboard event")
+		log.Println(string(paste_event.Data()))
+		// return PasteClipboardOperation{data: paste_event.Data()}, nil
+	}
 	key_event, ok := ev.(*tcell.EventKey)
 	if !ok {
 		return nil, ErrNotAnEventKey

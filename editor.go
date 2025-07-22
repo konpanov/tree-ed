@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"os"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	sitter "github.com/tree-sitter/go-tree-sitter"
@@ -59,6 +61,7 @@ func (self *Editor) Start() {
 	window_view.status_line = NewStatusLine(self.screen, self.curwin, window_view)
 
 	defer self.Close()
+	timestamp := time.Now()
 	for !self.is_quiting {
 		window_view.Update(self.GetRoi())
 		self.screen.Fill(' ', window_view.base_style)
@@ -66,6 +69,7 @@ func (self *Editor) Start() {
 		self.screen.Show()
 
 		ev := self.screen.PollEvent()
+		log.Printf("%+v\n", ev)
 		op, _ := GlobalScanner{}.Scan(ev)
 		if op == nil {
 			op, _ = self.curwin.Scan(ev)

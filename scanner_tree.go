@@ -15,7 +15,7 @@ func (self *TreeScanner) Scan(ev tcell.Event) (Operation, error) {
 	}
 	self.state.Reset()
 
-	count, count_err := ScanInteger(self.state)
+	count, count_err := ScanCount(self.state)
 	op, err := self.ScanOperation()
 	if count_err != nil {
 		self.state.Clear()
@@ -60,6 +60,10 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 		op = ShiftNodeForwardEndOperation{}
 	case ek.Rune() == 'b':
 		op = ShiftNodeBackwardEndOperation{}
+	case ek.Rune() == '$':
+		op = NodeLastSiblingOperation{}
+	case ek.Rune() == '_', ek.Rune() == '0':
+		op = NodeFirstSiblingOperation{}
 	}
 	self.state.Advance()
 	if op != nil {

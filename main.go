@@ -7,6 +7,7 @@ import (
 	"runtime/pprof"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/gdamore/tcell/v2/encoding"
 )
 
 func main() {
@@ -31,6 +32,7 @@ func main() {
 	}
 
 	// Setup screen
+	encoding.Register()
 	screen, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatalf("%+v", err)

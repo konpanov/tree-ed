@@ -163,9 +163,25 @@ func (self BufferCursor) WordEndPrev() BufferCursor {
 }
 
 func (self BufferCursor) ToRowEnd() BufferCursor {
-	line, err := self.buffer.Line(self.Row())
+	row, err := self.buffer.Line(self.Row())
 	panic_if_error(err)
-	return self.ToIndex(self.Rowend(line))
+	return self.ToIndex(self.Rowend(row))
+}
+
+func (self BufferCursor) ToRowStart() BufferCursor {
+	row, err := self.buffer.Line(self.Row())
+	panic_if_error(err)
+	return self.ToIndex(row.start)
+}
+
+func (self BufferCursor) ToRowTextStart() BufferCursor {
+	row, err := self.buffer.Line(self.Row())
+	panic_if_error(err)
+	self = self.ToIndex(row.start)
+	for self.Class() == RuneClassSpace && self.Index() <= self.Rowend(row) {
+		self = self.RuneNext()
+	}
+	return self
 }
 
 func (self BufferCursor) Match(seq []byte) bool {

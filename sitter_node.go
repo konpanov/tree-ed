@@ -122,6 +122,28 @@ func PrevCousin(node *sitter.Node) *sitter.Node {
 	}
 }
 
+func FirstSibling(node *sitter.Node) *sitter.Node {
+	if node == nil {
+		return node
+	}
+	parent := node.Parent()
+	if parent == nil {
+		return node
+	}
+	return parent.Child(0)
+}
+
+func LastSibling(node *sitter.Node) *sitter.Node {
+	if node == nil {
+		return node
+	}
+	parent := node.Parent()
+	if parent == nil {
+		return node
+	}
+	return parent.Child(parent.ChildCount() - 1)
+}
+
 func NodeMatch(node *sitter.Node, start uint, end uint) bool {
 	return node != nil && node.StartByte() == start && node.EndByte() == end
 }

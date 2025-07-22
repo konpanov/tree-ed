@@ -15,7 +15,7 @@ func (self *VisualScanner) Scan(ev tcell.Event) (Operation, error) {
 	}
 	self.state.Reset()
 
-	count, count_err := ScanInteger(self.state)
+	count, count_err := ScanCount(self.state)
 	op, err := self.ScanOperation()
 	if count_err != nil {
 		self.state.Clear()
@@ -64,6 +64,10 @@ func (self *VisualScanner) ScanOperation() (Operation, error) {
 		op = WordEndForwardOperation{}
 	case ek.Rune() == 'b':
 		op = WordBackwardOperation{}
+	case ek.Rune() == '$':
+		op = LineEndOperation{}
+	case ek.Rune() == '0':
+		op = LineStartOperation{}
 	}
 	self.state.Advance()
 	if op != nil {
