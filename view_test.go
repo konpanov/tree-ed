@@ -573,7 +573,7 @@ func TestDrawWindowEraseAtCursor(t *testing.T) {
 		"}",
 	}, string(NewLineUnix)))
 	nl_seq := []byte(NewLineUnix)
-	buffer, err := bufferFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
@@ -599,7 +599,7 @@ func TestDrawWindowInsertCursor(t *testing.T) {
 		"}",
 	}, string(NewLineUnix)))
 	nl_seq := []byte(NewLineUnix)
-	buffer, err := bufferFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
@@ -636,7 +636,7 @@ func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 	var err error
 	content := []byte{}
 	nl_seq := []byte(NewLineUnix)
-	buffer, err := bufferFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
@@ -665,7 +665,7 @@ func TestDrawWindowAppendMode(t *testing.T) {
 	var err error
 	content := []byte("a")
 	nl_seq := []byte(NewLineUnix)
-	buffer, err := bufferFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")

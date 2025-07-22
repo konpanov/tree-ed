@@ -17,7 +17,7 @@ func TestWindowEraseAtCursor(t *testing.T) {
 	var err error
 	content := helloworld
 	nl_seq := []byte(NewLineUnix)
-	buffer, err := bufferFromContent(content, nl_seq)
+	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	window := windowFromBuffer(buffer)
 	window.eraseLineAtCursor(1)

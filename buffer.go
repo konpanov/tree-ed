@@ -92,7 +92,10 @@ type Buffer struct {
 
 func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
 	content := []byte{}
-	tree := parser.Parse(content, nil)
+	var tree *sitter.Tree
+	if parser != nil {
+		tree = parser.Parse(content, nil)
+	}
 
 	buffer := &Buffer{
 		content:     content,

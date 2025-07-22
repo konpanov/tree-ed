@@ -8,7 +8,7 @@ import (
 func TestBufferCursorIndexAtTheBeginning(t *testing.T) {
 	nl := NewLineUnix
 	content := "line1"
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}
 	assertIntEqualMsg(t, cursor.Index(), 0, "Expected cursor to be at the begining: ")
@@ -24,7 +24,7 @@ func TestBufferCursorAfterMovementToTheNextByte(t *testing.T) {
 		"line3",
 	}
 	content := strings.Join(lines, nl)
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.BytesForward(1)
 	assertNoErrors(t, err)
@@ -41,7 +41,7 @@ func TestBufferCursorAfterMovementForwardAndBackward(t *testing.T) {
 		"line3",
 	}
 	content := strings.Join(lines, nl)
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}
 	cursor, err = cursor.BytesForward(3)
@@ -61,7 +61,7 @@ func TestBufferCursorIsNewLine(t *testing.T) {
 		"line3",
 	}
 	content := strings.Join(lines, nl)
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 
 	cursor := BufferCursor{buffer: buffer, index: 0}
@@ -83,7 +83,7 @@ func TestBufferSearchForward(t *testing.T) {
 		"line3",
 	}
 	content := strings.Join(lines, nl)
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.SearchForward(buffer.Nl_seq())
@@ -103,7 +103,7 @@ func TestBufferSearchBackward(t *testing.T) {
 		"line3",
 	}
 	content := strings.Join(lines, nl)
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(14)
@@ -120,7 +120,7 @@ func TestBufferSearchBackward(t *testing.T) {
 func TestBufferCursorRunesForwardOnce(t *testing.T) {
 	nl := NewLineUnix
 	content := "aąłb"
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(1)
 	assertNoErrors(t, err)
@@ -134,7 +134,7 @@ func TestBufferCursorRunesForwardOnce(t *testing.T) {
 func TestBufferCursorMultipleRunesForward(t *testing.T) {
 	nl := NewLineUnix
 	content := "aąłbźg"
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(1)
 	assertNoErrors(t, err)
@@ -149,7 +149,7 @@ func TestBufferCursorMultipleRunesForward(t *testing.T) {
 func TestBufferCursorMultipleRunesBackward(t *testing.T) {
 	nl := NewLineUnix
 	content := "aąłbźg"
-	buffer, err := bufferFromContent([]byte(content), []byte(nl))
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 	cursor, err := BufferCursor{buffer: buffer, index: 0}.ToIndex(8)
 	assertNoErrors(t, err)
