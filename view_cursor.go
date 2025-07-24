@@ -115,7 +115,7 @@ func (self *SelectionViewCursor) Draw() {
 		start = start.ToIndex(screen_start_index)
 	}
 
-	for cursor := start; cursor.index <= end.index && err == nil; cursor = cursor.RuneNext() {
+	for cursor := start; !cursor.IsEnd() && cursor.Index() <= end.Index(); cursor = cursor.RuneNext() {
 		rune_pos := cursor.RunePosition()
 
 		pos, err := text_pos_to_view_pos(rune_pos, self.text_offset, self.roi)

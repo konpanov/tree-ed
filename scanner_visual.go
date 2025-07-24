@@ -6,12 +6,13 @@ type VisualScanner struct {
 	state *ScannerState
 }
 
-func (self *VisualScanner) Scan(ev tcell.Event) (Operation, error) {
+func (self *VisualScanner) Push(ev tcell.Event) {
+	self.state.Push(ev)
+}
+
+func (self *VisualScanner) Scan() (Operation, error) {
 	if self.state == nil {
 		self.state = &ScannerState{}
-	}
-	if err := self.state.Push(ev); err != nil {
-		return nil, err
 	}
 	self.state.Reset()
 
@@ -68,6 +69,8 @@ func (self *VisualScanner) ScanOperation() (Operation, error) {
 		op = LineEndOperation{}
 	case ek.Rune() == '0':
 		op = LineStartOperation{}
+	case ek.Rune() == 'y':
+		op = CopyToClipboardOperation{}
 	}
 	self.state.Advance()
 	if op != nil {

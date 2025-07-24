@@ -67,7 +67,7 @@ func TestBufferCursorIsNewLine(t *testing.T) {
 	if cursor.IsNewLine() {
 		t.Errorf("Expected cursor not to be on new line")
 	}
-	cursor = cursor.BytesForward(5)
+	cursor = cursor.AsEdge().BytesForward(5)
 	assertNoErrors(t, err)
 	if !cursor.IsNewLine() {
 		t.Errorf("Expected cursor to be on new line, rune: %+q", buffer.Content()[cursor.Index()])
@@ -85,7 +85,7 @@ func TestBufferSearchForward(t *testing.T) {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 
-	cursor, err := BufferCursor{buffer: buffer, index: 0}.SearchForward(buffer.Nl_seq())
+	cursor, err := BufferCursor{buffer: buffer, index: 0}.AsEdge().SearchForward(buffer.Nl_seq())
 	if !cursor.IsNewLine() {
 		t.Errorf("Expected cursor to be on new line, rune: %+q", buffer.Content()[cursor.Index()])
 	}
@@ -107,7 +107,7 @@ func TestBufferSearchBackward(t *testing.T) {
 
 	cursor := BufferCursor{buffer: buffer, index: 0}.ToIndex(14)
 	assertNoErrors(t, err)
-	cursor, err = cursor.SearchBackward(buffer.Nl_seq())
+	cursor, err = cursor.AsEdge().SearchBackward(buffer.Nl_seq())
 	if !cursor.IsNewLine() {
 		t.Errorf("Expected cursor to be on new line, rune: %+q", buffer.Content()[cursor.Index()])
 	}

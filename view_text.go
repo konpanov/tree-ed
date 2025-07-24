@@ -32,7 +32,6 @@ func (self *TextView) SetRoi(roi Rect) {
 }
 
 func (self TextView) Draw() {
-	log.Println("Drawing TextView")
 	number_of_lines := len(self.text)
 	height := self.roi.Height()
 	width := self.roi.Width()

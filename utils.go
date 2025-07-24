@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"cmp"
 	"log"
-	"runtime"
 	"testing"
 	"unicode"
 
@@ -31,16 +30,6 @@ func getContentNewLine(content []byte) []byte {
 		}
 	}
 	return nl_unix
-}
-
-func getSystemNewLine() []byte {
-	switch runtime.GOOS {
-	case "windows":
-		log.Println("Windows new lines")
-		return []byte(NewLineWindows)
-	default:
-		return []byte(NewLineUnix)
-	}
 }
 
 func matchBytes(a []byte, b []byte) bool {
@@ -118,12 +107,6 @@ func rune_grid_to_string_slice(grid [][]rune) []string {
 	return ret
 }
 
-func list_colors() {
-	for _, color := range tcell.ColorNames {
-		log.Println(color)
-	}
-}
-
 func panic_if_error(err error) {
 	if err != nil {
 		log.Panicln(err)
@@ -149,4 +132,34 @@ func rune_class(value rune) RuneClass {
 	} else {
 		return RuneClassOther
 	}
+}
+
+func eventKeyToString(ek *tcell.EventKey) string {
+	out := ""
+	if ek.Modifiers()&tcell.ModShift != 0 {
+		out += "Shift "
+	}
+	// tcell.ModShift
+	// tcell.ModCtrl
+	// tcell.ModAlt
+	// tcell.ModMeta
+	if ek.Key() != tcell.KeyRune {
+		out += tcell.KeyNames[ek.Key()]
+	} else {
+		out += string(ek.Rune())
+	}
+	return out
+}
+
+func isNewLine(content []byte) (bool, int) {
+	if matchBytes(content, []byte(NewLineWindows)) {
+		return true, len([]byte(NewLineWindows))
+	}
+	if matchBytes(content, []byte(NewLineUnix)) {
+		return true, len([]byte(NewLineUnix))
+	}
+	if matchBytes(content, []byte(NewLineMac)) {
+		return true, len([]byte(NewLineMac))
+	}
+	return false, 0
 }

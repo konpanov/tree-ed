@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
@@ -34,6 +33,7 @@ func (self *ScannerState) Advance() (*tcell.EventKey, error) {
 	return self.Curr()
 }
 
+// Returns EventKey at position curr or ErrNoKey if curr is further than history
 func (self *ScannerState) Curr() (*tcell.EventKey, error) {
 	if self.curr >= len(self.history) {
 		return nil, ErrNoKey
@@ -55,7 +55,8 @@ func (self *ScannerState) Reset() {
 }
 
 type Scanner interface {
-	Scan(ev tcell.Event) (Operation, error)
+	Scan() (Operation, error)
+	Push(ev tcell.Event)
 }
 
 func IsDigit(key_event *tcell.EventKey) bool {
@@ -77,20 +78,71 @@ func ScanCount(self *ScannerState) (int, error) {
 	return count, nil
 }
 
-type GlobalScanner struct{}
+type GlobalScanner struct {
+	state *ScannerState
+}
 
-func (self GlobalScanner) Scan(ev tcell.Event) (Operation, error) {
-	if paste_event, ok := ev.(*tcell.EventClipboard); ok {
-		log.Println("Got clipboard event")
-		log.Println(string(paste_event.Data()))
-		// return PasteClipboardOperation{data: paste_event.Data()}, nil
+func (self *GlobalScanner) Push(ev tcell.Event) {
+	self.state.Push(ev)
+}
+
+func (self *GlobalScanner) Scan() (Operation, error) {
+	var op Operation
+	ek, err := self.state.Curr()
+	if err == nil {
+		switch {
+		case ek.Key() == tcell.KeyCtrlC:
+			self.state.Advance()
+			op = QuitOperation{}
+		default:
+			err = ErrNoMatch
+		}
 	}
-	key_event, ok := ev.(*tcell.EventKey)
-	if !ok {
-		return nil, ErrNotAnEventKey
+	return op, err
+}
+
+type OmniScanner struct {
+	state          *ScannerState
+	global_scanner *GlobalScanner
+	normal_scanner *NormalScanner
+	insert_scanner *InsertScanner
+	visual_scanner *VisualScanner
+	tree_scanner   *TreeScanner
+	mode           WindowMode
+}
+
+func NewOmniScanner() *OmniScanner {
+	state := &ScannerState{}
+	return &OmniScanner{
+		state:          state,
+		global_scanner: &GlobalScanner{state: state},
+		normal_scanner: &NormalScanner{state: state},
+		insert_scanner: &InsertScanner{state: state},
+		visual_scanner: &VisualScanner{state: state},
+		tree_scanner:   &TreeScanner{state: state},
+		mode:           NormalMode,
 	}
-	if key_event.Key() == tcell.KeyCtrlC {
-		return QuitOperation{}, nil
+}
+
+func (self *OmniScanner) Push(ev tcell.Event) {
+	self.state.Push(ev)
+}
+
+func (self *OmniScanner) Scan() (Operation, error) {
+	op, _ := self.global_scanner.Scan()
+	if op != nil {
+		return op, nil
 	}
-	return nil, ErrNoMatch
+	switch self.mode {
+	case NormalMode:
+		return self.normal_scanner.Scan()
+	case InsertMode:
+		return self.insert_scanner.Scan()
+	case VisualMode:
+		return self.visual_scanner.Scan()
+	case TreeMode:
+		return self.tree_scanner.Scan()
+	}
+	panic("Unkown mode")
+	return nil, nil
 }

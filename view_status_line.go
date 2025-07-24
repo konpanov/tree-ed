@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strconv"
 	"strings"
 
@@ -51,7 +50,6 @@ func (self *StatusLine) Draw() {
 	// 	input += string(key.Rune())
 	// }
 
-	log.Println("Drawing status line")
 	parseError := "Correct"
 	if self.window.buffer.Tree() != nil && self.window.buffer.Tree().RootNode().HasError() {
 		parseError = "Error"

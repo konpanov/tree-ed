@@ -9,8 +9,6 @@ import (
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-type IEditor interface{}
-
 type Editor struct {
 	screen  tcell.Screen
 	buffers []IBuffer
@@ -61,21 +59,57 @@ func (self *Editor) Start() {
 	window_view.status_line = NewStatusLine(self.screen, self.curwin, window_view)
 
 	defer self.Close()
-	timestamp := time.Now()
-	for !self.is_quiting {
-		window_view.Update(self.GetRoi())
-		self.screen.Fill(' ', window_view.base_style)
-		window_view.Draw()
-		self.screen.Show()
 
-		ev := self.screen.PollEvent()
-		log.Printf("%+v\n", ev)
-		op, _ := GlobalScanner{}.Scan(ev)
-		if op == nil {
-			op, _ = self.curwin.Scan(ev)
+	events := make(chan tcell.Event, 10000)
+	window_view.Update(self.GetRoi())
+	self.screen.Fill(' ', window_view.base_style)
+	window_view.Draw()
+	self.screen.Show()
+
+	go func() {
+		for {
+			ev := self.screen.PollEvent()
+			log.Printf("Polled event: %+v\n", ev)
+
+			switch v := ev.(type) {
+			case *tcell.EventKey:
+				log.Printf(eventKeyToString(v))
+			}
+			events <- ev
 		}
-		if op != nil {
+	}()
+
+	scanner := NewOmniScanner()
+	got_new_event := true
+	for !self.is_quiting {
+
+		if got_new_event {
+			window_view.Update(self.GetRoi())
+			self.screen.Fill(' ', window_view.base_style)
+			window_view.Draw()
+			self.screen.Show()
+			got_new_event = false
+		}
+
+		waiting_for_event := true
+		for waiting_for_event {
+			select {
+			case e := <-events:
+				scanner.Push(e)
+				got_new_event = true
+			case <-time.Tick(10 * time.Millisecond):
+				waiting_for_event = false
+			}
+		}
+
+		for got_new_event && !self.is_quiting {
+			scanner.mode = self.curwin.mode
+			op, err := scanner.Scan()
+			if op == nil || err != nil {
+				break
+			}
 			op.Execute(self, 1)
 		}
+
 	}
 }

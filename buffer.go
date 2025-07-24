@@ -119,11 +119,9 @@ func bufferFromContent(content []byte, nl_seq []byte, parser *sitter.Parser) (*B
 
 func (b *Buffer) Close() {
 	if b.tree != nil {
-		log.Println("Closing tree")
 		b.tree.Close()
 	}
 	if b.tree_parser != nil {
-		log.Println("Closing tree parser")
 		b.tree_parser.Close()
 	}
 }
@@ -180,8 +178,13 @@ func (b *Buffer) Row(index int) (int, error) {
 	if err := b.CheckIndex(index); err != nil {
 		return 0, err
 	}
-	for i, line := range b.Lines() {
-		if line.start <= index && index < line.end+len(b.Nl_seq()) {
+	lines := b.Lines()
+	for i, line := range lines {
+		next_line_start := len(b.content)
+		if i+1 < len(lines) {
+			next_line_start = lines[i+1].start
+		}
+		if line.start <= index && index < next_line_start {
 			return i, nil
 		}
 	}
@@ -244,9 +247,10 @@ func (b *Buffer) calculateLines() []Region {
 			lines = append(lines, Region{i, i})
 			line_finished = false
 		}
-		if matchBytes(content[i:], b.nl_seq) {
+		is_nl, w := isNewLine(content[i:])
+		if is_nl {
 			lines[len(lines)-1].end = i
-			i += len(b.nl_seq)
+			i += w
 			line_finished = true
 		} else {
 			i += 1

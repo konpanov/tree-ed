@@ -20,7 +20,7 @@ func (self ReplaceChange) Apply(win *Window) {
 		end:         self.at + len(self.before),
 		replacement: self.after,
 	})
-	win.cursor = win.cursor.ToIndex(self.cursorAfter)
+	win.setCursor(win.cursor.ToIndex(self.cursorAfter), true)
 }
 
 func (self ReplaceChange) Reverse() Change {
@@ -64,6 +64,9 @@ func NewEraseLineModification(win *Window, row int) ReplaceChange {
 		log.Panicf("Cannot erase nonexisting line %d. number of line: %d.", row, len(lines))
 	}
 	line := lines[row]
-	end := min(line.end+len(buf.Nl_seq()), len(buf.Content()))
+	end := len(buf.Content())
+	if row+1 < len(lines) {
+		end = lines[row+1].start
+	}
 	return NewEraseModification(win, line.start, end)
 }

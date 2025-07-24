@@ -8,12 +8,13 @@ type NormalScanner struct {
 	state *ScannerState
 }
 
-func (self *NormalScanner) Scan(ev tcell.Event) (Operation, error) {
+func (self *NormalScanner) Push(ev tcell.Event) {
+	self.state.Push(ev)
+}
+
+func (self *NormalScanner) Scan() (Operation, error) {
 	if self.state == nil {
 		self.state = &ScannerState{}
-	}
-	if err := self.state.Push(ev); err != nil {
-		return nil, err
 	}
 	self.state.Reset()
 
@@ -80,7 +81,7 @@ func (self *NormalScanner) ScanOperation() (Operation, error) {
 	case ek.Rune() == 't':
 		op = SwitchToTreeMode{}
 	case ek.Rune() == 'p':
-		op = GetClipboardOperation{}
+		op = PasteClipboardOperation{}
 	case ek.Rune() == 'u':
 		op = UndoChangeOperation{}
 	case ek.Key() == tcell.KeyCtrlR:

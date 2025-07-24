@@ -1,6 +1,8 @@
 package main
 
-import "log"
+import (
+	"github.com/atotto/clipboard"
+)
 
 // import "github.com/gdamore/tcell/v2"
 
@@ -70,10 +72,6 @@ type SwitchFromInsertToNormalMode struct{}
 
 func (self SwitchFromInsertToNormalMode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToNormal()
-	new_cursor := editor.curwin.cursor.RunePrev()
-	if new_cursor.RunePosition().row == editor.curwin.cursor.RunePosition().row {
-		editor.curwin.cursor = new_cursor
-	}
 }
 
 type SwitchToTreeMode struct{}
@@ -133,7 +131,7 @@ func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
 	win := editor.curwin
 	for range count {
 		if !win.cursor.IsBegining() {
-			win.cursor = win.cursor.RunePrev()
+			win.setCursor(win.cursor.RunePrev(), true)
 			panic_if_error(err)
 			mod := NewEraseRuneModification(win, win.cursor.Index())
 			mod.cursorBefore = win.cursor.Index()
@@ -144,12 +142,12 @@ func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
 	}
 }
 
-type InsertContent struct {
+type InsertContentOperation struct {
 	content              []byte
 	continue_last_insert bool
 }
 
-func (self InsertContent) Execute(editor *Editor, count int) {
+func (self InsertContentOperation) Execute(editor *Editor, count int) {
 	editor.curwin.insertContent(self.continue_last_insert, self.content)
 }
 
@@ -282,7 +280,7 @@ type WordStartForwardOperation struct{}
 
 func (self WordStartForwardOperation) Execute(editor *Editor, count int) {
 	for range count {
-		editor.curwin.cursor = editor.curwin.cursor.WordStartNext()
+		editor.curwin.setCursor(editor.curwin.cursor.WordStartNext(), true)
 	}
 }
 
@@ -290,7 +288,7 @@ type WordEndForwardOperation struct{}
 
 func (self WordEndForwardOperation) Execute(editor *Editor, count int) {
 	for range count {
-		editor.curwin.cursor = editor.curwin.cursor.WordEndNext()
+		editor.curwin.setCursor(editor.curwin.cursor.WordEndNext(), true)
 	}
 }
 
@@ -298,7 +296,7 @@ type WordEndBackwardOperation struct{}
 
 func (self WordEndBackwardOperation) Execute(editor *Editor, count int) {
 	for range count {
-		editor.curwin.cursor = editor.curwin.cursor.WordEndPrev()
+		editor.curwin.setCursor(editor.curwin.cursor.WordEndPrev(), true)
 	}
 }
 
@@ -306,7 +304,7 @@ type WordBackwardOperation struct{}
 
 func (self WordBackwardOperation) Execute(editor *Editor, count int) {
 	for range count {
-		editor.curwin.cursor = editor.curwin.cursor.WordStartPrev()
+		editor.curwin.setCursor(editor.curwin.cursor.WordStartPrev(), true)
 	}
 }
 
@@ -314,7 +312,7 @@ type LineEndOperation struct{}
 
 func (self LineEndOperation) Execute(editor *Editor, count int) {
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.cursor = editor.curwin.cursor.ToRowEnd()
+	editor.curwin.setCursor(editor.curwin.cursor.ToRowEnd(), true)
 
 }
 
@@ -322,7 +320,7 @@ type LineStartOperation struct{}
 
 func (self LineStartOperation) Execute(editor *Editor, count int) {
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.cursor = editor.curwin.cursor.ToRowStart()
+	editor.curwin.setCursor(editor.curwin.cursor.ToRowStart(), true)
 
 }
 
@@ -330,7 +328,7 @@ type LineTextStartOperation struct{}
 
 func (self LineTextStartOperation) Execute(editor *Editor, count int) {
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.cursor = editor.curwin.cursor.ToRowTextStart()
+	editor.curwin.setCursor(editor.curwin.cursor.ToRowTextStart(), true)
 
 }
 
@@ -349,12 +347,12 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 	pos := editor.curwin.cursor.RunePosition()
 	pos.col = editor.curwin.cursorAnchor
 	pos.row = max(0, count-1)
-	editor.curwin.cursor = editor.curwin.cursor.MoveToRunePos(pos)
+	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
 
-type ShiftNodeForwardEndOperation struct{}
+type SwapNodeForwardEndOperation struct{}
 
-func (self ShiftNodeForwardEndOperation) Execute(editor *Editor, count int) {
+func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		win := editor.curwin
 
@@ -371,15 +369,15 @@ func (self ShiftNodeForwardEndOperation) Execute(editor *Editor, count int) {
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
 
-		win.cursor = win.cursor.ToIndex(-endA + startA + endB)
+		win.setCursor(win.cursor.ToIndex(-endA+startA+endB), true)
 		win.secondCursor = win.secondCursor.ToIndex(endB - 1)
 		win.undotree.Push(change)
 	}
 }
 
-type ShiftNodeBackwardEndOperation struct{}
+type SwapNodeBackwardEndOperation struct{}
 
-func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
+func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		win := editor.curwin
 
@@ -396,28 +394,31 @@ func (self ShiftNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
 
-		win.cursor = win.cursor.ToIndex(startA)
+		win.setCursor(win.cursor.ToIndex(startA), true)
 		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB - 1)
 		win.undotree.Push(change)
 	}
 }
 
-type GetClipboardOperation struct{}
+type PasteClipboardOperation struct{}
 
-func (self GetClipboardOperation) Execute(editor *Editor, count int) {
-	editor.screen.SetClipboard([]byte("Enjoy your new clipboard content!"))
-	log.Println("Requesting clipboard")
-	editor.screen.GetClipboard()
-	// InsertContent{content: []byte("paste"), continue_last_insert: false}.Execute(editor, count)
-	// if paste_event, ok := editor.screen.PollEvent().(*tcell.EventClipboard); ok {
-	// 	InsertContent{content: paste_event.Data(), continue_last_insert: false}.Execute(editor, count)
-	// }
+func (self PasteClipboardOperation) Execute(editor *Editor, count int) {
+	if clipboard.Unsupported {
+		return
+	}
+	text, err := clipboard.ReadAll()
+	panic_if_error(err)
+	editor.curwin.insertContent(false, []byte(text))
 }
 
-// type PasteClipboardOperation struct {
-// 	data []byte
-// }
-//
-// func (self PasteClipboardOperation) Execute(editor *Editor, count int) {
-// 	InsertContent{content: self.data, continue_last_insert: false}.Execute(editor, count)
-// }
+type CopyToClipboardOperation struct{}
+
+func (self CopyToClipboardOperation) Execute(editor *Editor, count int) {
+	if clipboard.Unsupported {
+		return
+	}
+	win := editor.curwin
+	start, end := win.getSelection()
+	text := win.buffer.Content()[start:end]
+	clipboard.WriteAll(string(text))
+}

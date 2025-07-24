@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"github.com/gdamore/tcell/v2"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -46,38 +45,42 @@ func windowFromBuffer(buffer IBuffer) *Window {
 	return window
 }
 
-func (self *Window) Scan(ev tcell.Event) (Operation, error) {
-	return self.scanner.Scan(ev)
-}
-
 func (self *Window) switchToInsert() {
 	self.mode = InsertMode
-	self.cursor.as_edge = true
-	self.secondCursor.as_edge = true
+	self.setCursor(self.cursor.AsEdge(), true)
+	self.secondCursor = self.secondCursor.AsEdge()
 	self.scanner = &InsertScanner{}
 }
 func (self *Window) switchToNormal() {
 	self.mode = NormalMode
-	self.cursor.as_edge = false
-	self.secondCursor.as_edge = false
+	self.setCursor(self.cursor.AsChar(), true)
+	self.secondCursor = self.secondCursor.AsChar()
 	self.scanner = &NormalScanner{}
 }
 
 func (self *Window) switchToVisual() {
 	self.mode = VisualMode
-	self.secondCursor = self.cursor
-	self.cursor.as_edge = false
-	self.secondCursor.as_edge = false
+	self.setCursor(self.cursor.AsChar(), true)
+	self.secondCursor = self.secondCursor.AsChar()
 	self.scanner = &VisualScanner{}
 }
 
 func (self *Window) switchToTree() {
 	if self.buffer.Tree() != nil {
-		log.Println("Switch to tree mode")
 		self.mode = TreeMode
 		self.cursor.as_edge = false
 		self.secondCursor.as_edge = false
 		self.scanner = &TreeScanner{}
+	}
+}
+
+func (self *Window) setCursor(cursor BufferCursor, updateAnchor bool) {
+	self.cursor = cursor
+	if updateAnchor {
+		self.cursorAnchor = self.cursor.RunePosition().col
+	}
+	if self.mode == InsertMode || self.mode == NormalMode {
+		self.secondCursor = self.cursor
 	}
 }
 
@@ -88,13 +91,11 @@ func (self *Window) setNode(node *sitter.Node, updateDepth bool) {
 	if node == nil {
 		log.Panic("Cannot set node to nil value")
 	}
-	log.Println("Setting node")
-	self.cursor = self.cursor.ToIndex(int(node.StartByte()))
+	self.setCursor(self.cursor.ToIndex(int(node.StartByte())), true)
 	self.secondCursor = self.cursor.ToIndex(int(node.EndByte()) - 1)
 	if updateDepth {
 		self.anchorDepth = Depth(node)
 	}
-	log.Println("Node set")
 }
 
 func (self *Window) getNode() *sitter.Node {
@@ -195,28 +196,22 @@ func (self *Window) nodeToLastSibling() {
 
 func (self *Window) cursorRight(count int) {
 	col := self.cursor.RunePosition().col + count
-	next := self.cursor.MoveToCol(col)
-	self.cursor = next
-	self.cursorAnchor = next.RunePosition().col
+	self.setCursor(self.cursor.MoveToCol(col), true)
 }
 
 func (self *Window) cursorLeft(count int) {
 	col := self.cursor.RunePosition().col - count
-	next := self.cursor.MoveToCol(col)
-	self.cursor = next
-	self.cursorAnchor = next.RunePosition().col
+	self.setCursor(self.cursor.MoveToCol(col), true)
 }
 
 func (self *Window) cursorUp(count int) {
 	pos := Point{row: self.cursor.Row() - count, col: self.cursorAnchor}
-	next := self.cursor.MoveToRunePos(pos)
-	self.cursor = next
+	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 
 func (self *Window) cursorDown(count int) {
 	pos := Point{row: self.cursor.Row() + count, col: self.cursorAnchor}
-	next := self.cursor.MoveToRunePos(pos)
-	self.cursor = next
+	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 
 func (self *Window) eraseLineAtCursor(count int) {
@@ -226,7 +221,7 @@ func (self *Window) eraseLineAtCursor(count int) {
 		mod := NewEraseLineModification(self, self.cursor.Row())
 		mod.cursorBefore = self.cursor.Index()
 		mod.Apply(self)
-		self.cursor = self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor})
+		self.setCursor(self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor}), true)
 		self.secondCursor = self.cursor
 		mod.cursorAfter = self.cursor.Index()
 		composite.changes = append(composite.changes, mod)

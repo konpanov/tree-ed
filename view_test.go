@@ -217,7 +217,7 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	buffer := mkTestBuffer(t, content+nl, nl)
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer)
-	window.cursor = window.cursor.ToIndex(20)
+	window.setCursor(window.cursor.ToIndex(20), true)
 	assertIntEqualMsg(t, w, 8, "")
 	assertIntEqualMsg(t, h, 2, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 20, "")
@@ -255,14 +255,14 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	window := windowFromBuffer(buffer)
-	window.cursor = window.cursor.ToIndex(20)
+	window.setCursor(window.cursor.ToIndex(20), true)
 	window_view := NewWindowView(screen, roi, window)
 	assertIntEqualMsg(t, w, 8, "")
 	assertIntEqualMsg(t, h, 2, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 20, "")
 	window_view.Draw()
 
-	window.cursor = window.cursor.ToIndex(14)
+	window.setCursor(window.cursor.ToIndex(14), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 14, "")
 	window_view.Update(roi)
 	window_view.Draw()
@@ -271,7 +271,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
 	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
 
-	window.cursor = window.cursor.ToIndex(8)
+	window.setCursor(window.cursor.ToIndex(8), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 8, "")
 	window_view.Update(roi)
 	window_view.Draw()
@@ -303,7 +303,7 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer)
 	for range 4 {
-		window.cursor = window.cursor.RuneNext()
+		window.setCursor(window.cursor.RuneNext(), true)
 	}
 	assertIntEqualMsg(t, w, 4, "")
 	assertIntEqualMsg(t, h, 8, "")
@@ -343,7 +343,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer)
 	for range 4 {
-		window.cursor = window.cursor.RuneNext()
+		window.setCursor(window.cursor.RuneNext(), true)
 	}
 	assertIntEqualMsg(t, w, 4, "")
 	assertIntEqualMsg(t, h, 8, "")
@@ -352,7 +352,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view := NewWindowView(screen, roi, window)
 	window_view.Draw()
 
-	window.cursor = window.cursor.RunePrev()
+	window.setCursor(window.cursor.RunePrev(), true)
 	window_view.Update(roi)
 	window_view.Draw()
 
@@ -364,7 +364,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
 	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
 
-	window.cursor = window.cursor.RunePrev()
+	window.setCursor(window.cursor.RunePrev(), true)
 	window_view.Update(roi)
 	window_view.Draw()
 

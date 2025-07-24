@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"unicode/utf8"
 )
 
@@ -18,6 +17,14 @@ func (self BufferCursor) Index() int {
 	return self.index
 }
 
+func (self BufferCursor) ToIndex(index int) BufferCursor {
+	self.index = clip(index, 0, self.Hardstop())
+	row, err := self.buffer.Line(self.Row())
+	panic_if_error(err)
+	self.index = min(self.index, self.Rowend(row))
+	return self
+}
+
 func (self BufferCursor) Rune() rune {
 	value, _ := utf8.DecodeRune(self.buffer.Content()[self.index:])
 	return value
@@ -25,6 +32,16 @@ func (self BufferCursor) Rune() rune {
 
 func (self BufferCursor) Class() RuneClass {
 	return rune_class(self.Rune())
+}
+
+func (self BufferCursor) AsEdge() BufferCursor {
+	self.as_edge = true
+	return self.ToIndex(self.index)
+}
+
+func (self BufferCursor) AsChar() BufferCursor {
+	self.as_edge = false
+	return self.ToIndex(self.index)
 }
 
 func (self BufferCursor) Hardstop() int {
@@ -45,31 +62,20 @@ func (self BufferCursor) Rowend(row Region) int {
 
 func (self BufferCursor) Row() int {
 	row, err := self.buffer.Row(self.Index())
-	if err != nil {
-		log.Panicln(err)
-	}
+	panic_if_error(err)
 	return row
 }
 
 func (self BufferCursor) BytePosition() Point {
 	coord, err := self.buffer.Coord(self.index)
-	if err != nil {
-		log.Fatalf("Could not find buffer coord at index %d\n", self.index)
-	}
+	panic_if_error(err)
 	return coord
 }
 
 func (self BufferCursor) RunePosition() Point {
 	coord, err := self.buffer.RuneCoord(self.index)
-	if err != nil {
-		log.Fatalf("Could not find buffer coord at index %d\n", self.index)
-	}
+	panic_if_error(err)
 	return coord
-}
-
-func (self BufferCursor) ToIndex(index int) BufferCursor {
-	self.index = clip(index, 0, self.Hardstop())
-	return self
 }
 
 func (self BufferCursor) BytesForward(count int) BufferCursor {
@@ -189,7 +195,8 @@ func (self BufferCursor) Match(seq []byte) bool {
 }
 
 func (self BufferCursor) IsNewLine() bool {
-	return self.Match(self.buffer.Nl_seq())
+	is_nl, _ := isNewLine(self.buffer.Content()[self.index:])
+	return is_nl
 }
 
 func (self BufferCursor) IsLineStart() bool {
@@ -197,7 +204,7 @@ func (self BufferCursor) IsLineStart() bool {
 }
 
 func (self BufferCursor) IsEnd() bool {
-	return self.Index() == len(self.buffer.Content())
+	return self.Index() >= self.Hardstop()
 }
 
 func (self BufferCursor) IsBegining() bool {

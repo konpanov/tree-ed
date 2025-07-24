@@ -6,12 +6,13 @@ type TreeScanner struct {
 	state *ScannerState
 }
 
-func (self *TreeScanner) Scan(ev tcell.Event) (Operation, error) {
+func (self *TreeScanner) Push(ev tcell.Event) {
+	self.state.Push(ev)
+}
+
+func (self *TreeScanner) Scan() (Operation, error) {
 	if self.state == nil {
 		self.state = &ScannerState{}
-	}
-	if err := self.state.Push(ev); err != nil {
-		return nil, err
 	}
 	self.state.Reset()
 
@@ -57,9 +58,9 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 	case ek.Rune() == 'd':
 		op = EraseSelectionOperation{}
 	case ek.Rune() == 'f':
-		op = ShiftNodeForwardEndOperation{}
+		op = SwapNodeForwardEndOperation{}
 	case ek.Rune() == 'b':
-		op = ShiftNodeBackwardEndOperation{}
+		op = SwapNodeBackwardEndOperation{}
 	case ek.Rune() == '$':
 		op = NodeLastSiblingOperation{}
 	case ek.Rune() == '_', ek.Rune() == '0':

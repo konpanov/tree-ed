@@ -192,20 +192,18 @@ func (self *TreeColorView) Draw() {
 }
 
 func (self *TreeColorView) ColorNode(node *sitter.Node, style tcell.Style) {
-	for index := int(node.StartByte()); index < int(node.EndByte()); {
-		pos, err := self.window.buffer.RuneCoord(index)
-		panic_if_error(err)
-		pos, err = text_pos_to_screen(pos, self.text_offset, self.roi)
+	start, end := int(node.StartByte()), int(node.EndByte())
+	cursor := BufferCursor{buffer: self.window.buffer}.AsChar().ToIndex(start)
+	for ; !cursor.IsEnd() && cursor.Index() < end; cursor = cursor.RuneNext() {
+		if cursor.IsNewLine() {
+			continue
+		}
+		pos := cursor.RunePosition()
+		pos, err := text_pos_to_screen(pos, self.text_offset, self.roi)
 		if err == nil {
 			set_style(self.screen, pos, style)
 		}
-		is_nl, err := self.window.buffer.IsNewLine(index)
-		panic_if_error(err)
-		if is_nl {
-			index += len(self.window.buffer.Nl_seq())
-		} else {
-			index++
-		}
+
 	}
 }
 
