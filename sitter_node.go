@@ -52,15 +52,15 @@ func MinimalNodeDepth(node *sitter.Node, a uint, b uint, depth int) *sitter.Node
 	return node
 }
 
-func NextCousinDepth(node *sitter.Node, depth int) *sitter.Node {
-	cousin := NextCousin(node)
+func NextSiblingOrCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	cousin := NextSiblingOrCousin(node)
 	for cousin != nil && cousin.ChildCount() != 0 && Depth(cousin) < depth {
 		cousin = cousin.Child(0)
 	}
 	return cousin
 }
 
-func NextCousin(node *sitter.Node) *sitter.Node {
+func NextSiblingOrCousin(node *sitter.Node) *sitter.Node {
 	sibling := node.NextSibling()
 	if sibling != nil {
 		return sibling
@@ -71,7 +71,7 @@ func NextCousin(node *sitter.Node) *sitter.Node {
 	}
 	ancle := parent.NextSibling()
 	if ancle == nil {
-		ancle = NextCousin(parent)
+		ancle = NextSiblingOrCousin(parent)
 		if ancle == nil {
 			return nil
 		}
@@ -83,15 +83,30 @@ func NextCousin(node *sitter.Node) *sitter.Node {
 	}
 }
 
-func PrevCousinDepth(node *sitter.Node, depth int) *sitter.Node {
-	cousin := PrevCousin(node)
-	for cousin != nil && cousin.ChildCount() != 0 && Depth(cousin) < depth {
-		cousin = cousin.Child(cousin.ChildCount() - 1)
+func PrevSiblingOrCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	prev := PrevSiblingOrCousin(node)
+	for prev != nil && prev.ChildCount() != 0 && Depth(prev) < depth {
+		prev = prev.Child(prev.ChildCount() - 1)
 	}
-	return cousin
+	return prev
 }
 
-func PrevCousin(node *sitter.Node) *sitter.Node {
+func NextAncle(node *sitter.Node) *sitter.Node {
+	if node == nil {
+		return nil
+	}
+	parent := node.Parent()
+	if parent == nil {
+		return nil
+	}
+	ancle := parent.NextSibling()
+	if ancle == nil {
+		ancle = NextAncle(parent)
+	}
+	return ancle
+}
+
+func PrevSiblingOrCousin(node *sitter.Node) *sitter.Node {
 	sibling := node.PrevSibling()
 	if sibling != nil {
 		return sibling
@@ -102,7 +117,7 @@ func PrevCousin(node *sitter.Node) *sitter.Node {
 	}
 	ancle := parent.PrevSibling()
 	if ancle == nil {
-		ancle = PrevCousin(parent)
+		ancle = PrevSiblingOrCousin(parent)
 		if ancle == nil {
 			return nil
 		}

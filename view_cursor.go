@@ -115,7 +115,8 @@ func (self *SelectionViewCursor) Draw() {
 		start = start.ToIndex(screen_start_index)
 	}
 
-	for cursor := start; !cursor.IsEnd() && cursor.Index() <= end.Index(); cursor = cursor.RuneNext() {
+	ok := true
+	for cursor := start; ok; cursor = cursor.RuneNext() {
 		rune_pos := cursor.RunePosition()
 
 		pos, err := text_pos_to_view_pos(rune_pos, self.text_offset, self.roi)
@@ -139,7 +140,7 @@ func (self *SelectionViewCursor) Draw() {
 		if cursor.IsNewLine() {
 			set_rune(self.screen, pos, '\u21B5')
 		}
-
+		ok = !cursor.IsEnd() && cursor.Index() < end.Index()
 	}
 
 	self.screen.ShowCursor(-1, -1)

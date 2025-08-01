@@ -194,12 +194,12 @@ func (self NodeNextSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodeNextCousinOperation struct{}
+type NodeNextSiblingOrCousinOperation struct{}
 
-func (self NodeNextCousinOperation) Execute(editor *Editor, count int) {
+func (self NodeNextSiblingOrCousinOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		for range count {
-			editor.curwin.nodeNextCousin()
+			editor.curwin.nodeNextSiblingOrCousin()
 		}
 	}
 }
@@ -214,12 +214,12 @@ func (self NodePrevSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodePrevCousinOperation struct{}
+type NodePrevSiblingOrCousinOperation struct{}
 
-func (self NodePrevCousinOperation) Execute(editor *Editor, count int) {
+func (self NodePrevSiblingOrCousinOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		for range count {
-			editor.curwin.nodePrevCousin()
+			editor.curwin.nodePrevSiblingOrCousin()
 		}
 	}
 }
@@ -350,6 +350,15 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
 
+type GoEndOperation struct{}
+
+func (self GoEndOperation) Execute(editor *Editor, count int) {
+	pos := editor.curwin.cursor.RunePosition()
+	pos.col = editor.curwin.cursorAnchor
+	pos.row = max(0, len(editor.curwin.buffer.Lines())-1)
+	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
+}
+
 type SwapNodeForwardEndOperation struct{}
 
 func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
@@ -357,15 +366,15 @@ func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 		win := editor.curwin
 
 		node := win.getNode()
-		cousin := node
+		swapee := node
 		for range count {
-			if cousin = NextCousinDepth(cousin, win.anchorDepth); cousin == nil {
+			if swapee = NextSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
 				return
 			}
 		}
 
 		startA, endA := int(node.StartByte()), int(node.EndByte())
-		startB, endB := int(cousin.StartByte()), int(cousin.EndByte())
+		startB, endB := int(swapee.StartByte()), int(swapee.EndByte())
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
 
@@ -382,14 +391,14 @@ func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 		win := editor.curwin
 
 		node := win.getNode()
-		cousin := node
+		swapee := node
 		for range count {
-			if cousin = PrevCousinDepth(cousin, win.anchorDepth); cousin == nil {
+			if swapee = PrevSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
 				return
 			}
 		}
 
-		startA, endA := int(cousin.StartByte()), int(cousin.EndByte())
+		startA, endA := int(swapee.StartByte()), int(swapee.EndByte())
 		startB, endB := int(node.StartByte()), int(node.EndByte())
 		change := NewSwapChange(win, startA, endA, startB, endB)
 		change.Apply(win)
@@ -421,4 +430,34 @@ func (self CopyToClipboardOperation) Execute(editor *Editor, count int) {
 	start, end := win.getSelection()
 	text := win.buffer.Content()[start:end]
 	clipboard.WriteAll(string(text))
+}
+
+type SlurpNodeOperation struct{}
+
+func (self SlurpNodeOperation) Execute(editor *Editor, count int) {
+	win := editor.curwin
+	if win.buffer.Tree() == nil {
+		return
+	}
+	node := win.getNode()
+	parent := node
+	if parent == nil {
+		return
+	}
+	if parent.ChildCount() < 2 {
+		return
+	}
+	last_siblling := parent.Child(parent.ChildCount() - 1)
+	next := NextSiblingOrCousinDepth(parent, win.anchorDepth)
+	if next == nil {
+		return
+	}
+
+	startA, endA := int(last_siblling.StartByte()), int(last_siblling.EndByte())
+	startB, endB := int(next.StartByte()), int(next.EndByte())
+	change := NewSwapChange(win, startA, endA, startB, endB)
+	change.Apply(win)
+	win.undotree.Push(change)
+	node = win.getNode()
+	win.setNode(node, true)
 }

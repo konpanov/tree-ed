@@ -38,41 +38,32 @@ func (self *VisualScanner) ScanOperation() (Operation, error) {
 		return nil, err
 	}
 	var op Operation
-	switch {
-	case ek.Key() == tcell.KeyEsc:
-		op = SwitchToNormalMode{}
-	case ek.Rune() == 'i':
-		op = SwitchToInsertMode{}
-	case ek.Rune() == 'a':
-		op = SwitchToInsertModeAsAppend{}
-	case ek.Rune() == 'v':
-		op = SwitchToNormalMode{}
-	case ek.Rune() == 'd':
-		op = EraseSelectionOperation{}
-	case ek.Rune() == 'j':
-		op = NormalCursorDown{}
-	case ek.Rune() == 'k':
-		op = NormalCursorUp{}
-	case ek.Rune() == 'h':
-		op = NormalCursorLeft{}
-	case ek.Rune() == 'l':
-		op = NormalCursorRight{}
-	case ek.Rune() == 't':
-		op = SwitchFromVisualToTreeMode{}
-	case ek.Rune() == 'w':
-		op = WordStartForwardOperation{}
-	case ek.Rune() == 'e':
-		op = WordEndForwardOperation{}
-	case ek.Rune() == 'b':
-		op = WordBackwardOperation{}
-	case ek.Rune() == '$':
-		op = LineEndOperation{}
-	case ek.Rune() == '0':
-		op = LineStartOperation{}
-	case ek.Rune() == 'y':
-		op = CopyToClipboardOperation{}
+	if op, err = self.state.ScanCursorMovement(); op != nil {
+	} else {
+		switch {
+		case ek.Key() == tcell.KeyEsc:
+			self.state.Advance()
+			op = SwitchToNormalMode{}
+		case ek.Rune() == 'i':
+			self.state.Advance()
+			op = SwitchToInsertMode{}
+		case ek.Rune() == 'a':
+			self.state.Advance()
+			op = SwitchToInsertModeAsAppend{}
+		case ek.Rune() == 'v':
+			self.state.Advance()
+			op = SwitchToNormalMode{}
+		case ek.Rune() == 'd':
+			self.state.Advance()
+			op = EraseSelectionOperation{}
+		case ek.Rune() == 't':
+			self.state.Advance()
+			op = SwitchFromVisualToTreeMode{}
+		case ek.Rune() == 'y':
+			self.state.Advance()
+			op = CopyToClipboardOperation{}
+		}
 	}
-	self.state.Advance()
 	if op != nil {
 		return op, nil
 	}

@@ -1,5 +1,4 @@
 ## WIP
-20. Add clipboard support
 ## TODO
 11. Add more tree operatrions
 12. Separate tree view from window view
@@ -12,6 +11,7 @@
 ## VALIDATION
 4. Fix text_offset being off by 1 when going from node overflowing a line to a node at the beginning of the line
 ## DONE
+20. Add clipboard support
 10. Add more treesitter parsers
 3. Add count operation to tree and visual modes
 1. In tree mode make window shift to show as much of the node as possible. Example: when go couple of nodes forward and screen moves down only the first line of the function show instead of the whole function or its top part

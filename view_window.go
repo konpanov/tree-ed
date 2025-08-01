@@ -167,7 +167,7 @@ func (self *TreeColorView) Draw() {
 		node := self.window.getNode()
 		first_node := node
 		for {
-			sibl := PrevCousinDepth(first_node, depth)
+			sibl := PrevSiblingOrCousinDepth(first_node, depth)
 			if sibl == nil {
 				break
 			}
@@ -175,7 +175,7 @@ func (self *TreeColorView) Draw() {
 		}
 
 		odd := true
-		for cousin := first_node; cousin != nil; cousin = NextCousinDepth(cousin, depth) {
+		for next := first_node; next != nil; next = NextSiblingOrCousinDepth(next, depth) {
 			var style tcell.Style
 			if odd {
 				style = self.base_style.Background(tcell.NewHexColor(0x384251))
@@ -183,7 +183,7 @@ func (self *TreeColorView) Draw() {
 				style = self.base_style.Background(tcell.NewHexColor(0x504C4A))
 			}
 			odd = !odd
-			self.ColorNode(cousin, style)
+			self.ColorNode(next, style)
 		}
 	} else {
 		node := self.window.getNode()

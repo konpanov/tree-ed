@@ -52,9 +52,9 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 	case ek.Rune() == 'L':
 		op = NodeNextSiblingOperation{}
 	case ek.Rune() == 'h':
-		op = NodePrevCousinOperation{}
+		op = NodePrevSiblingOrCousinOperation{}
 	case ek.Rune() == 'l':
-		op = NodeNextCousinOperation{}
+		op = NodeNextSiblingOrCousinOperation{}
 	case ek.Rune() == 'd':
 		op = EraseSelectionOperation{}
 	case ek.Rune() == 'f':
@@ -65,6 +65,12 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 		op = NodeLastSiblingOperation{}
 	case ek.Rune() == '_', ek.Rune() == '0':
 		op = NodeFirstSiblingOperation{}
+	case ek.Rune() == 'u':
+		op = UndoChangeOperation{}
+	case ek.Key() == tcell.KeyCtrlR:
+		op = RedoChangeOperation{}
+	case ek.Rune() == ']':
+		op = SlurpNodeOperation{}
 	}
 	self.state.Advance()
 	if op != nil {

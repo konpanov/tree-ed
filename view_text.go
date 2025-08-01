@@ -49,7 +49,6 @@ func (self TextView) Draw() {
 		for col, value := range line {
 			screen_pos := view_pos_to_screen_pos(Point{col: col, row: row}, self.roi)
 			set_rune(self.screen, screen_pos, value)
-			set_style(self.screen, screen_pos, self.style)
 		}
 	}
 }

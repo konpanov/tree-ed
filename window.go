@@ -162,21 +162,21 @@ func (self *Window) nodePrevSibling() {
 	}
 }
 
-func (self *Window) nodeNextCousin() {
+func (self *Window) nodeNextSiblingOrCousin() {
 	if self.buffer.Tree() == nil {
 		return
 	}
-	if cousin := NextCousinDepth(self.getNode(), self.anchorDepth); cousin != nil {
-		self.setNode(cousin, false)
+	if node := NextSiblingOrCousinDepth(self.getNode(), self.anchorDepth); node != nil {
+		self.setNode(node, false)
 	}
 }
 
-func (self *Window) nodePrevCousin() {
+func (self *Window) nodePrevSiblingOrCousin() {
 	if self.buffer.Tree() == nil {
 		return
 	}
-	if cousin := PrevCousinDepth(self.getNode(), self.anchorDepth); cousin != nil {
-		self.setNode(cousin, false)
+	if node := PrevSiblingOrCousinDepth(self.getNode(), self.anchorDepth); node != nil {
+		self.setNode(node, false)
 	}
 }
 
