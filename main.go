@@ -9,6 +9,8 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
+var debug = true
+
 func main() {
 	// Setup logging to file
 	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)

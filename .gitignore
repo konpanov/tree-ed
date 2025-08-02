@@ -1,2 +1,5 @@
 logfile
 cpuprofile
+__debug*
+.shada
+*.exe

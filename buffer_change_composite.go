@@ -33,6 +33,9 @@ func (self CompositeChange) Shift(index int) int {
 }
 
 func (self CompositeChange) IsEmpty() bool {
+	if len(self.changes) == 0 {
+		return true
+	}
 	for _, change := range self.changes {
 		if change.IsEmpty() {
 			return true
@@ -55,14 +58,14 @@ func NewSwapChange(win *Window, startA int, endA int, startB int, endB int) Comp
 	a := win.buffer.Content()[startA:endA]
 	b := win.buffer.Content()[startB:endB]
 
-	mod1 := NewReplacementModification(startB, b, a)
-	mod1.cursorBefore = win.cursor.Index()
-	mod1.cursorAfter = mod1.Shift(win.cursor.Index())
+	mod1 := NewReplacementChange(startB, b, a)
+	// mod1.cursorBefore = win.cursor.Index() // TMPCHANGE
+	// mod1.cursorAfter = mod1.Shift(win.cursor.Index()) // TMPCHANGE
 	change.changes = append(change.changes, mod1)
 
-	mod2 := NewReplacementModification(startA, a, b)
-	mod2.cursorBefore = win.cursor.Index()
-	mod2.cursorAfter = mod2.Shift(win.cursor.Index())
+	mod2 := NewReplacementChange(startA, a, b)
+	// mod2.cursorBefore = win.cursor.Index() // TMPCHANGE
+	// mod2.cursorAfter = mod2.Shift(win.cursor.Index()) // TMPCHANGE
 	change.changes = append(change.changes, mod2)
 
 	return change

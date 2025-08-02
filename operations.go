@@ -105,20 +105,20 @@ func (self EraseLineAtCursor) Execute(editor *Editor, count int) {
 type EraseCharNormalMode struct{}
 
 func (self EraseCharNormalMode) Execute(editor *Editor, count int) {
+	if debug {
+		assert(count != 0, "Count is not expected to be 0")
+	}
 	win := editor.curwin
 	composite := CompositeChange{}
 	for range count {
 		if win.cursor.IsNewLine() {
 			break
 		}
-		mod := NewEraseRuneModification(win, win.cursor.Index())
-		mod.cursorBefore = win.cursor.Index()
-		mod.cursorAfter = win.cursor.Index()
-		mod.Apply(win)
-		composite.changes = append(composite.changes, mod)
+		change := NewEraseRuneChange(win, win.cursor.Index())
+		change.Apply(win)
+		composite.changes = append(composite.changes, change)
 	}
-	win.undotree.Push(composite)
-
+	win.undotree.Push(UndoState{change: composite}, true)
 }
 
 type EraseCharInsertMode struct {
@@ -127,19 +127,7 @@ type EraseCharInsertMode struct {
 
 // TODO add composite modification?
 func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
-	var err error
-	win := editor.curwin
-	for range count {
-		if !win.cursor.IsBegining() {
-			win.setCursor(win.cursor.RunePrev(), true)
-			panic_if_error(err)
-			mod := NewEraseRuneModification(win, win.cursor.Index())
-			mod.cursorBefore = win.cursor.Index()
-			mod.cursorAfter = win.cursor.Index()
-			mod.Apply(win)
-			win.undotree.Push(mod)
-		}
-	}
+	editor.curwin.eraseContent(self.continue_last_erase)
 }
 
 type InsertContentOperation struct {
@@ -149,19 +137,6 @@ type InsertContentOperation struct {
 
 func (self InsertContentOperation) Execute(editor *Editor, count int) {
 	editor.curwin.insertContent(self.continue_last_insert, self.content)
-}
-
-type InsertNewLine struct{}
-
-func (self InsertNewLine) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	for range count {
-		mod := NewReplacementModification(win.cursor.Index(), []byte{}, win.buffer.Nl_seq())
-		mod.cursorBefore = win.cursor.Index()
-		mod.cursorAfter = win.cursor.Index() + len(mod.after)
-		mod.Apply(win)
-		win.undotree.Push(mod)
-	}
 }
 
 type NodeUpOperation struct{}
@@ -246,11 +221,11 @@ func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
 	win := editor.curwin
 	start, end := win.cursor.Index(), win.secondCursor.Index()
 	start, end = min(start, end), max(start, end)
-	mod := NewEraseModification(win, start, end+1)
-	mod.cursorBefore = win.cursor.Index()
-	mod.cursorAfter = win.cursor.Index()
-	mod.Apply(win)
-	win.undotree.Push(mod)
+	change := NewEraseChange(win, start, end+1)
+	// mod.cursorBefore = win.cursor.Index() // TMPCHANGE
+	// mod.cursorAfter = win.cursor.Index() // TMPCHANGE
+	change.Apply(win)
+	win.undotree.Push(UndoState{change: change}, true)
 	win.switchToNormal()
 }
 
@@ -380,7 +355,7 @@ func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 
 		win.setCursor(win.cursor.ToIndex(-endA+startA+endB), true)
 		win.secondCursor = win.secondCursor.ToIndex(endB - 1)
-		win.undotree.Push(change)
+		win.undotree.Push(UndoState{change: change}, true)
 	}
 }
 
@@ -405,7 +380,7 @@ func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 
 		win.setCursor(win.cursor.ToIndex(startA), true)
 		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB - 1)
-		win.undotree.Push(change)
+		win.undotree.Push(UndoState{change: change}, true) // TMPCHANGE
 	}
 }
 
@@ -457,7 +432,7 @@ func (self SlurpNodeOperation) Execute(editor *Editor, count int) {
 	startB, endB := int(next.StartByte()), int(next.EndByte())
 	change := NewSwapChange(win, startA, endA, startB, endB)
 	change.Apply(win)
-	win.undotree.Push(change)
+	win.undotree.Push(UndoState{change: change}, true) //TMPCHANGE
 	node = win.getNode()
 	win.setNode(node, true)
 }

@@ -14,10 +14,12 @@ type WindowView struct {
 	text_offset Point
 
 	// Widgets
-	status_line  IStatusLine
-	is_tree_view bool
-	text_style   tcell.Style
-	base_style   tcell.Style
+	status_line IStatusLine
+	text_style  tcell.Style
+	base_style  tcell.Style
+
+	is_tree_view       bool
+	is_newline_symbols bool
 }
 
 func NewWindowView(
@@ -28,13 +30,15 @@ func NewWindowView(
 	base_style := tcell.StyleDefault
 	base_style = base_style.Background(tcell.NewHexColor(SPACE_CADET))
 	view := &WindowView{
-		screen:       screen,
-		roi:          roi,
-		window:       window,
-		text_offset:  Point{0, 0},
-		status_line:  NoStatusLine{},
-		is_tree_view: window.buffer.Tree() != nil && false, // TODO separate tree view from window view
-		base_style:   base_style,
+		screen:      screen,
+		roi:         roi,
+		window:      window,
+		text_offset: Point{0, 0},
+		status_line: NoStatusLine{},
+		base_style:  base_style,
+
+		is_tree_view:       window.buffer.Tree() != nil && false, // TODO separate tree view from window view
+		is_newline_symbols: true,
 	}
 	view.Update(roi)
 	return view
@@ -146,7 +150,12 @@ func (self *WindowView) get_text_from_buffer(roi Rect, text_offset Point) ([][]r
 	text := [][]rune{}
 
 	for _, region := range lines {
-		line := []rune(string(self.window.buffer.Content()[region.start:region.end]))
+		content := self.window.buffer.Content()
+		start, end := region.start, region.end
+		if self.is_newline_symbols {
+			end = region.full_end
+		}
+		line := []rune(string(content[start:end]))
 		line = line[min(len(line), text_offset.col):min(len(line), text_offset.col+width)]
 		text = append(text, line)
 	}

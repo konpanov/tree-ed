@@ -16,6 +16,29 @@ const (
 	NewLineMac     string = "\r"
 )
 
+const (
+	SymborForLineFeed       rune = 0x240A // LF \n
+	SymborForCarriageReturn      = 0x240D // CR \r
+)
+
+func newlinesToSymbols(text []rune) []rune {
+	for i, r := range text {
+		switch r {
+		case '\r':
+			text[i] = SymborForCarriageReturn
+		case '\n':
+			text[i] = SymborForLineFeed
+		}
+	}
+	return text
+}
+
+func assert(is_valid bool, message string) {
+	if debug && !is_valid {
+		log.Panic(message)
+	}
+}
+
 func getContentNewLine(content []byte) []byte {
 	nl_windows := []byte(NewLineWindows)
 	nl_unix := []byte(NewLineUnix)

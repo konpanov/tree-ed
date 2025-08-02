@@ -47,6 +47,12 @@ func (self TextView) Draw() {
 		}
 
 		for col, value := range line {
+			switch value {
+			case '\r':
+				value = SymborForCarriageReturn
+			case '\n':
+				value = SymborForLineFeed
+			}
 			screen_pos := view_pos_to_screen_pos(Point{col: col, row: row}, self.roi)
 			set_rune(self.screen, screen_pos, value)
 		}

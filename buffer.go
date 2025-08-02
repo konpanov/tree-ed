@@ -16,12 +16,15 @@ import (
 // In other words start is inclusive and end is not
 type Region struct {
 	start, end int
+	full_end   int
 }
 
 func NewRegion(a, b int) Region {
+	start, end := min(a, b), max(a, b)
 	return Region{
-		start: min(a, b),
-		end:   max(a, b),
+		start:    start,
+		end:      end,
+		full_end: end,
 	}
 }
 
@@ -66,6 +69,8 @@ type IBuffer interface {
 	IsNewLine(index int) (bool, error)
 	LastIndex() int
 
+	RegisterCursor(curosr *BufferCursor)
+
 	Close()
 }
 
@@ -88,6 +93,11 @@ type Buffer struct {
 	tree        *sitter.Tree
 	quiting     bool
 	lines       []Region
+	cursors     []*BufferCursor
+}
+
+func (self *Buffer) RegisterCursor(cursor *BufferCursor) {
+	self.cursors = append(self.cursors, cursor)
 }
 
 func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
@@ -102,7 +112,7 @@ func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
 		nl_seq:      nl_seq,
 		tree_parser: parser,
 		tree:        tree,
-		lines:       []Region{{0, 0}},
+		lines:       []Region{NewRegion(0, 0)},
 	}
 
 	return buffer, nil
@@ -155,6 +165,13 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 
 	b.content = slices.Replace(b.content, input.start, input.end, input.replacement...)
 	b.lines = b.calculateLines()
+	for _, cur := range b.cursors {
+		if (*cur).Index() >= input.end {
+			*cur = (*cur).ToIndex((*cur).Index() - (input.end - input.start) + len(input.replacement))
+		} else if (*cur).Index() > input.start {
+			*cur = (*cur).ToIndex(min((*cur).Index(), input.start+len(input.replacement)))
+		}
+	}
 
 	new_end := input.start + len(input.replacement)
 	new_end_point, _ := b.Coord(new_end)
@@ -240,11 +257,13 @@ func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
 func (b *Buffer) calculateLines() []Region {
 	lines := []Region{}
 	line_finished := false
-	lines = append(lines, Region{0, 0})
+	lines = append(lines, NewRegion(0, 0))
 	content := b.content
-	for i := 0; i < len(content); {
+	length := len(content)
+	for i := 0; i < length; {
 		if line_finished {
-			lines = append(lines, Region{i, i})
+			lines[len(lines)-1].full_end = i
+			lines = append(lines, Region{start: i, end: i, full_end: length})
 			line_finished = false
 		}
 		is_nl, w := isNewLine(content[i:])

@@ -7,7 +7,7 @@ import (
 type InsertScanner struct {
 	state      *ScannerState
 	continuous bool
-	change     ReplacementInput
+	change     ReplaceChange
 	input      []byte
 }
 
@@ -36,9 +36,9 @@ func (self *InsertScanner) ScanOperation() (Operation, error) {
 	input, err := self.ScanInput()
 	switch {
 	case input != nil:
-		self.input = append(self.input, input...)
+		// self.input = append(self.input, input...)
 		op = InsertContentOperation{
-			content:              self.input,
+			content:              input,
 			continue_last_insert: self.continuous,
 		}
 		self.continuous = true
@@ -49,7 +49,7 @@ func (self *InsertScanner) ScanOperation() (Operation, error) {
 	case ek.Key() == tcell.KeyBackspace, ek.Key() == tcell.KeyBackspace2:
 		op = EraseCharInsertMode{continue_last_erase: self.continuous}
 		self.state.Advance()
-		self.continuous = false
+		self.continuous = true
 		// case ek.Key() == tcell.KeyEnter:
 		// 	log.Println("Scanned KeyEntr")
 		// 	self.state.Advance()

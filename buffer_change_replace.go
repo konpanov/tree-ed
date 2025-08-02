@@ -7,11 +7,18 @@ import (
 )
 
 type ReplaceChange struct {
-	at           int
-	before       []byte
-	after        []byte
-	cursorBefore int
+	at int
+
+	before []byte
+	after  []byte
+
 	cursorAfter  int
+	cursorBefore int
+
+	secondCursorAfter  int
+	secondCursorBefore int
+
+	resetAnchor bool
 }
 
 func (self ReplaceChange) Apply(win *Window) {
@@ -20,12 +27,14 @@ func (self ReplaceChange) Apply(win *Window) {
 		end:         self.at + len(self.before),
 		replacement: self.after,
 	})
-	win.setCursor(win.cursor.ToIndex(self.cursorAfter), true)
+	win.setCursor(win.cursor.ToIndex(self.cursorAfter), self.resetAnchor)
+	win.secondCursor = win.secondCursor.ToIndex(self.secondCursorAfter)
 }
 
 func (self ReplaceChange) Reverse() Change {
 	self.after, self.before = self.before, self.after
-	self.cursorAfter, self.cursorBefore = self.cursorBefore, self.cursorAfter
+	self.cursorBefore, self.cursorAfter = self.cursorAfter, self.cursorBefore
+	self.secondCursorBefore, self.secondCursorAfter = self.secondCursorAfter, self.secondCursorBefore
 	return self
 }
 
@@ -43,21 +52,30 @@ func (self ReplaceChange) IsEmpty() bool {
 	return slices.Compare(self.before, self.after) == 0
 }
 
-func NewReplacementModification(at int, before []byte, after []byte) ReplaceChange {
-	return ReplaceChange{at: at, before: slices.Clone(before), after: slices.Clone(after)}
+func NewReplacementChange(at int, before []byte, after []byte) ReplaceChange {
+	return ReplaceChange{
+		at:                 at,
+		before:             slices.Clone(before),
+		after:              slices.Clone(after),
+		cursorAfter:        at,
+		cursorBefore:       at,
+		secondCursorAfter:  at,
+		secondCursorBefore: at,
+		resetAnchor:        false,
+	}
 }
 
-func NewEraseModification(win *Window, start int, end int) ReplaceChange {
+func NewEraseChange(win *Window, start int, end int) ReplaceChange {
 	start, end = min(start, end), max(start, end)
-	return NewReplacementModification(start, win.buffer.Content()[start:end], []byte{})
+	return NewReplacementChange(start, win.buffer.Content()[start:end], []byte{})
 }
 
-func NewEraseRuneModification(win *Window, index int) ReplaceChange {
+func NewEraseRuneChange(win *Window, index int) ReplaceChange {
 	_, length := utf8.DecodeRune(win.buffer.Content()[index:])
-	return NewEraseModification(win, index, index+length)
+	return NewEraseChange(win, index, index+length)
 }
 
-func NewEraseLineModification(win *Window, row int) ReplaceChange {
+func NewEraseLineChange(win *Window, row int) ReplaceChange {
 	buf := win.buffer
 	lines := buf.Lines()
 	if row < 0 || row >= len(lines) {
@@ -68,5 +86,5 @@ func NewEraseLineModification(win *Window, row int) ReplaceChange {
 	if row+1 < len(lines) {
 		end = lines[row+1].start
 	}
-	return NewEraseModification(win, line.start, end)
+	return NewEraseChange(win, line.start, end)
 }

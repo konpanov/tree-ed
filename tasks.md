@@ -7,7 +7,8 @@
 17. Make lines calculations incremental
 21. Add frame moving operations
 22. Fix status line style
-23. 
+23. Add cursor movement in insert
+24.
 ## VALIDATION
 4. Fix text_offset being off by 1 when going from node overflowing a line to a node at the beginning of the line
 ## DONE

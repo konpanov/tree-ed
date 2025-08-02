@@ -14,6 +14,7 @@ type Editor struct {
 	buffers []IBuffer
 	windows []*Window
 	curwin  *Window
+	view    *WindowView
 
 	is_quiting bool
 }
@@ -35,12 +36,16 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	parser.SetLanguage(language)
 	buffer, err := bufferFromContent(content, getContentNewLine(content), parser)
 	panic_if_error(err)
-	self.buffers = append(self.buffers, buffer)
+	self.OpenBuffer(buffer)
+}
 
+func (self *Editor) OpenBuffer(buffer IBuffer) {
+	self.buffers = append(self.buffers, buffer)
 	window := windowFromBuffer(buffer)
-	window.filename = filename
-	self.windows = append(self.windows, window)
 	self.curwin = window
+	self.view = NewWindowView(self.screen, self.GetRoi(), self.curwin)
+	self.view.status_line = NewStatusLine(self.screen, self.curwin, self.view)
+
 }
 
 func (self *Editor) Close() {
@@ -54,17 +59,19 @@ func (self *Editor) GetRoi() Rect {
 	return Rect{left: 0, right: width, top: 0, bot: height}
 }
 
-func (self *Editor) Start() {
-	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
-	window_view.status_line = NewStatusLine(self.screen, self.curwin, window_view)
+func (self *Editor) Prepare() {
+}
+func (self *Editor) Redraw() {
+	self.view.Update(self.GetRoi())
+	self.screen.Fill(' ', self.view.base_style)
+	self.view.Draw()
+	self.screen.Show()
 
+}
+func (self *Editor) Start() {
 	defer self.Close()
 
 	events := make(chan tcell.Event, 10000)
-	window_view.Update(self.GetRoi())
-	self.screen.Fill(' ', window_view.base_style)
-	window_view.Draw()
-	self.screen.Show()
 
 	go func() {
 		for {
@@ -82,12 +89,8 @@ func (self *Editor) Start() {
 	scanner := NewOmniScanner()
 	got_new_event := true
 	for !self.is_quiting {
-
 		if got_new_event {
-			window_view.Update(self.GetRoi())
-			self.screen.Fill(' ', window_view.base_style)
-			window_view.Draw()
-			self.screen.Show()
+			self.Redraw()
 			got_new_event = false
 		}
 
@@ -108,6 +111,7 @@ func (self *Editor) Start() {
 			if op == nil || err != nil {
 				break
 			}
+			log.Printf("Executing %T: %+v\n", op, op)
 			op.Execute(self, 1)
 		}
 

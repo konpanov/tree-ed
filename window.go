@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"slices"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -10,9 +11,9 @@ type WindowMode string
 
 const (
 	NormalMode WindowMode = "Normal"
-	InsertMode WindowMode = "Insert"
-	VisualMode WindowMode = "Visual"
-	TreeMode   WindowMode = "Tree"
+	InsertMode            = "Insert"
+	VisualMode            = "Visual"
+	TreeMode              = "Tree"
 )
 
 type Window struct {
@@ -26,7 +27,7 @@ type Window struct {
 	node         *sitter.Node
 	tree         *sitter.Tree
 	scanner      Scanner
-	undotree     *ChangeTree
+	undotree     *UndoTree
 }
 
 func windowFromBuffer(buffer IBuffer) *Window {
@@ -39,9 +40,10 @@ func windowFromBuffer(buffer IBuffer) *Window {
 		anchorDepth:  0,
 		tree:         buffer.Tree(),
 		scanner:      &NormalScanner{},
-		undotree:     &ChangeTree{buffer, []Change{}, 0},
+		undotree:     &UndoTree{buffer, []UndoState{}, 0},
 	}
-
+	window.buffer.RegisterCursor(&window.cursor)
+	window.buffer.RegisterCursor(&window.secondCursor)
 	return window
 }
 
@@ -216,28 +218,64 @@ func (self *Window) cursorDown(count int) {
 
 func (self *Window) eraseLineAtCursor(count int) {
 	composite := CompositeChange{}
-	pos := self.cursor.RunePosition()
 	for range count {
-		mod := NewEraseLineModification(self, self.cursor.Row())
-		mod.cursorBefore = self.cursor.Index()
-		mod.Apply(self)
-		self.setCursor(self.cursor.MoveToRunePos(Point{pos.row, self.cursorAnchor}), true)
+		change := NewEraseLineChange(self, self.cursor.Row())
+		change.cursorBefore = self.cursor.Index()
+		change.secondCursorBefore = self.cursor.Index()
+		change.Apply(self)
+		self.setCursor(self.cursor.MoveToCol(self.cursorAnchor), false)
 		self.secondCursor = self.cursor
-		mod.cursorAfter = self.cursor.Index()
-		composite.changes = append(composite.changes, mod)
+		change.cursorAfter = self.cursor.Index()
+		change.secondCursorAfter = self.cursor.Index()
+		composite.changes = append(composite.changes, change)
 	}
-	self.undotree.Push(composite)
+	self.undotree.Push(UndoState{change: composite}, true)
 }
 
+// Add test if cursor after change is equal to current cursor
 func (self *Window) insertContent(continuous bool, content []byte) {
-	if continuous {
-		if mod := self.undotree.Back(); mod != nil {
-			mod.Reverse().Apply(self)
-		}
+	assert(len(content) != 0, "Inserted content should not be empty")
+	var change ReplaceChange
+	last_change := self.undotree.Curr()
+	replace, is_replace := last_change.(ReplaceChange)
+	cursor_pos := self.cursor.Index()
+	if continuous && last_change != nil && is_replace {
+		self.undotree.Back()
+		last_change.Reverse().Apply(self)
+		change = replace
+		change.after = append(change.after, content...) // TODO: Adjust after adding insert left/right movements
+	} else {
+		change = NewReplacementChange(self.cursor.Index(), []byte{}, content)
 	}
-	mod := NewReplacementModification(self.cursor.Index(), []byte{}, content)
-	mod.cursorBefore = self.cursor.Index()
-	mod.cursorAfter = self.cursor.Index() + len(mod.after)
-	mod.Apply(self)
-	self.undotree.Push(mod)
+	change.cursorAfter = cursor_pos + len(content)
+	change.secondCursorAfter = change.cursorAfter
+	change.Apply(self)
+	self.undotree.Push(UndoState{change: change}, false)
+}
+
+func (self *Window) eraseContent(continuous bool) {
+	var change ReplaceChange
+	last_change := self.undotree.Curr()
+	replace, is_replace := last_change.(ReplaceChange)
+	cursor_before := self.cursor
+	cursor_after := cursor_before.RunePrev()
+	if continuous && last_change != nil && is_replace {
+		self.undotree.Back()
+		last_change.Reverse().Apply(self)
+		change = replace
+		if len(change.after) != 0 {
+			change.after = change.after[:len(change.after)-1] // TODO: Adjust after adding insert left/right movements
+		} else {
+			start := cursor_after.Index()
+			change.before = slices.Clone(self.buffer.Content()[start : change.at+len(change.before)])
+			change.at = start
+		}
+	} else {
+		change = NewEraseChange(self, cursor_before.Index(), cursor_after.Index())
+	}
+
+	change.cursorAfter = cursor_after.Index()
+	change.secondCursorAfter = change.cursorAfter
+	change.Apply(self)
+	self.undotree.Push(UndoState{change: change}, false)
 }

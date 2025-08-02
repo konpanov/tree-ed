@@ -55,6 +55,8 @@ func (self *StatusLine) Draw() {
 		parseError = "Error"
 	}
 
+	newline := newlinesToSymbols([]rune(string(self.window.buffer.Nl_seq())))
+
 	text := [][]rune{
 		[]rune(strings.Repeat("-", self.roi.Width())),
 		[]rune(strings.Join(
@@ -66,6 +68,7 @@ func (self *StatusLine) Draw() {
 				"offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
 				"input: " + input,
 				"parse state: " + parseError,
+				"newline: " + string(newline),
 			},
 			", ",
 		)),

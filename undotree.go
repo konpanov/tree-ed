@@ -1,31 +1,43 @@
 package main
 
-type ChangeTree struct {
+type UndoTree struct {
 	buffer        IBuffer
-	modifications []Change
+	modifications []UndoState
 	current       int
 }
 
-func (self *ChangeTree) Push(mod Change) {
-	if !mod.IsEmpty() {
-		self.modifications = self.modifications[:self.current]
-		self.modifications = append(self.modifications, mod)
-		self.current++
-	}
+type UndoState struct {
+	change Change
 }
 
-func (self *ChangeTree) Back() Change {
+func (self *UndoTree) Push(state UndoState, skip_if_empty bool) {
+	if skip_if_empty && state.change.IsEmpty() {
+		return
+	}
+	self.modifications = self.modifications[:self.current]
+	self.modifications = append(self.modifications, state)
+	self.current++
+}
+
+func (self *UndoTree) Curr() Change {
 	if self.current == 0 {
 		return nil
 	}
-	self.current--
-	return self.modifications[self.current]
+	return self.modifications[self.current-1].change
 }
 
-func (self *ChangeTree) Forward() Change {
+func (self *UndoTree) Back() Change {
+	curr := self.Curr()
+	if curr != nil {
+		self.current--
+	}
+	return curr
+}
+
+func (self *UndoTree) Forward() Change {
 	if self.current == len(self.modifications) {
 		return nil
 	}
 	self.current++
-	return self.modifications[self.current-1]
+	return self.modifications[self.current-1].change
 }
