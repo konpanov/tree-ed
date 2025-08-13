@@ -62,8 +62,8 @@ func (self *StatusLine) Draw() {
 		[]rune(strings.Join(
 			[]string{
 				"file: " + self.window.filename,
-				"line: " + strconv.Itoa(pos.row),
-				"col: " + strconv.Itoa(pos.col),
+				"line: " + strconv.Itoa(pos.row+1),
+				"col: " + strconv.Itoa(pos.col+1),
 				"mode: " + string(self.window.mode),
 				"offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
 				"input: " + input,

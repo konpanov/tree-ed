@@ -62,6 +62,9 @@ func (self *VisualScanner) ScanOperation() (Operation, error) {
 		case ek.Rune() == 'y':
 			self.state.Advance()
 			op = CopyToClipboardOperation{}
+		case ek.Rune() == 's':
+			self.state.Advance()
+			op = DeleteSelectionAndInsert{}
 		}
 	}
 	if op != nil {

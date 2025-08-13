@@ -38,7 +38,7 @@ func NewWindowView(
 		base_style:  base_style,
 
 		is_tree_view:       window.buffer.Tree() != nil && false, // TODO separate tree view from window view
-		is_newline_symbols: true,
+		is_newline_symbols: false,
 	}
 	view.Update(roi)
 	return view

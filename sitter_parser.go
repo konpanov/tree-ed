@@ -1,14 +1,25 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"slices"
 	"strings"
+	"syscall"
+	"unsafe"
+
+	"github.com/ebitengine/purego"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	sitter_c_sharp "github.com/tree-sitter/tree-sitter-c-sharp/bindings/go"
 	sitter_c "github.com/tree-sitter/tree-sitter-c/bindings/go"
 	sitter_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
 	sitter_erb "github.com/tree-sitter/tree-sitter-embedded-template/bindings/go"
+
 	sitter_go "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	sitter_hs "github.com/tree-sitter/tree-sitter-haskell/bindings/go"
 	sitter_html "github.com/tree-sitter/tree-sitter-html/bindings/go"
@@ -29,7 +40,52 @@ func GetFiletype(filename string) string {
 	return last(strings.Split(filename, "."))
 }
 
+func LoadLanguageDynamicly(dll_path string, func_name string) (*sitter.Language, error) {
+	var language func() uintptr
+	handle, err := syscall.LoadLibrary(dll_path)
+	if err != nil {
+		return nil, err
+	}
+	lib, err := uintptr(handle), err
+	purego.RegisterLibFunc(&language, lib, func_name)
+	return tree_sitter.NewLanguage(unsafe.Pointer(language())), nil
+}
+
+type LanguageConfigEntry struct {
+	DllPath    string   `json:"dll_path"`
+	FuncName   string   `json:"func_name"`
+	Extensions []string `json:"extensions"`
+}
+
+func LoadLanguageFromConfig(filetype string) (*sitter.Language, error) {
+	config_filename := "config.json"
+	content, err := os.ReadFile(config_filename)
+	if err != nil {
+		return nil, fmt.Errorf("Failed find config file named %s", config_filename)
+	}
+	var config []LanguageConfigEntry
+	err = json.Unmarshal(content, &config)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal config file %s", config_filename)
+	}
+
+	for _, entry := range config {
+		if slices.Contains(entry.Extensions, filetype) {
+			return LoadLanguageDynamicly(entry.DllPath, entry.FuncName)
+		}
+	}
+	return nil, fmt.Errorf("Failed to match filetype %s to extensions from config file %s", filetype, config_filename)
+
+}
+
 func ParserLanguageByFileType(filetype string) *sitter.Language {
+	lang, err := LoadLanguageFromConfig(filetype)
+	if err == nil {
+		return lang
+	}
+	log.Println(err)
+	log.Println("Searching for default parser.")
+
 	switch filetype {
 	case "go":
 		return sitter.NewLanguage(sitter_go.Language())

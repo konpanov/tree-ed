@@ -162,10 +162,6 @@ func eventKeyToString(ek *tcell.EventKey) string {
 	if ek.Modifiers()&tcell.ModShift != 0 {
 		out += "Shift "
 	}
-	// tcell.ModShift
-	// tcell.ModCtrl
-	// tcell.ModAlt
-	// tcell.ModMeta
 	if ek.Key() != tcell.KeyRune {
 		out += tcell.KeyNames[ek.Key()]
 	} else {
@@ -185,4 +181,21 @@ func isNewLine(content []byte) (bool, int) {
 		return true, len([]byte(NewLineMac))
 	}
 	return false, 0
+}
+
+// No intersection
+//          A___A \ A___A
+//  B___B         \         B___B
+// Intersection
+//  A_______A     \     A___A     \     A_______A \ A___________A
+//      B_______B \ B___________B \ B_______B     \     B___B
+
+func isIntersection(startA int, endA int, startB int, endB int) bool {
+	if debug && (startA > endA || startB > endB) {
+		log.Printf(
+			"regions in isIntersection call should be ordered: [%d, %d] and [%d, %d]\n",
+			startA, endA, startB, endB,
+		)
+	}
+	return !(endB <= startA || endA <= startB)
 }

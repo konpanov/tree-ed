@@ -8,7 +8,6 @@ type InsertScanner struct {
 	state      *ScannerState
 	continuous bool
 	change     ReplaceChange
-	input      []byte
 }
 
 func (self *InsertScanner) Push(ev tcell.Event) {
@@ -36,7 +35,6 @@ func (self *InsertScanner) ScanOperation() (Operation, error) {
 	input, err := self.ScanInput()
 	switch {
 	case input != nil:
-		// self.input = append(self.input, input...)
 		op = InsertContentOperation{
 			content:              input,
 			continue_last_insert: self.continuous,
@@ -50,14 +48,14 @@ func (self *InsertScanner) ScanOperation() (Operation, error) {
 		op = EraseCharInsertMode{continue_last_erase: self.continuous}
 		self.state.Advance()
 		self.continuous = true
-		// case ek.Key() == tcell.KeyEnter:
-		// 	log.Println("Scanned KeyEntr")
-		// 	self.state.Advance()
-		// 	self.continuous = true
-		// 	op = InsertNewLine{}
-	}
-	if !self.continuous {
-		self.input = []byte{}
+	case ek.Key() == tcell.KeyCtrlW:
+		op = DeleteToPreviousWordStart{}
+		self.state.Advance()
+		self.continuous = false
+	case ek.Key() == tcell.KeyDEL, ek.Key() == tcell.KeyDelete:
+		op = DeleteCharForward{}
+		self.state.Advance()
+		self.continuous = false
 	}
 	if op != nil {
 		return op, nil
@@ -65,20 +63,17 @@ func (self *InsertScanner) ScanOperation() (Operation, error) {
 	return nil, ErrNoMatch
 }
 
-func (self *InsertScanner) ScanInput() ([]byte, error) {
-	input := []byte{}
+func (self *InsertScanner) ScanInput() ([]tcell.EventKey, error) {
+	input := []tcell.EventKey{}
 	ek, err := self.state.Curr()
 	for err == nil {
-		if ek.Key() == tcell.KeyRune {
-			input = append(input, []byte(string(ek.Rune()))...)
-		} else if ek.Key() == tcell.KeyTab {
-			input = append(input, '\t')
-		} else if ek.Key() == tcell.KeyCR {
-			input = append(input, '\r')
-		} else if ek.Key() == tcell.KeyLF {
-			input = append(input, '\n')
-		} else {
-			break
+		switch {
+		case ek.Key() == tcell.KeyRune,
+			ek.Key() == tcell.KeyTab,
+			ek.Key() == tcell.KeyEnter,
+			ek.Key() == tcell.KeyCR,
+			ek.Key() == tcell.KeyLF:
+			input = append(input, *ek)
 		}
 		ek, err = self.state.Advance()
 	}

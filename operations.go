@@ -2,16 +2,12 @@ package main
 
 import (
 	"github.com/atotto/clipboard"
+	"github.com/gdamore/tcell/v2"
 )
-
-// import "github.com/gdamore/tcell/v2"
 
 type Operation interface {
 	Execute(editor *Editor, count int)
 }
-
-// type ClipboardOperation interface {
-// }
 
 type QuitOperation struct{}
 
@@ -62,10 +58,33 @@ func (self SwitchToVisualmode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToVisual()
 }
 
+type SwitchToVisualmodeAsSecondCursor struct{}
+
+func (self SwitchToVisualmodeAsSecondCursor) Execute(editor *Editor, count int) {
+	OperationSwapCursors{}.Execute(editor, count)
+	SwitchToVisualmode{}.Execute(editor, count)
+}
+
 type SwitchToNormalMode struct{}
 
 func (self SwitchToNormalMode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToNormal()
+}
+
+type OperationSwitchToNormalModeAsSecondCursor struct{}
+
+func (self OperationSwitchToNormalModeAsSecondCursor) Execute(editor *Editor, count int) {
+	OperationSwapCursors{}.Execute(editor, count)
+	SwitchToNormalMode{}.Execute(editor, count)
+}
+
+type OperationSwapCursors struct{}
+
+func (self OperationSwapCursors) Execute(editor *Editor, count int) {
+	cursor := editor.curwin.cursor
+	second := editor.curwin.secondCursor
+	editor.curwin.setCursor(second, true)
+	editor.curwin.secondCursor = cursor
 }
 
 type SwitchFromInsertToNormalMode struct{}
@@ -131,12 +150,26 @@ func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
 }
 
 type InsertContentOperation struct {
-	content              []byte
+	content              []tcell.EventKey
 	continue_last_insert bool
 }
 
 func (self InsertContentOperation) Execute(editor *Editor, count int) {
-	editor.curwin.insertContent(self.continue_last_insert, self.content)
+	content := []byte{}
+	for _, ek := range self.content {
+		if ek.Key() == tcell.KeyRune {
+			content = append(content, []byte(string(ek.Rune()))...)
+		} else if ek.Key() == tcell.KeyTab {
+			content = append(content, '\t')
+		} else if ek.Key() == tcell.KeyCR {
+			content = append(content, editor.curwin.buffer.Nl_seq()...)
+		} else if ek.Key() == tcell.KeyLF {
+			content = append(content, '\n')
+		} else {
+			break
+		}
+	}
+	editor.curwin.insertContent(self.continue_last_insert, content)
 }
 
 type NodeUpOperation struct{}
@@ -222,8 +255,6 @@ func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
 	start, end := win.cursor.Index(), win.secondCursor.Index()
 	start, end = min(start, end), max(start, end)
 	change := NewEraseChange(win, start, end+1)
-	// mod.cursorBefore = win.cursor.Index() // TMPCHANGE
-	// mod.cursorAfter = win.cursor.Index() // TMPCHANGE
 	change.Apply(win)
 	win.undotree.Push(UndoState{change: change}, true)
 	win.switchToNormal()
@@ -340,20 +371,19 @@ func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		win := editor.curwin
 
-		node := win.getNode()
-		swapee := node
+		swapee := win.getNode()
 		for range count {
 			if swapee = NextSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
 				return
 			}
 		}
 
-		startA, endA := int(node.StartByte()), int(node.EndByte())
 		startB, endB := int(swapee.StartByte()), int(swapee.EndByte())
-		change := NewSwapChange(win, startA, endA, startB, endB)
+		startA, endA := order(win.cursor.Index(), win.secondCursor.Index())
+		change := NewSwapChange(win, startA, endA+1, startB, endB)
 		change.Apply(win)
 
-		win.setCursor(win.cursor.ToIndex(-endA+startA+endB), true)
+		win.setCursor(win.cursor.ToIndex(-endA+startA+endB-1), true)
 		win.secondCursor = win.secondCursor.ToIndex(endB - 1)
 		win.undotree.Push(UndoState{change: change}, true)
 	}
@@ -364,23 +394,20 @@ type SwapNodeBackwardEndOperation struct{}
 func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin.buffer.Tree() != nil {
 		win := editor.curwin
-
-		node := win.getNode()
-		swapee := node
+		swapee := win.getNode()
 		for range count {
 			if swapee = PrevSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
 				return
 			}
 		}
-
 		startA, endA := int(swapee.StartByte()), int(swapee.EndByte())
-		startB, endB := int(node.StartByte()), int(node.EndByte())
-		change := NewSwapChange(win, startA, endA, startB, endB)
+		startB, endB := order(win.cursor.Index(), win.secondCursor.Index())
+		change := NewSwapChange(win, startA, endA, startB, endB+1)
 		change.Apply(win)
 
 		win.setCursor(win.cursor.ToIndex(startA), true)
-		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB - 1)
-		win.undotree.Push(UndoState{change: change}, true) // TMPCHANGE
+		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB)
+		win.undotree.Push(UndoState{change: change}, true)
 	}
 }
 
@@ -407,32 +434,35 @@ func (self CopyToClipboardOperation) Execute(editor *Editor, count int) {
 	clipboard.WriteAll(string(text))
 }
 
-type SlurpNodeOperation struct{}
+type OperationMoveDepthAnchorUp struct{}
 
-func (self SlurpNodeOperation) Execute(editor *Editor, count int) {
-	win := editor.curwin
-	if win.buffer.Tree() == nil {
-		return
-	}
-	node := win.getNode()
-	parent := node
-	if parent == nil {
-		return
-	}
-	if parent.ChildCount() < 2 {
-		return
-	}
-	last_siblling := parent.Child(parent.ChildCount() - 1)
-	next := NextSiblingOrCousinDepth(parent, win.anchorDepth)
-	if next == nil {
-		return
-	}
+func (self OperationMoveDepthAnchorUp) Execute(editor *Editor, count int) {
+	editor.curwin.anchorDepth = min(editor.curwin.anchorDepth - 1)
+}
 
-	startA, endA := int(last_siblling.StartByte()), int(last_siblling.EndByte())
-	startB, endB := int(next.StartByte()), int(next.EndByte())
-	change := NewSwapChange(win, startA, endA, startB, endB)
-	change.Apply(win)
-	win.undotree.Push(UndoState{change: change}, true) //TMPCHANGE
-	node = win.getNode()
-	win.setNode(node, true)
+type DeleteToPreviousWordStart struct{}
+
+func (self DeleteToPreviousWordStart) Execute(editor *Editor, count int) {
+	end := editor.curwin.cursor
+	start := end.WordStartPrev()
+	change := NewEraseChange(editor.curwin, start.Index(), end.Index())
+	change.Apply(editor.curwin)
+	editor.curwin.undotree.Push(UndoState{change: change}, true)
+}
+
+type DeleteCharForward struct{}
+
+func (self DeleteCharForward) Execute(editor *Editor, count int) {
+	start := editor.curwin.cursor
+	end := start.RuneNext()
+	change := NewEraseChange(editor.curwin, start.Index(), end.Index())
+	change.Apply(editor.curwin)
+	editor.curwin.undotree.Push(UndoState{change: change}, true)
+}
+
+type DeleteSelectionAndInsert struct{}
+
+func (self DeleteSelectionAndInsert) Execute(editor *Editor, count int) {
+	EraseSelectionOperation{}.Execute(editor, count)
+	SwitchToInsertMode{}.Execute(editor, count)
 }

@@ -5,6 +5,8 @@ go 1.23
 toolchain go1.23.11
 
 require (
+	github.com/atotto/clipboard v0.1.4
+	github.com/ebitengine/purego v0.8.4
 	github.com/gdamore/tcell/v2 v2.8.1
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-bash v0.25.0
@@ -29,7 +31,6 @@ require (
 )
 
 require (
-	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-pointer v0.0.1 // indirect

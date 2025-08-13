@@ -105,6 +105,8 @@ func (self *NormalScanner) ScanOperation() (Operation, error) {
 			op = UndoChangeOperation{}
 		case ek.Key() == tcell.KeyCtrlR:
 			op = RedoChangeOperation{}
+		case ek.Rune() == 's':
+			op = DeleteSelectionAndInsert{}
 		}
 	}
 	if op != nil {

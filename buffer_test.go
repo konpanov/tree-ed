@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -531,5 +532,16 @@ func TestBufferTestEmptyContentLines(t *testing.T) {
 	lines := buffer.Lines()
 	if len(lines) != 1 && lines[0].start != 0 && lines[0].end != 0 {
 		t.Errorf("Unexpected lines. %+v", lines)
+	}
+}
+
+func BenchmarkBufferReadBigFile(b *testing.B) {
+	content := []byte("package main\n\n")
+	for range 1000000 {
+		content = append(content, []byte("func main() {\n print(\"Hello, World\")\n}\n")...)
+	}
+	fmt.Printf("Bigfile size: %d MB\n", len(content)/(1024*1024))
+	for range b.N {
+		_, _ = bufferFromContent(content, []byte("\n"), nil)
 	}
 }

@@ -21,12 +21,9 @@ type Window struct {
 	mode         WindowMode
 	buffer       IBuffer
 	cursor       BufferCursor
-	cursorAnchor int
 	secondCursor BufferCursor
+	cursorAnchor int
 	anchorDepth  int
-	node         *sitter.Node
-	tree         *sitter.Tree
-	scanner      Scanner
 	undotree     *UndoTree
 }
 
@@ -38,8 +35,6 @@ func windowFromBuffer(buffer IBuffer) *Window {
 		cursorAnchor: 0,
 		secondCursor: BufferCursor{buffer: buffer, index: 0, as_edge: false},
 		anchorDepth:  0,
-		tree:         buffer.Tree(),
-		scanner:      &NormalScanner{},
 		undotree:     &UndoTree{buffer, []UndoState{}, 0},
 	}
 	window.buffer.RegisterCursor(&window.cursor)
@@ -51,20 +46,17 @@ func (self *Window) switchToInsert() {
 	self.mode = InsertMode
 	self.setCursor(self.cursor.AsEdge(), true)
 	self.secondCursor = self.secondCursor.AsEdge()
-	self.scanner = &InsertScanner{}
 }
 func (self *Window) switchToNormal() {
 	self.mode = NormalMode
 	self.setCursor(self.cursor.AsChar(), true)
 	self.secondCursor = self.secondCursor.AsChar()
-	self.scanner = &NormalScanner{}
 }
 
 func (self *Window) switchToVisual() {
 	self.mode = VisualMode
 	self.setCursor(self.cursor.AsChar(), true)
 	self.secondCursor = self.secondCursor.AsChar()
-	self.scanner = &VisualScanner{}
 }
 
 func (self *Window) switchToTree() {
@@ -72,7 +64,6 @@ func (self *Window) switchToTree() {
 		self.mode = TreeMode
 		self.cursor.as_edge = false
 		self.secondCursor.as_edge = false
-		self.scanner = &TreeScanner{}
 	}
 }
 

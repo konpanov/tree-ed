@@ -148,6 +148,7 @@ func (b *Buffer) SetQuiting(v bool) {
 	b.quiting = v
 }
 
+// TODO: Make Edit operate on ReplaceChange instead of ReplacementInput and delete ReplacementInput
 func (b *Buffer) Edit(input ReplacementInput) error {
 	var err error
 	if err = b.CheckIndex(input.start); err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"slices"
 )
@@ -25,13 +26,6 @@ func (self CompositeChange) Reverse() Change {
 	return reversed
 }
 
-func (self CompositeChange) Shift(index int) int {
-	for _, change := range self.changes {
-		index = change.Shift(index)
-	}
-	return index
-}
-
 func (self CompositeChange) IsEmpty() bool {
 	if len(self.changes) == 0 {
 		return true
@@ -45,28 +39,29 @@ func (self CompositeChange) IsEmpty() bool {
 }
 
 func NewSwapChange(win *Window, startA int, endA int, startB int, endB int) CompositeChange {
-	is_ordered := startA <= endA && endA <= startB && startB <= endB
-	if !is_ordered {
-		log.Panicf(
-			"Swap change can be created only with ordered indices, but %d, %d, %d, %d is given\n",
+	startA, endA = order(startA, endA)
+	startB, endB = order(startB, endB)
+	if isIntersection(startA, endA, startB, endB) {
+		msg := fmt.Sprintf(
+			"Swap change can be created only with nonintersecting regions, but %d, %d, %d, %d is given\n",
 			startA, endA, startB, endB,
 		)
+		if debug {
+			log.Panic(msg)
+		} else {
+			log.Print(msg)
+		}
 	}
-
-	change := CompositeChange{}
+	if startB < startA {
+		startA, endA, startB, endB = startB, endB, startA, endA
+	}
 
 	a := win.buffer.Content()[startA:endA]
 	b := win.buffer.Content()[startB:endB]
-
+	change := CompositeChange{}
 	mod1 := NewReplacementChange(startB, b, a)
-	// mod1.cursorBefore = win.cursor.Index() // TMPCHANGE
-	// mod1.cursorAfter = mod1.Shift(win.cursor.Index()) // TMPCHANGE
 	change.changes = append(change.changes, mod1)
-
 	mod2 := NewReplacementChange(startA, a, b)
-	// mod2.cursorBefore = win.cursor.Index() // TMPCHANGE
-	// mod2.cursorAfter = mod2.Shift(win.cursor.Index()) // TMPCHANGE
 	change.changes = append(change.changes, mod2)
-
 	return change
 }

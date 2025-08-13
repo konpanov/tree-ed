@@ -43,6 +43,12 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 		op = SwitchToNormalMode{}
 	case ek.Rune() == 't':
 		op = SwitchToNormalMode{}
+	case ek.Rune() == 'T':
+		op = OperationSwitchToNormalModeAsSecondCursor{}
+	case ek.Rune() == 'v':
+		op = SwitchToVisualmode{}
+	case ek.Rune() == 'V':
+		op = SwitchToVisualmodeAsSecondCursor{}
 	case ek.Rune() == 'k':
 		op = NodeUpOperation{}
 	case ek.Rune() == 'j':
@@ -69,8 +75,10 @@ func (self *TreeScanner) ScanOperation() (Operation, error) {
 		op = UndoChangeOperation{}
 	case ek.Key() == tcell.KeyCtrlR:
 		op = RedoChangeOperation{}
-	case ek.Rune() == ']':
-		op = SlurpNodeOperation{}
+	case ek.Key() == tcell.KeyCtrlK:
+		op = OperationMoveDepthAnchorUp{}
+	case ek.Rune() == 's':
+		op = DeleteSelectionAndInsert{}
 	}
 	self.state.Advance()
 	if op != nil {
