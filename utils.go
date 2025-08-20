@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"fmt"
 	"log"
 	"testing"
 	"unicode"
@@ -157,19 +158,6 @@ func rune_class(value rune) RuneClass {
 	}
 }
 
-func eventKeyToString(ek *tcell.EventKey) string {
-	out := ""
-	if ek.Modifiers()&tcell.ModShift != 0 {
-		out += "Shift "
-	}
-	if ek.Key() != tcell.KeyRune {
-		out += tcell.KeyNames[ek.Key()]
-	} else {
-		out += string(ek.Rune())
-	}
-	return out
-}
-
 func isNewLine(content []byte) (bool, int) {
 	if matchBytes(content, []byte(NewLineWindows)) {
 		return true, len([]byte(NewLineWindows))
@@ -198,4 +186,75 @@ func isIntersection(startA int, endA int, startB int, endB int) bool {
 		)
 	}
 	return !(endB <= startA || endA <= startB)
+}
+
+func KeyEventsToString(events []*tcell.EventKey) string {
+	input := ""
+	for _, key := range events {
+		input += eventKeyToString(key)
+	}
+	return input
+}
+
+func e2a(ek *tcell.EventKey) string {
+	return eventKeyToString(ek)
+}
+func eventKeyToString(ek *tcell.EventKey) string {
+	out := ""
+	if ek.Modifiers()&tcell.ModShift != 0 {
+		out += "Shift "
+	}
+	if ek.Key() != tcell.KeyRune {
+		out += tcell.KeyNames[ek.Key()]
+	} else {
+		out += string(ek.Rune())
+	}
+	return out
+}
+
+func RuneKey(r rune) *tcell.EventKey {
+	return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone)
+}
+
+func StringToEvents(s string) []tcell.Event {
+	events := []tcell.Event{}
+	for _, r := range s {
+		events = append(events, RuneKey(r))
+	}
+	return events
+}
+
+func IsDigitKey(key_event *tcell.EventKey) bool {
+	return key_event.Key() == tcell.KeyRune && unicode.IsDigit(key_event.Rune())
+}
+
+func EventKeysToInteger(events []*tcell.EventKey) int {
+	integer := 0
+	for _, ek := range events {
+		if !IsDigitKey(ek) {
+			assert(false, fmt.Sprintf("Unexpected non digit key %+v when parsing integer", ek))
+		}
+		integer *= 10
+		integer += int(ek.Rune() - '0')
+	}
+	return integer
+}
+
+func IsTextInputKey(key_event *tcell.EventKey) bool {
+	key := key_event.Key()
+	return Any(
+		key == tcell.KeyRune,
+		key == tcell.KeyEnter,
+		key == tcell.KeyLF,
+		key == tcell.KeyTab,
+	)
+}
+
+func Any(conditions ...bool) bool {
+	for _, cond := range conditions {
+		if cond {
+			return true
+		}
+	}
+	return false
 }

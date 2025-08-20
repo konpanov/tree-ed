@@ -15,17 +15,16 @@ type IStatusLine interface {
 }
 
 type StatusLine struct {
-	screen      tcell.Screen
-	roi         Rect
-	window      *Window
-	window_view *WindowView
+	screen tcell.Screen
+	roi    Rect
+
+	editor *Editor
 }
 
-func NewStatusLine(screen tcell.Screen, window *Window, window_view *WindowView) *StatusLine {
+func NewStatusLine(screen tcell.Screen, editor *Editor) *StatusLine {
 	return &StatusLine{
-		screen:      screen,
-		window:      window,
-		window_view: window_view,
+		screen: screen,
+		editor: editor,
 	}
 }
 
@@ -42,34 +41,41 @@ func (self *StatusLine) SetRoi(roi Rect) {
 }
 
 func (self *StatusLine) Draw() {
-	pos := self.window.cursor.RunePosition()
-	offset := self.window_view.text_offset
+	left_parts := []string{}
 
-	input := ""
-	// for _, key := range self.window.parser.History() {
-	// 	input += string(key.Rune())
-	// }
-
-	parseError := "Correct"
-	if self.window.buffer.Tree() != nil && self.window.buffer.Tree().RootNode().HasError() {
-		parseError = "Error"
+	if self.editor.curwin != nil {
+		curwin := self.editor.curwin
+		pos := curwin.cursor.RunePosition()
+		parseError := "Correct"
+		if curwin.buffer.Tree() != nil && curwin.buffer.Tree().RootNode().HasError() {
+			parseError = "Error"
+		}
+		newline := newlinesToSymbols([]rune(string(curwin.buffer.Nl_seq())))
+		left_parts = append(left_parts, "file: "+curwin.filename)
+		left_parts = append(left_parts, "line: "+strconv.Itoa(pos.row+1))
+		left_parts = append(left_parts, "col: "+strconv.Itoa(pos.col+1))
+		left_parts = append(left_parts, "mode: "+string(curwin.mode))
+		left_parts = append(left_parts, "parse state: "+parseError)
+		left_parts = append(left_parts, "newline: "+string(newline))
 	}
-
-	newline := newlinesToSymbols([]rune(string(self.window.buffer.Nl_seq())))
+	// TODO: Move text offset state to window
+	// offset := self.window_view.text_offset
+	left_parts = append(left_parts, "input: "+KeyEventsToString(self.editor.scanner.state.Input()))
 
 	text := [][]rune{
 		[]rune(strings.Repeat("-", self.roi.Width())),
 		[]rune(strings.Join(
-			[]string{
-				"file: " + self.window.filename,
-				"line: " + strconv.Itoa(pos.row+1),
-				"col: " + strconv.Itoa(pos.col+1),
-				"mode: " + string(self.window.mode),
-				"offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
-				"input: " + input,
-				"parse state: " + parseError,
-				"newline: " + string(newline),
-			},
+			left_parts,
+			// []string{
+			// 	"file: " + self.window.filename,
+			// 	"line: " + strconv.Itoa(pos.row+1),
+			// 	"col: " + strconv.Itoa(pos.col+1),
+			// 	"mode: " + string(self.window.mode),
+			// 	// "offset: " + strconv.Itoa(offset.row) + ":" + strconv.Itoa(offset.col),
+			// 	"input: " + input,
+			// 	"parse state: " + parseError,
+			// 	"newline: " + string(newline),
+			// },
 			", ",
 		)),
 	}

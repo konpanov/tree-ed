@@ -19,17 +19,13 @@ func main() {
 	log.SetOutput(f)
 	log.Println("Log file initiated.")
 
-	// Setup cpuprofile
-	f, err = os.Create("cpuprofile")
-	panic_if_error(err)
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
-	log.Println("Cpu profile initiated")
-
-	// Parse filename argument
-	filename := "main.go"
-	if len(os.Args) >= 2 {
-		filename = os.Args[1]
+	if debug {
+		// Setup cpuprofile
+		f, err = os.Create("cpuprofile")
+		panic_if_error(err)
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+		log.Println("Cpu profile initiated")
 	}
 
 	// Setup screen
@@ -43,7 +39,11 @@ func main() {
 	defer quit(screen)
 
 	editor := NewEditor(screen)
-	editor.OpenFileInWindow(filename)
+
+	if len(os.Args) >= 2 {
+		filename := os.Args[1]
+		editor.OpenFileInWindow(filename)
+	}
 	editor.Start()
 }
 

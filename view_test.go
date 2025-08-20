@@ -264,7 +264,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 
 	window.setCursor(window.cursor.ToIndex(14), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 14, "")
-	window_view.Update(roi)
+	window_view.SetRoi(roi)
 	window_view.Draw()
 	screen.Show()
 
@@ -273,7 +273,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 
 	window.setCursor(window.cursor.ToIndex(8), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 8, "")
-	window_view.Update(roi)
+	window_view.SetRoi(roi)
 	window_view.Draw()
 	screen.Show()
 
@@ -353,7 +353,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view.Draw()
 
 	window.setCursor(window.cursor.RunePrev(), true)
-	window_view.Update(roi)
+	window_view.SetRoi(roi)
 	window_view.Draw()
 
 	screen.Show()
@@ -365,7 +365,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
 
 	window.setCursor(window.cursor.RunePrev(), true)
-	window_view.Update(roi)
+	window_view.SetRoi(roi)
 	window_view.Draw()
 
 	screen.Show()
@@ -547,16 +547,16 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 
 	for range 5 {
 		window.cursorDown(1)
-		window_view.Update(Rect{left: 0, top: 0, right: w, bot: h})
+		window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
 		window_view.Draw()
 	}
 	window.switchToVisual()
-	window_view.Update(Rect{left: 0, top: 0, right: w, bot: h})
+	window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
 	window_view.Draw()
 
 	for i := 5; i < len(lines)-5; i++ {
 		window.cursorDown(1)
-		window_view.Update(Rect{left: 0, top: 0, right: w, bot: h})
+		window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
 		window_view.Draw()
 	}
 

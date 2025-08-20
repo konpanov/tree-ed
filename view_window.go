@@ -14,9 +14,8 @@ type WindowView struct {
 	text_offset Point
 
 	// Widgets
-	status_line IStatusLine
-	text_style  tcell.Style
-	base_style  tcell.Style
+	text_style tcell.Style
+	base_style tcell.Style
 
 	is_tree_view       bool
 	is_newline_symbols bool
@@ -27,20 +26,16 @@ func NewWindowView(
 	roi Rect,
 	window *Window,
 ) *WindowView {
-	base_style := tcell.StyleDefault
-	base_style = base_style.Background(tcell.NewHexColor(SPACE_CADET))
 	view := &WindowView{
 		screen:      screen,
 		roi:         roi,
 		window:      window,
 		text_offset: Point{0, 0},
-		status_line: NoStatusLine{},
-		base_style:  base_style,
 
 		is_tree_view:       window.buffer.Tree() != nil && false, // TODO separate tree view from window view
 		is_newline_symbols: false,
 	}
-	view.Update(roi)
+	view.SetRoi(roi)
 	return view
 }
 
@@ -52,17 +47,10 @@ func (self *WindowView) SetRoi(roi Rect) {
 	self.roi = roi
 }
 
-func (self *WindowView) Update(roi Rect) {
-	self.roi = roi
-}
-
 func (self *WindowView) Draw() {
 	line_numbers_width := default_buffer_line_number_max_width(self.window.buffer)
-	status_line_height := self.status_line.GetHeight()
 
-	main_roi, status_line_roi := self.roi.SplitH(self.roi.Height() - status_line_height)
-	line_numbers_roi, main_roi := main_roi.SplitV(line_numbers_width)
-	self.status_line.SetRoi(status_line_roi)
+	line_numbers_roi, main_roi := self.roi.SplitV(line_numbers_width)
 
 	var tree_roi Rect
 	if self.is_tree_view {
@@ -104,7 +92,6 @@ func (self *WindowView) Draw() {
 	tree_color.SetRoi(main_roi)
 	line_numbers.Draw()
 	text_view.Draw()
-	self.status_line.Draw()
 	if self.window.buffer.Tree() != nil {
 		tree_color.Draw()
 		if self.is_tree_view {

@@ -44,8 +44,6 @@ func (self Point) Add(other Point) Point {
 type IBuffer interface {
 	Content() []byte
 	Nl_seq() []byte
-	IsQuiting() bool
-	SetQuiting(v bool)
 	CheckIndex(index int) error
 	CheckLine(line int) error
 	Row(index int) (int, error)
@@ -138,14 +136,6 @@ func (b *Buffer) Close() {
 
 func (b *Buffer) Content() []byte {
 	return b.content
-}
-
-func (b *Buffer) IsQuiting() bool {
-	return b.quiting
-}
-
-func (b *Buffer) SetQuiting(v bool) {
-	b.quiting = v
 }
 
 // TODO: Make Edit operate on ReplaceChange instead of ReplacementInput and delete ReplacementInput

@@ -1,148 +1,264 @@
 package main
 
 import (
-	"fmt"
-	"unicode"
-
 	"github.com/gdamore/tcell/v2"
 )
 
-var ErrNotAnEventKey = fmt.Errorf("Accepting only event keys")
-var ErrAmbiguous = fmt.Errorf("Ambiguous sequence")
-var ErrNoMatch = fmt.Errorf("No match for sequence")
-var ErrNoKey = fmt.Errorf("No more keys to scan")
-
-type KeyTable map[tcell.Key]Operation
-type RuneTable map[rune]Operation
-
-type ScannerState struct {
-	history []*tcell.EventKey
-	curr    int
-}
-
-func (self *ScannerState) Clear() {
-	self.history = self.history[self.curr:]
-}
-
-func (self *ScannerState) Advance() (*tcell.EventKey, error) {
-	if self.curr < len(self.history) {
-		self.curr++
-	} else {
-		return nil, ErrNoKey
-	}
-	return self.Curr()
-}
-
-// Returns EventKey at position curr or ErrNoKey if curr is further than history
-func (self *ScannerState) Curr() (*tcell.EventKey, error) {
-	if self.curr >= len(self.history) {
-		return nil, ErrNoKey
-	}
-	return self.history[self.curr], nil
-}
-
-func (self *ScannerState) Push(ev tcell.Event) error {
-	key_event, ok := ev.(*tcell.EventKey)
-	if !ok {
-		return ErrNotAnEventKey
-	}
-	self.history = append(self.history, key_event)
-	return nil
-}
-
-func (self *ScannerState) Reset() {
-	self.curr = 0
-}
-
 type Scanner interface {
 	Scan() (Operation, error)
-	Push(ev tcell.Event)
+	Push(ev tcell.Event) error
 }
 
-func IsDigit(key_event *tcell.EventKey) bool {
-	return key_event.Key() == tcell.KeyRune && unicode.IsDigit(key_event.Rune())
-}
-
-func ScanCount(self *ScannerState) (int, error) {
-	count := 0
-	ev, err := self.Curr()
-	if err != nil {
-		return count, err
-	}
-	if !IsDigit(ev) || ev.Rune() == '0' {
-		return count, ErrNoMatch
-	}
-	for ; err == nil && IsDigit(ev); ev, err = self.Advance() {
-		count = count*10 + int(ev.Rune()) - int('0')
-	}
-	return count, nil
-}
-
-type GlobalScanner struct {
+type EditorScaner struct {
 	state *ScannerState
+	mode  WindowMode
 }
 
-func (self *GlobalScanner) Push(ev tcell.Event) {
-	self.state.Push(ev)
-}
-
-func (self *GlobalScanner) Scan() (Operation, error) {
-	var op Operation
-	ek, err := self.state.Curr()
-	if err == nil {
-		switch {
-		case ek.Key() == tcell.KeyCtrlC:
-			self.state.Advance()
-			op = QuitOperation{}
-		default:
-			err = ErrNoMatch
-		}
-	}
-	return op, err
-}
-
-type OmniScanner struct {
-	state          *ScannerState
-	global_scanner *GlobalScanner
-	normal_scanner *NormalScanner
-	insert_scanner *InsertScanner
-	visual_scanner *VisualScanner
-	tree_scanner   *TreeScanner
-	mode           WindowMode
-}
-
-func NewOmniScanner() *OmniScanner {
+func NewEditorScanner() *EditorScaner {
 	state := &ScannerState{}
-	return &OmniScanner{
-		state:          state,
-		global_scanner: &GlobalScanner{state: state},
-		normal_scanner: &NormalScanner{state: state},
-		insert_scanner: &InsertScanner{state: state},
-		visual_scanner: &VisualScanner{state: state},
-		tree_scanner:   &TreeScanner{state: state},
-		mode:           NormalMode,
+	return &EditorScaner{
+		state: state,
+		mode:  NormalMode,
 	}
 }
 
-func (self *OmniScanner) Push(ev tcell.Event) {
+func (self *EditorScaner) Push(ev tcell.Event) {
 	self.state.Push(ev)
 }
 
-func (self *OmniScanner) Scan() (Operation, error) {
-	op, _ := self.global_scanner.Scan()
-	if op != nil {
-		return op, nil
-	}
+func (self *EditorScaner) Scan() (Operation, ScanResult) {
+	op, res := OperationGroupGlobal{}.Match(self.state)
 	switch self.mode {
 	case NormalMode:
-		return self.normal_scanner.Scan()
+		if res == ScanNone {
+			op, res = OperationGroupCursorMovement{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupNormal{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupCount{}.Match(self.state)
+		}
 	case InsertMode:
-		return self.insert_scanner.Scan()
+		if res == ScanNone {
+			op, res = OperationGroupInsert{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupTextInsert{}.Match(self.state)
+		}
 	case VisualMode:
-		return self.visual_scanner.Scan()
+		if res == ScanNone {
+			op, res = OperationGroupCursorMovement{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupVisual{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupCount{}.Match(self.state)
+		}
 	case TreeMode:
-		return self.tree_scanner.Scan()
+		if res == ScanNone {
+			op, res = OperationGroupTree{}.Match(self.state)
+		}
+		if res == ScanNone {
+			op, res = OperationGroupCount{}.Match(self.state)
+		}
 	}
-	panic("Unkown mode")
-	return nil, nil
+
+	switch res {
+	case ScanFull:
+		self.state.Clear()
+	case ScanNone:
+		if !self.state.IsEnd() {
+			self.state.Advance()
+		}
+		self.state.Clear()
+	case ScanStop:
+		self.state.Reset()
+	}
+	return op, res
+}
+
+type OperationGroup interface {
+	Match(state *ScannerState) (Operation, ScanResult)
+}
+
+type OperationGroupGlobal struct {
+}
+
+func (self OperationGroupGlobal) Match(state *ScannerState) (Operation, ScanResult) {
+	switch {
+	case state.IsEnd():
+		return nil, ScanStop
+	case state.ScanKey(tcell.KeyCtrlC) == ScanFull:
+		return QuitOperation{}, ScanFull
+	default:
+		return nil, ScanNone
+	}
+}
+
+type OperationGroupCount struct {
+}
+
+func (self OperationGroupCount) Match(state *ScannerState) (Operation, ScanResult) {
+	switch {
+	case state.IsEnd():
+		return nil, ScanStop
+	case state.ScanDigit() == ScanFull:
+		res := state.ScanZeroOrMore(state.ScanDigit)
+		integer := EventKeysToInteger(state.Scanned())
+		return CountOperation{count: integer, op: nil}, res
+	default:
+		return nil, ScanNone
+	}
+}
+
+type OperationGroupCursorMovement struct {
+}
+
+func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, ScanResult) {
+	ops := map[rune]Operation{
+		'j': NormalCursorDown{},
+		'k': NormalCursorUp{},
+		'h': NormalCursorLeft{},
+		'l': NormalCursorRight{},
+		'w': WordStartForwardOperation{},
+		'b': WordBackwardOperation{},
+		'e': WordEndForwardOperation{},
+		'E': WordEndBackwardOperation{},
+		'g': GoOperation{},
+		'G': GoEndOperation{},
+		'$': LineEndOperation{},
+		'0': LineStartOperation{},
+		'_': LineTextStartOperation{},
+	}
+	return MatchRuneMap(state, ops)
+}
+
+type OperationGroupNormal struct {
+}
+
+func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResult) {
+	runeOperations := map[rune]Operation{
+		'd': EraseLineAtCursor{},
+		'x': EraseCharNormalMode{},
+		'a': SwitchToInsertModeAsAppend{},
+		'i': SwitchToInsertMode{},
+		'v': SwitchToVisualmode{},
+		't': SwitchToTreeMode{},
+		'p': PasteClipboardOperation{},
+		'u': UndoChangeOperation{},
+		's': DeleteSelectionAndInsert{},
+	}
+	keyOperations := map[tcell.Key]Operation{
+		tcell.KeyCtrlR: RedoChangeOperation{},
+	}
+	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+}
+
+type OperationGroupInsert struct {
+}
+
+// TODO: Make erasing after insert continuous (single modification, single undo)
+func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
+	keyOperations := map[tcell.Key]Operation{
+		tcell.KeyEsc:       SwitchFromInsertToNormalMode{},
+		tcell.KeyBackspace: EraseCharInsertMode{},
+		tcell.KeyCtrlW:     DeleteToPreviousWordStart{},
+		tcell.KeyDelete:    DeleteCharForward{},
+		tcell.KeyDEL:       DeleteCharForward{},
+	}
+	return MatchKeyMap(state, keyOperations)
+}
+
+type OperationGroupTextInsert struct{}
+
+func (self OperationGroupTextInsert) Match(state *ScannerState) (Operation, ScanResult) {
+	if state.ScanTextInput() == ScanFull {
+		state.ScanZeroOrMore(state.ScanTextInput)
+		return InsertContentOperation{content: state.Scanned()}, ScanFull
+	}
+	return nil, ScanNone
+}
+
+type OperationGroupVisual struct {
+}
+
+func (self OperationGroupVisual) Match(state *ScannerState) (Operation, ScanResult) {
+	keyOperations := map[tcell.Key]Operation{
+		tcell.KeyEsc: SwitchToNormalMode{},
+	}
+	runeOperations := map[rune]Operation{
+		'i': SwitchToInsertMode{},
+		'a': SwitchToInsertModeAsAppend{},
+		'v': SwitchToNormalMode{},
+		'd': EraseSelectionOperation{},
+		't': SwitchFromVisualToTreeMode{},
+		'y': CopyToClipboardOperation{},
+		's': DeleteSelectionAndInsert{},
+	}
+	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+}
+
+type OperationGroupTree struct {
+}
+
+func (self OperationGroupTree) Match(state *ScannerState) (Operation, ScanResult) {
+	keyOperations := map[tcell.Key]Operation{
+		tcell.KeyEsc:   SwitchToNormalMode{},
+		tcell.KeyCtrlR: RedoChangeOperation{},
+		tcell.KeyCtrlK: OperationMoveDepthAnchorUp{},
+	}
+	runeOperations := map[rune]Operation{
+		't': SwitchToNormalMode{},
+		'T': OperationSwitchToNormalModeAsSecondCursor{},
+		'v': SwitchToVisualmode{},
+		'V': SwitchToVisualmodeAsSecondCursor{},
+		'k': NodeUpOperation{},
+		'j': NodeDownOperation{},
+		'H': NodePrevSiblingOperation{},
+		'L': NodeNextSiblingOperation{},
+		'h': NodePrevSiblingOrCousinOperation{},
+		'l': NodeNextSiblingOrCousinOperation{},
+		'd': EraseSelectionOperation{},
+		'f': SwapNodeForwardEndOperation{},
+		'b': SwapNodeBackwardEndOperation{},
+		'$': NodeLastSiblingOperation{},
+		'_': NodeFirstSiblingOperation{},
+		'u': UndoChangeOperation{},
+		's': DeleteSelectionAndInsert{},
+	}
+	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+}
+
+func MatchRuneMap(state *ScannerState, m map[rune]Operation) (Operation, ScanResult) {
+	for r, operation := range m {
+		res := state.ScanRune(r)
+		if res == ScanFull {
+			return operation, res
+		}
+	}
+	return nil, ScanNone
+}
+
+func MatchKeyMap(state *ScannerState, m map[tcell.Key]Operation) (Operation, ScanResult) {
+	for key, operation := range m {
+		res := state.ScanKey(key)
+		if res == ScanFull {
+			return operation, res
+		}
+	}
+	return nil, ScanNone
+}
+
+func MatchRuneOrKeysMap(
+	state *ScannerState,
+	rune_map map[rune]Operation,
+	key_map map[tcell.Key]Operation,
+) (Operation, ScanResult) {
+	op, result := MatchRuneMap(state, rune_map)
+	if result == ScanNone {
+		op, result = MatchKeyMap(state, key_map)
+	}
+	return op, result
 }

@@ -11,20 +11,21 @@ type WindowMode string
 
 const (
 	NormalMode WindowMode = "Normal"
-	InsertMode            = "Insert"
-	VisualMode            = "Visual"
-	TreeMode              = "Tree"
+	InsertMode WindowMode = "Insert"
+	VisualMode WindowMode = "Visual"
+	TreeMode   WindowMode = "Tree"
 )
 
 type Window struct {
-	filename     string
-	mode         WindowMode
-	buffer       IBuffer
-	cursor       BufferCursor
-	secondCursor BufferCursor
-	cursorAnchor int
-	anchorDepth  int
-	undotree     *UndoTree
+	filename         string
+	mode             WindowMode
+	buffer           IBuffer
+	cursor           BufferCursor
+	secondCursor     BufferCursor
+	cursorAnchor     int
+	anchorDepth      int
+	undotree         *UndoTree
+	continuousInsert bool
 }
 
 func windowFromBuffer(buffer IBuffer) *Window {

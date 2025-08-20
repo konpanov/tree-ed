@@ -11,20 +11,30 @@ import (
 
 type Editor struct {
 	screen  tcell.Screen
+	scanner *EditorScaner
 	buffers []IBuffer
 	windows []*Window
 	curwin  *Window
-	view    *WindowView
+	view    *ViewEditor
+	style   tcell.Style
 
 	is_quiting bool
 }
 
 func NewEditor(screen tcell.Screen) *Editor {
-	return &Editor{
+	view := &ViewEditor{screen: screen}
+	editor := &Editor{
 		screen:  screen,
+		scanner: NewEditorScanner(),
 		buffers: []IBuffer{},
 		windows: []*Window{},
+		view:    view,
+		style:   tcell.StyleDefault.Background(tcell.NewHexColor(SPACE_CADET)),
 	}
+	preview := &PreviewView{screen: screen}
+	view.main = preview
+	view.status_line = NewStatusLine(screen, editor)
+	return editor
 }
 
 func (self *Editor) OpenFileInWindow(filename string) {
@@ -43,9 +53,9 @@ func (self *Editor) OpenBuffer(buffer IBuffer) {
 	self.buffers = append(self.buffers, buffer)
 	window := windowFromBuffer(buffer)
 	self.curwin = window
-	self.view = NewWindowView(self.screen, self.GetRoi(), self.curwin)
-	self.view.status_line = NewStatusLine(self.screen, self.curwin, self.view)
-
+	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
+	window_view.base_style = self.style
+	self.view.main = window_view
 }
 
 func (self *Editor) Close() {
@@ -59,11 +69,9 @@ func (self *Editor) GetRoi() Rect {
 	return Rect{left: 0, right: width, top: 0, bot: height}
 }
 
-func (self *Editor) Prepare() {
-}
 func (self *Editor) Redraw() {
-	self.view.Update(self.GetRoi())
-	self.screen.Fill(' ', self.view.base_style)
+	self.view.SetRoi(self.GetRoi())
+	self.screen.Fill(' ', self.style)
 	self.view.Draw()
 	self.screen.Show()
 
@@ -86,7 +94,6 @@ func (self *Editor) Start() {
 		}
 	}()
 
-	scanner := NewOmniScanner()
 	got_new_event := true
 	for !self.is_quiting {
 		if got_new_event {
@@ -98,22 +105,55 @@ func (self *Editor) Start() {
 		for waiting_for_event {
 			select {
 			case e := <-events:
-				scanner.Push(e)
+				self.scanner.Push(e)
 				got_new_event = true
 			case <-time.Tick(10 * time.Millisecond):
 				waiting_for_event = false
 			}
 		}
 
+		combo := &OperationCombiner{}
 		for got_new_event && !self.is_quiting {
-			scanner.mode = self.curwin.mode
-			op, err := scanner.Scan()
-			if op == nil || err != nil {
+			if self.curwin != nil {
+				self.scanner.mode = self.curwin.mode
+			}
+			op, res := self.scanner.Scan()
+			if res == ScanStop {
 				break
 			}
-			log.Printf("Executing %T: %+v\n", op, op)
-			op.Execute(self, 1)
+			if res == ScanFull {
+				combo.Push(op)
+				op = combo.Get()
+				if op != nil {
+					op.Execute(self, 1)
+				}
+			}
 		}
-
 	}
+}
+
+type OperationCombiner struct {
+	input []Operation
+}
+
+func (self *OperationCombiner) Push(op Operation) {
+	self.input = append(self.input, op)
+}
+
+func (self *OperationCombiner) Get() Operation {
+	if len(self.input) == 0 {
+		return nil
+	}
+	op := self.input[0]
+	count_op, is_count := op.(CountOperation)
+	if !is_count {
+		self.input = self.input[1:]
+		return op
+	}
+	if len(self.input) < 2 {
+		return nil
+	}
+	count_op.op = self.input[1]
+	self.input = self.input[2:]
+	return count_op
 }
