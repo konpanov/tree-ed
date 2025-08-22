@@ -114,9 +114,9 @@ func (self OperationSwapCursors) Execute(editor *Editor, count int) {
 		return
 	}
 	cursor := editor.curwin.cursor
-	second := editor.curwin.secondCursor
-	editor.curwin.setCursor(second, true)
-	editor.curwin.secondCursor = cursor
+	anchor := editor.curwin.anchor
+	editor.curwin.setCursor(anchor, true)
+	editor.curwin.setAnchor(cursor)
 }
 
 type SwitchFromInsertToNormalMode struct{}
@@ -333,7 +333,7 @@ func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	win := editor.curwin
-	start, end := win.cursor.Index(), win.secondCursor.Index()
+	start, end := win.cursor.Index(), win.anchor.Index()
 	start, end = min(start, end), max(start, end)
 	change := NewEraseChange(win, start, end+1)
 	change.Apply(win)
@@ -464,7 +464,7 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	pos := editor.curwin.cursor.RunePosition()
-	pos.col = editor.curwin.cursorAnchor
+	pos.col = editor.curwin.originColumn
 	pos.row = max(0, count-1)
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
@@ -476,7 +476,7 @@ func (self GoEndOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	pos := editor.curwin.cursor.RunePosition()
-	pos.col = editor.curwin.cursorAnchor
+	pos.col = editor.curwin.originColumn
 	pos.row = max(0, len(editor.curwin.buffer.Lines())-1)
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
@@ -492,18 +492,18 @@ func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 
 		swapee := win.getNode()
 		for range count {
-			if swapee = NextSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
+			if swapee = NextSiblingOrCousinDepth(swapee, win.originDepth); swapee == nil {
 				return
 			}
 		}
 
 		startB, endB := int(swapee.StartByte()), int(swapee.EndByte())
-		startA, endA := order(win.cursor.Index(), win.secondCursor.Index())
+		startA, endA := order(win.cursor.Index(), win.anchor.Index())
 		change := NewSwapChange(win, startA, endA+1, startB, endB)
 		change.Apply(win)
 
 		win.setCursor(win.cursor.ToIndex(-endA+startA+endB-1), true)
-		win.secondCursor = win.secondCursor.ToIndex(endB - 1)
+		win.setAnchor(win.anchor.ToIndex(endB - 1))
 		win.undotree.Push(UndoState{change: change}, true)
 	}
 }
@@ -518,17 +518,17 @@ func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 		win := editor.curwin
 		swapee := win.getNode()
 		for range count {
-			if swapee = PrevSiblingOrCousinDepth(swapee, win.anchorDepth); swapee == nil {
+			if swapee = PrevSiblingOrCousinDepth(swapee, win.originDepth); swapee == nil {
 				return
 			}
 		}
 		startA, endA := int(swapee.StartByte()), int(swapee.EndByte())
-		startB, endB := order(win.cursor.Index(), win.secondCursor.Index())
+		startB, endB := order(win.cursor.Index(), win.anchor.Index())
 		change := NewSwapChange(win, startA, endA, startB, endB+1)
 		change.Apply(win)
 
 		win.setCursor(win.cursor.ToIndex(startA), true)
-		win.secondCursor = win.secondCursor.ToIndex(startA + endB - startB)
+		win.setAnchor(win.anchor.ToIndex(startA + endB - startB))
 		win.undotree.Push(UndoState{change: change}, true)
 	}
 }
@@ -568,7 +568,7 @@ func (self OperationMoveDepthAnchorUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	editor.curwin.anchorDepth = min(editor.curwin.anchorDepth - 1)
+	editor.curwin.originDepth = min(editor.curwin.originDepth - 1)
 }
 
 type DeleteToPreviousWordStart struct{}

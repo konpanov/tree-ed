@@ -21,61 +21,76 @@ type Window struct {
 	mode             WindowMode
 	buffer           IBuffer
 	cursor           BufferCursor
-	secondCursor     BufferCursor
-	cursorAnchor     int
-	anchorDepth      int
+	anchor           BufferCursor
+	originColumn     int
+	originDepth      int
 	undotree         *UndoTree
 	continuousInsert bool
+	frame            Rect
 }
 
-func windowFromBuffer(buffer IBuffer) *Window {
+func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 	window := &Window{
 		mode:         NormalMode,
 		buffer:       buffer,
 		cursor:       BufferCursor{buffer: buffer, index: 0, as_edge: false},
-		cursorAnchor: 0,
-		secondCursor: BufferCursor{buffer: buffer, index: 0, as_edge: false},
-		anchorDepth:  0,
+		originColumn: 0,
+		anchor:       BufferCursor{buffer: buffer, index: 0, as_edge: false},
+		originDepth:  0,
 		undotree:     &UndoTree{buffer, []UndoState{}, 0},
+		frame:        Rect{},
 	}
 	window.buffer.RegisterCursor(&window.cursor)
-	window.buffer.RegisterCursor(&window.secondCursor)
+	window.buffer.RegisterCursor(&window.anchor)
+	window.ResizeFrame(width, height)
 	return window
+}
+
+func (self *Window) ResizeFrame(width int, height int) {
+	self.frame.right = self.frame.left + width
+	self.frame.bot = self.frame.top + height
+	self.frame = self.frame.ShiftToInclude(self.anchor.RunePosition())
+	self.frame = self.frame.ShiftToInclude(self.cursor.RunePosition())
 }
 
 func (self *Window) switchToInsert() {
 	self.mode = InsertMode
 	self.setCursor(self.cursor.AsEdge(), true)
-	self.secondCursor = self.secondCursor.AsEdge()
+	self.setAnchor(self.anchor.AsEdge())
 }
 func (self *Window) switchToNormal() {
 	self.mode = NormalMode
 	self.setCursor(self.cursor.AsChar(), true)
-	self.secondCursor = self.secondCursor.AsChar()
+	self.setAnchor(self.anchor.AsChar())
 }
 
 func (self *Window) switchToVisual() {
 	self.mode = VisualMode
 	self.setCursor(self.cursor.AsChar(), true)
-	self.secondCursor = self.secondCursor.AsChar()
+	self.setAnchor(self.anchor.AsChar())
 }
 
 func (self *Window) switchToTree() {
 	if self.buffer.Tree() != nil {
 		self.mode = TreeMode
-		self.cursor.as_edge = false
-		self.secondCursor.as_edge = false
+		self.setCursor(self.cursor.AsChar(), false)
+		self.setAnchor(self.anchor.AsChar())
 	}
 }
 
-func (self *Window) setCursor(cursor BufferCursor, updateAnchor bool) {
+func (self *Window) setCursor(cursor BufferCursor, setOriginColumn bool) {
 	self.cursor = cursor
-	if updateAnchor {
-		self.cursorAnchor = self.cursor.RunePosition().col
+	if setOriginColumn {
+		self.originColumn = self.cursor.RunePosition().col
 	}
 	if self.mode == InsertMode || self.mode == NormalMode {
-		self.secondCursor = self.cursor
+		self.setAnchor(self.cursor)
 	}
+	self.frame = self.frame.ShiftToInclude(self.cursor.RunePosition())
+}
+
+func (self *Window) setAnchor(anchor BufferCursor) {
+	self.anchor = anchor
 }
 
 func (self *Window) setNode(node *sitter.Node, updateDepth bool) {
@@ -86,9 +101,9 @@ func (self *Window) setNode(node *sitter.Node, updateDepth bool) {
 		log.Panic("Cannot set node to nil value")
 	}
 	self.setCursor(self.cursor.ToIndex(int(node.StartByte())), true)
-	self.secondCursor = self.cursor.ToIndex(int(node.EndByte()) - 1)
+	self.setAnchor(self.cursor.ToIndex(int(node.EndByte()) - 1))
 	if updateDepth {
-		self.anchorDepth = Depth(node)
+		self.originDepth = Depth(node)
 	}
 }
 
@@ -98,12 +113,12 @@ func (self *Window) getNode() *sitter.Node {
 	}
 	var start, end uint
 	if self.mode == VisualMode || self.mode == TreeMode {
-		start, end = order(uint(self.cursor.Index()), uint(self.secondCursor.Index()))
+		start, end = order(uint(self.cursor.Index()), uint(self.anchor.Index()))
 	} else {
 		start, end = order(uint(self.cursor.Index()), uint(self.cursor.Index()))
 	}
 	end++
-	node := MinimalNodeDepth(self.buffer.Tree().RootNode(), start, end, self.anchorDepth)
+	node := MinimalNodeDepth(self.buffer.Tree().RootNode(), start, end, self.originDepth)
 	if node == nil {
 		node = self.buffer.Tree().RootNode()
 	}
@@ -111,7 +126,7 @@ func (self *Window) getNode() *sitter.Node {
 }
 
 func (self *Window) getSelection() (uint, uint) {
-	start, end := order(uint(self.cursor.Index()), uint(self.secondCursor.Index()))
+	start, end := order(uint(self.cursor.Index()), uint(self.anchor.Index()))
 	return start, end + 1
 }
 
@@ -160,7 +175,7 @@ func (self *Window) nodeNextSiblingOrCousin() {
 	if self.buffer.Tree() == nil {
 		return
 	}
-	if node := NextSiblingOrCousinDepth(self.getNode(), self.anchorDepth); node != nil {
+	if node := NextSiblingOrCousinDepth(self.getNode(), self.originDepth); node != nil {
 		self.setNode(node, false)
 	}
 }
@@ -169,7 +184,7 @@ func (self *Window) nodePrevSiblingOrCousin() {
 	if self.buffer.Tree() == nil {
 		return
 	}
-	if node := PrevSiblingOrCousinDepth(self.getNode(), self.anchorDepth); node != nil {
+	if node := PrevSiblingOrCousinDepth(self.getNode(), self.originDepth); node != nil {
 		self.setNode(node, false)
 	}
 }
@@ -199,12 +214,12 @@ func (self *Window) cursorLeft(count int) {
 }
 
 func (self *Window) cursorUp(count int) {
-	pos := Point{row: self.cursor.Row() - count, col: self.cursorAnchor}
+	pos := Point{row: self.cursor.Row() - count, col: self.originColumn}
 	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 
 func (self *Window) cursorDown(count int) {
-	pos := Point{row: self.cursor.Row() + count, col: self.cursorAnchor}
+	pos := Point{row: self.cursor.Row() + count, col: self.originColumn}
 	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 
@@ -213,12 +228,12 @@ func (self *Window) eraseLineAtCursor(count int) {
 	for range count {
 		change := NewEraseLineChange(self, self.cursor.Row())
 		change.cursorBefore = self.cursor.Index()
-		change.secondCursorBefore = self.cursor.Index()
+		change.anchorBefore = self.cursor.Index()
 		change.Apply(self)
-		self.setCursor(self.cursor.MoveToCol(self.cursorAnchor), false)
-		self.secondCursor = self.cursor
+		self.setCursor(self.cursor.MoveToCol(self.originColumn), false)
+		self.setAnchor(self.cursor)
 		change.cursorAfter = self.cursor.Index()
-		change.secondCursorAfter = self.cursor.Index()
+		change.anchorAfter = self.cursor.Index()
 		composite.changes = append(composite.changes, change)
 	}
 	self.undotree.Push(UndoState{change: composite}, true)
@@ -240,7 +255,7 @@ func (self *Window) insertContent(continuous bool, content []byte) {
 		change = NewReplacementChange(self.cursor.Index(), []byte{}, content)
 	}
 	change.cursorAfter = cursor_pos + len(content)
-	change.secondCursorAfter = change.cursorAfter
+	change.anchorAfter = change.cursorAfter
 	change.Apply(self)
 	self.undotree.Push(UndoState{change: change}, false)
 }
@@ -267,7 +282,7 @@ func (self *Window) eraseContent(continuous bool) {
 	}
 
 	change.cursorAfter = cursor_after.Index()
-	change.secondCursorAfter = change.cursorAfter
+	change.anchorAfter = change.cursorAfter
 	change.Apply(self)
 	self.undotree.Push(UndoState{change: change}, false)
 }

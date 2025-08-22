@@ -6,44 +6,18 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type LineNumberView interface{ Width() int }
-
-type NoLineNumberView struct {
-}
-
-func (self NoLineNumberView) Width() int {
-	return 0
-}
-
-func (self NoLineNumberView) Draw() {
-}
-
 type AbsoluteLineNumberView struct {
-	screen      tcell.Screen
-	roi         Rect
-	buffer      IBuffer
-	line_offset int
-}
-
-func (self AbsoluteLineNumberView) Width() int {
-	return default_buffer_line_number_max_width(self.buffer)
+	screen tcell.Screen
+	roi    Rect
+	window *Window
 }
 
 func (self AbsoluteLineNumberView) Draw() {
-	lines := self.buffer.Lines()
-	width := self.roi.Width()
-	height := self.roi.Height()
-	start_line := max(min(self.line_offset, len(lines)), 0)
-	end_line := max(min(start_line+height, len(lines)), 0)
-
-	for y := range lines[start_line:end_line] {
-		line_num := strconv.Itoa(start_line + y + 1)
-		for i, r := range line_num {
-			screen_pos := view_pos_to_screen_pos(
-				Point{col: width - 1 - len(line_num) + i, row: y},
-				self.roi,
-			)
-			set_rune(self.screen, screen_pos, r)
-		}
+	top := self.window.frame.top
+	bot := min(self.window.frame.bot, len(self.window.buffer.Lines()))
+	for line := top; line < bot; line++ {
+		pos := view_pos_to_screen_pos(Point{row: line - top, col: 0}, self.roi)
+		text := strconv.Itoa(line + 1)
+		put_line(self.screen, pos, text, self.roi.right)
 	}
 }

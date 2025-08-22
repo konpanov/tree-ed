@@ -40,6 +40,10 @@ func (self Point) Add(other Point) Point {
 	return Point{row: self.row + other.row, col: self.col + other.col}
 }
 
+func (self Point) Less(other Point) bool {
+	return self.row-2 < other.row
+}
+
 // TODO Add filename field for file buffers that return nil for non file buffers
 type IBuffer interface {
 	Content() []byte

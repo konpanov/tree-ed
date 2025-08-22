@@ -15,8 +15,8 @@ type ReplaceChange struct {
 	cursorAfter  int
 	cursorBefore int
 
-	secondCursorAfter  int
-	secondCursorBefore int
+	anchorAfter  int
+	anchorBefore int
 
 	resetAnchor bool
 }
@@ -28,13 +28,13 @@ func (self ReplaceChange) Apply(win *Window) {
 		replacement: self.after,
 	})
 	win.setCursor(win.cursor.ToIndex(self.cursorAfter), self.resetAnchor)
-	win.secondCursor = win.secondCursor.ToIndex(self.secondCursorAfter)
+	win.setAnchor(win.anchor.ToIndex(self.anchorAfter))
 }
 
 func (self ReplaceChange) Reverse() Change {
 	self.after, self.before = self.before, self.after
 	self.cursorBefore, self.cursorAfter = self.cursorAfter, self.cursorBefore
-	self.secondCursorBefore, self.secondCursorAfter = self.secondCursorAfter, self.secondCursorBefore
+	self.anchorBefore, self.anchorAfter = self.anchorAfter, self.anchorBefore
 	return self
 }
 
@@ -54,14 +54,14 @@ func (self ReplaceChange) IsEmpty() bool {
 
 func NewReplacementChange(at int, before []byte, after []byte) ReplaceChange {
 	return ReplaceChange{
-		at:                 at,
-		before:             slices.Clone(before),
-		after:              slices.Clone(after),
-		cursorAfter:        at,
-		cursorBefore:       at,
-		secondCursorAfter:  at,
-		secondCursorBefore: at,
-		resetAnchor:        false,
+		at:           at,
+		before:       slices.Clone(before),
+		after:        slices.Clone(after),
+		cursorAfter:  at,
+		cursorBefore: at,
+		anchorAfter:  at,
+		anchorBefore: at,
+		resetAnchor:  false,
 	}
 }
 

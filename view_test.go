@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -118,6 +119,7 @@ func TestDrawSkippedLineTextView(t *testing.T) {
 func TestDrawWindowViewWithSingleLine(t *testing.T) {
 	// Setup screen
 	screen := mkTestScreen(t, "")
+	screen.SetSize(10, 4)
 	defer screen.Fini()
 
 	// Setup buffer
@@ -127,13 +129,19 @@ func TestDrawWindowViewWithSingleLine(t *testing.T) {
 
 	// Setup window
 	w, h := screen.Size()
-	window := windowFromBuffer(buffer)
-	roi := Rect{top: 0, left: 0, bot: w, right: h}
+	window := windowFromBuffer(buffer, w, h)
+	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	window_view := NewWindowView(screen, roi, window)
 	window_view.Draw()
 
 	screen.Show()
 	cells, _, _ := screen.GetContents()
+	assertScreenRunes(t, screen, []string{
+		"1 hello   ",
+		"          ",
+		"          ",
+		"          ",
+	})
 	assertCells(t, cells[2:7], []rune(content), "")
 	assertCellsEmpty(t, cells[7:w*(h-2)])
 }
@@ -159,7 +167,7 @@ func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window_view := NewWindowView(screen, roi, window)
 	window_view.Draw()
 
@@ -188,7 +196,7 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	var window_view View
 	window_view = NewWindowView(screen, roi, window)
 	window_view.Draw()
@@ -216,7 +224,7 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	content := strings.Join(lines, nl)
 	buffer := mkTestBuffer(t, content+nl, nl)
 	w, h := screen.Size()
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window.setCursor(window.cursor.ToIndex(20), true)
 	assertIntEqualMsg(t, w, 8, "")
 	assertIntEqualMsg(t, h, 2, "")
@@ -229,6 +237,15 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	window_view.Draw()
 
 	screen.Show()
+	actual := window.cursor.RunePosition()
+	expected := Point{row: 3, col: 2}
+	if actual != expected {
+		t.Errorf("Unexpected cursor position %+v, expected %+v.", actual, expected)
+	}
+	assertScreenRunes(t, screen, []string{
+		"3 line3 ",
+		"4 line4 ",
+	})
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
 	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
 }
@@ -254,7 +271,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window.setCursor(window.cursor.ToIndex(20), true)
 	window_view := NewWindowView(screen, roi, window)
 	assertIntEqualMsg(t, w, 8, "")
@@ -301,7 +318,7 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 
 	// Setup window
 	w, h := screen.Size()
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	for range 4 {
 		window.setCursor(window.cursor.RuneNext(), true)
 	}
@@ -313,7 +330,7 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	window_view.Draw()
 
 	screen.Show()
-	assertPointsEqual(t, window_view.text_offset, Point{col: 3, row: 0})
+	assertPointsEqual(t, window.frame.TopLeft(), Point{col: 3, row: 0})
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
 	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
 	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
@@ -341,7 +358,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 
 	// Setup window
 	w, h := screen.Size()
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	for range 4 {
 		window.setCursor(window.cursor.RuneNext(), true)
 	}
@@ -357,7 +374,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view.Draw()
 
 	screen.Show()
-	assertPointsEqual(t, window_view.text_offset, Point{col: 3, row: 0})
+	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 3, row: 0})
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
 	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
 	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
@@ -369,7 +386,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view.Draw()
 
 	screen.Show()
-	assertPointsEqual(t, window_view.text_offset, Point{col: 2, row: 0})
+	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 2, row: 0})
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 ne"), "")
 	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 ne"), "")
 	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 ne"), "")
@@ -430,7 +447,7 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 	w, h := screen.Size()
 
 	// Setup cursor
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window.cursorRight(1)
 	window.cursorDown(1)
 
@@ -466,7 +483,7 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 	w, h := screen.Size()
 
 	// Setup cursor
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window.cursorRight(1)
 	window.cursorDown(1)
 
@@ -502,7 +519,7 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 	w, h := screen.Size()
 
 	// Setup cursor
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window.cursorRight(1)
 	window.cursorDown(1)
 
@@ -538,7 +555,7 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	buffer := mkTestBuffer(t, content+nl, nl)
 
 	// Setup cursor
-	window := windowFromBuffer(buffer)
+	window := windowFromBuffer(buffer, w, h)
 	window_view := NewWindowView(
 		screen,
 		Rect{left: 0, top: 0, right: w, bot: h},
@@ -575,10 +592,10 @@ func TestDrawWindowEraseAtCursor(t *testing.T) {
 	nl_seq := []byte(NewLineUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
-	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
 	defer screen.Fini()
 	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
 	window_view := NewWindowView(
 		screen,
 		Rect{left: 0, top: 0, right: w, bot: h},
@@ -601,10 +618,10 @@ func TestDrawWindowInsertCursor(t *testing.T) {
 	nl_seq := []byte(NewLineUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
-	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
 	defer screen.Fini()
 	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
 	window_view := NewWindowView(
 		screen,
 		Rect{left: 0, top: 0, right: w, bot: h},
@@ -638,10 +655,10 @@ func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 	nl_seq := []byte(NewLineUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
-	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
 	defer screen.Fini()
 	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
 	window_view := NewWindowView(
 		screen,
 		Rect{left: 0, top: 0, right: w, bot: h},
@@ -667,28 +684,63 @@ func TestDrawWindowAppendMode(t *testing.T) {
 	nl_seq := []byte(NewLineUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
-	window := windowFromBuffer(buffer)
 	screen := mkTestScreen(t, "")
 	defer screen.Fini()
-	// w, h := screen.Size()
-	// window_view := NewWindowView(
-	// 	screen,
-	// 	Rect{left: 0, top: 0, right: w, bot: h},
-	// 	window,
-	// )
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
 	window.switchToInsert()
 	window.cursorRight(1)
 	if window.cursor.index != 1 {
 		t.Errorf("Unexpected cursor index %+v", window.cursor.index)
 	}
-	// window_view.Draw()
-	// x, y, visible := screen.GetCursor()
-	// if !visible || x != 3 || y != 0 {
-	// 	t.Errorf(
-	// 		"Cursor in an unexpected state: %+v, %+v, %+v",
-	// 		visible,
-	// 		x,
-	// 		y,
-	// 	)
-	// }
+}
+
+func TestMoveBelowFrameAndUp(t *testing.T) {
+	screen := mkTestScreen(t, "")
+	screen.SetSize(10, 3)
+	defer screen.Fini()
+
+	nl := NewLineUnix
+	lines := []string{}
+	for i := range 100 {
+		lines = append(lines, fmt.Sprintf("line%d", i+1))
+	}
+	content := as_content(lines, nl)
+	buffer := mkTestBuffer(t, string(content), nl)
+
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
+
+	roi := Rect{top: 0, left: 0, bot: h, right: w}
+	window_view := NewWindowView(screen, roi, window)
+	screen.Clear()
+	window_view.Draw()
+
+	expected := Rect{top: 0, left: 0, bot: 3, right: 6}
+	if window.frame != expected {
+		t.Errorf("Unexpected window frame %+v, expected %+v.", window.frame, expected)
+	}
+	assertScreenRunes(t, screen, []string{
+		"1   line1 ",
+		"2   line2 ",
+		"3   line3 ",
+	})
+
+	window.setCursor(window.cursor.MoveToRunePos(Point{row: 24, col: 2}), true)
+	screen.Clear()
+	window_view.Draw()
+	assertScreenRunes(t, screen, []string{
+		"23  line23",
+		"24  line24",
+		"25  line25",
+	})
+
+	window.setCursor(window.cursor.MoveToRunePos(Point{row: 8, col: 3}), true)
+	screen.Clear()
+	window_view.Draw()
+	assertScreenRunes(t, screen, []string{
+		"9   line9 ",
+		"10  line10",
+		"11  line11",
+	})
 }

@@ -41,19 +41,19 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error)
 	if pos.col < 0 || pos.row < 0 {
 		log.Panicf("Text position coordinates should not be negative %+v", pos)
 	}
-	var err error
-	if pos.col < text_offset.col {
-		err = ErrLeftOfFrame
-	} else if pos.col >= text_offset.col+roi.Width() {
-		err = ErrRightOfFrame
-	} else if pos.row < text_offset.row {
-		err = ErrAboveFrame
-	} else if pos.row >= text_offset.row+roi.Height() {
-		err = ErrBelowFrame
-	}
-	if err != nil {
-		return Point{}, fmt.Errorf("%w Text pos: %+v, Text offset: %+v, View roi: %+v", err, pos, text_offset, roi)
-	}
+	// var err error
+	// if pos.col < text_offset.col {
+	// 	err = ErrLeftOfFrame
+	// } else if pos.col >= text_offset.col+roi.Width() {
+	// 	err = ErrRightOfFrame
+	// } else if pos.row < text_offset.row {
+	// 	err = ErrAboveFrame
+	// } else if pos.row >= text_offset.row+roi.Height() {
+	// 	err = ErrBelowFrame
+	// }
+	// if err != nil {
+	// 	return Point{}, fmt.Errorf("%w Text pos: %+v, Text offset: %+v, View roi: %+v", err, pos, text_offset, roi)
+	// }
 	view_pos := Point{
 		col: min(pos.col-text_offset.col, roi.Width()-1),
 		row: min(pos.row-text_offset.row, roi.Height()-1),
@@ -92,4 +92,15 @@ func get_style(screen tcell.Screen, pos Point) tcell.Style {
 
 func default_buffer_line_number_max_width(buffer IBuffer) int {
 	return int(math.Log10(float64(len(buffer.Lines())))) + 2
+}
+
+func put_line(screen tcell.Screen, pos Point, text string, stop int) {
+	for i, r := range text {
+		row := pos.row
+		col := pos.col + i
+		if col >= stop {
+			return
+		}
+		set_rune(screen, Point{row: row, col: col}, r)
+	}
 }

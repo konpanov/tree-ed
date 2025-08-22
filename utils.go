@@ -19,7 +19,7 @@ const (
 
 const (
 	SymborForLineFeed       rune = 0x240A // LF \n
-	SymborForCarriageReturn      = 0x240D // CR \r
+	SymborForCarriageReturn rune = 0x240D // CR \r
 )
 
 func newlinesToSymbols(text []rune) []rune {
@@ -257,4 +257,14 @@ func Any(conditions ...bool) bool {
 		}
 	}
 	return false
+}
+
+func RenderedRune(value rune) string {
+	// switch value {
+	// case '\r':
+	// 	return string(SymborForCarriageReturn)
+	// case '\n':
+	// 	return string(SymborForLineFeed)
+	// }
+	return string(value)
 }

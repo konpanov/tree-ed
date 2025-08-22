@@ -1,19 +1,15 @@
 package main
 
 import (
-	"errors"
-
 	"github.com/gdamore/tcell/v2"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 type WindowView struct {
-	screen      tcell.Screen
-	roi         Rect
-	window      *Window
-	text_offset Point
+	screen tcell.Screen
+	roi    Rect
+	window *Window
 
-	// Widgets
 	text_style tcell.Style
 	base_style tcell.Style
 
@@ -27,10 +23,9 @@ func NewWindowView(
 	window *Window,
 ) *WindowView {
 	view := &WindowView{
-		screen:      screen,
-		roi:         roi,
-		window:      window,
-		text_offset: Point{0, 0},
+		screen: screen,
+		roi:    roi,
+		window: window,
 
 		is_tree_view:       window.buffer.Tree() != nil && false, // TODO separate tree view from window view
 		is_newline_symbols: false,
@@ -49,104 +44,93 @@ func (self *WindowView) SetRoi(roi Rect) {
 
 func (self *WindowView) Draw() {
 	line_numbers_width := default_buffer_line_number_max_width(self.window.buffer)
-
 	line_numbers_roi, main_roi := self.roi.SplitV(line_numbers_width)
 
-	var tree_roi Rect
-	if self.is_tree_view {
-		main_roi, tree_roi = main_roi.SplitV(main_roi.Width() / 2)
+	self.window.ResizeFrame(main_roi.Width(), main_roi.Height())
+	self.DrawFrameText(main_roi)
+	self.DrawColoredTree(main_roi)
+	self.DrawCursor(main_roi)
+
+	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window}
+	line_numbers.Draw()
+
+	// var tree_roi Rect
+	// if self.is_tree_view {
+	// 	main_roi, tree_roi = main_roi.SplitV(main_roi.Width() / 2)
+	// }
+}
+
+func (self *WindowView) DrawFrameText(roi Rect) {
+	frame := self.window.frame
+	offset := frame.TopLeft()
+	cursor := self.window.cursor.AsEdge().MoveToRunePos(offset)
+	for !cursor.IsEnd() {
+		pos := cursor.RunePosition()
+		rel_pos := frame.RelativePosition(pos)
+		if rel_pos == Below {
+			break
+		}
+		if rel_pos == Inside {
+			for _, value := range RenderedRune(cursor.Rune()) {
+				view_pos, err := text_pos_to_view_pos(pos, offset, roi)
+				panic_if_error(err)
+				screen_pos := view_pos_to_screen_pos(view_pos, roi)
+				set_rune(self.screen, screen_pos, value)
+			}
+		}
+		cursor = cursor.RuneNext()
 	}
+}
 
-	text, text_offset := self.get_text_from_buffer(main_roi, self.text_offset)
-	self.text_offset = text_offset
-
-	line_numbers := AbsoluteLineNumberView{self.screen, line_numbers_roi, self.window.buffer, self.text_offset.row}
-	text_view := NewTextView(self.screen, main_roi, text)
-	text_view.style = self.base_style
-
+func (self *WindowView) DrawCursor(roi Rect) {
 	var cursor_view View
-
 	switch self.window.mode {
 	case InsertMode:
-		cursor_view = &IndexViewCursor{self.screen, main_roi, self.window.buffer, self.window.cursor, self.text_offset}
+		cursor_view = &IndexViewCursor{
+			self.screen,
+			roi,
+			self.window.buffer,
+			self.window.cursor,
+			self.window.frame.TopLeft(),
+		}
 	case VisualMode, TreeMode:
 		cursor_view = &SelectionViewCursor{
 			self.screen,
-			main_roi,
+			roi,
 			self.window.buffer,
 			self.window.cursor,
-			self.window.secondCursor,
-			self.text_offset,
+			self.window.anchor,
+			self.window.frame.TopLeft(),
 			tcell.StyleDefault.Background(tcell.NewHexColor(GLACIOUS)),
 		}
 	default:
-		cursor_view = &CharacterViewCursor{self.screen, main_roi, self.window.buffer, self.window.cursor, self.text_offset}
-	}
-
-	tree_color := &TreeColorView{
-		screen:      self.screen,
-		window:      self.window,
-		text_offset: text_offset,
-		base_style:  self.base_style,
-	}
-	tree_color.SetRoi(main_roi)
-	line_numbers.Draw()
-	text_view.Draw()
-	if self.window.buffer.Tree() != nil {
-		tree_color.Draw()
-		if self.is_tree_view {
-			tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
-			tree_view.style = self.base_style
-			tree_view.Draw()
+		cursor_view = &CharacterViewCursor{
+			self.screen,
+			roi,
+			self.window.buffer,
+			self.window.cursor,
+			self.window.frame.TopLeft(),
 		}
 	}
 	cursor_view.Draw()
-
-	pos, err := text_pos_to_screen(self.window.secondCursor.RunePosition(), text_offset, main_roi)
-	if !errors.Is(err, ErrOutOfFrame) {
-		panic_if_error(err)
-		set_style(self.screen, pos, get_style(self.screen, pos).Background(tcell.NewHexColor(GLACIOUS)))
-	}
-
 }
 
-func (self *WindowView) get_text_from_buffer(roi Rect, text_offset Point) ([][]rune, Point) {
-	width := roi.Width()
-	height := roi.Height()
-
-	if self.window.mode == VisualMode || self.window.mode == TreeMode {
-		coord := self.window.secondCursor.RunePosition()
-		text_offset = Point{
-			col: max(min(text_offset.col, coord.col), coord.col-width+1),
-			row: max(min(text_offset.row, coord.row), coord.row-height+1),
-		}
+func (self *WindowView) DrawColoredTree(roi Rect) {
+	tree_color := &TreeColorView{
+		screen:      self.screen,
+		window:      self.window,
+		text_offset: self.window.frame.TopLeft(),
+		base_style:  self.base_style,
 	}
-
-	coord := self.window.cursor.RunePosition()
-	text_offset = Point{
-		col: max(min(text_offset.col, coord.col), coord.col-width+1),
-		row: max(min(text_offset.row, coord.row), coord.row-height+1),
+	tree_color.SetRoi(roi)
+	if self.window.buffer.Tree() != nil {
+		tree_color.Draw()
+		// if self.is_tree_view {
+		// 	tree_view := TreeView{screen: self.screen, roi: tree_roi, window: self.window}
+		// 	tree_view.style = self.base_style
+		// 	tree_view.Draw()
+		// }
 	}
-
-	if coord.col < width {
-		text_offset.col = 0
-	}
-
-	lines := self.window.buffer.Lines()
-	lines = lines[min(len(lines), text_offset.row):min(len(lines), text_offset.row+height)]
-	text := [][]rune{}
-
-	for _, region := range lines {
-		content := self.window.buffer.Content()
-		start, end := region.start, region.end
-		if self.is_newline_symbols {
-			end = region.full_end
-		}
-		line := []rune(string(content[start:end]))
-		line = line[min(len(line), text_offset.col):min(len(line), text_offset.col+width)]
-		text = append(text, line)
-	}
-	return text, text_offset
 }
 
 type TreeColorView struct {
@@ -159,7 +143,7 @@ type TreeColorView struct {
 
 func (self *TreeColorView) Draw() {
 	if self.window.mode == TreeMode {
-		depth := self.window.anchorDepth
+		depth := self.window.originDepth
 		node := self.window.getNode()
 		first_node := node
 		for {
@@ -189,18 +173,18 @@ func (self *TreeColorView) Draw() {
 
 func (self *TreeColorView) ColorNode(node *sitter.Node, style tcell.Style) {
 	start, end := int(node.StartByte()), int(node.EndByte())
-	cursor := BufferCursor{buffer: self.window.buffer}.AsChar().ToIndex(start)
-	for ; !cursor.IsEnd() && cursor.Index() < end; cursor = cursor.RuneNext() {
-		if cursor.IsNewLine() {
-			continue
-		}
+	frame := self.window.frame
+	cursor := BufferCursor{buffer: self.window.buffer}.AsEdge().ToIndex(start)
+	for !cursor.IsEnd() && cursor.Index() < end {
 		pos := cursor.RunePosition()
-		pos, err := text_pos_to_screen(pos, self.text_offset, self.roi)
-		if err == nil {
+		if frame.RelativePosition(pos) == Inside {
+			pos, err := text_pos_to_screen(pos, frame.TopLeft(), self.roi)
+			panic_if_error(err)
 			set_style(self.screen, pos, style)
 		}
-
+		cursor = cursor.RuneNext()
 	}
+
 }
 
 func (self *TreeColorView) GetRoi() Rect {

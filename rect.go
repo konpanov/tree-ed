@@ -12,6 +12,14 @@ func (r Rect) Height() int {
 	return r.bot - r.top
 }
 
+func (r Rect) TopLeft() Point {
+	return Point{row: r.top, col: r.left}
+}
+
+func (r Rect) BotRight() Point {
+	return Point{row: r.bot, col: r.right}
+}
+
 // Split by a horizontal line
 func (r Rect) SplitH(at int) (Rect, Rect) {
 	upper, lower := r, r
@@ -28,27 +36,52 @@ func (r Rect) SplitV(at int) (Rect, Rect) {
 	return to_the_left, to_the_right
 }
 
+func (r Rect) ShiftToInclude(pos Point) Rect {
+	w := r.Width()
+	r.left = max(min(r.left, pos.col), pos.col-w+1)
+	r.right = r.left + w
+
+	h := r.Height()
+	r.top = max(min(r.top, pos.row), pos.row-h+1)
+	r.bot = r.top + h
+
+	return r
+}
+
 func (r Rect) Size() Point {
 	return Point{col: r.Width(), row: r.Height()}
+}
+
+type RelativePosition int
+
+const (
+	Above RelativePosition = iota
+	Below
+	LeftOf
+	RightOf
+	Inside
+)
+
+// Above  \ Above  \ Above
+// -------+--------+--------
+// LeftOf \ Inside \ RightOf
+// -------+--------+--------
+// Below  \ Below  \ Below
+func (r Rect) RelativePosition(pos Point) RelativePosition {
+	switch {
+	case pos.row < r.top:
+		return Above
+	case pos.row >= r.bot:
+		return Below
+	case pos.col < r.left:
+		return LeftOf
+	case pos.col >= r.right:
+		return RightOf
+	default:
+		return Inside
+	}
 }
 
 func (r Rect) IsPointAbove(p Point) bool {
 	return r.top > p.row
 }
-
-// Position in buffer: i
-//
-//	0,..., i-2, i-1, i, i+1, i+2, ..., n
-//
-//
-// Position in bytes splitted by lines: y, x
-//	y = line = number of new line before i
-//	x = char = number of bytes after last new line or
-//	N   = Number of lines
-//	N_y = Number of chars in line y
-//
-//	(0,0), ..., (0,x), ..., ..., (0,N_0)
-//	...  , ..., ...  , ..., ...
-//	(y,0), ..., (y,x), ..., ..., ..., (y,N_y)
-//	...  , ..., ...  , ..., ...
-//	(N,0), ..., (N,x), ..., (0,N_N)

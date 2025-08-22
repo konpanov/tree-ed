@@ -37,7 +37,7 @@ func (self *TreeView) DrawNode(node *sitter.Node, selected_node *sitter.Node, ro
 		if node.StartByte() == selected_node.StartByte() && node.EndByte() == selected_node.EndByte() {
 			style = tcell.StyleDefault.Background(tcell.ColorGray)
 		}
-		if Depth(node) == self.window.anchorDepth {
+		if Depth(node) == self.window.originDepth {
 			style = style.Bold(true)
 		}
 	} else {

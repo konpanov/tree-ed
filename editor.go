@@ -51,7 +51,8 @@ func (self *Editor) OpenFileInWindow(filename string) {
 
 func (self *Editor) OpenBuffer(buffer IBuffer) {
 	self.buffers = append(self.buffers, buffer)
-	window := windowFromBuffer(buffer)
+	w, h := self.screen.Size()
+	window := windowFromBuffer(buffer, w, h)
 	self.curwin = window
 	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
 	window_view.base_style = self.style
