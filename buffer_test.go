@@ -468,8 +468,7 @@ func TestBufferIndexFromRuneCoord(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
-	assertNoErrors(t, err)
+	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
 	assertIntEqualMsg(t, index, 8, "Unexpected index: ")
 }
 
@@ -484,8 +483,7 @@ func TestBufferIndexFromRuneCoordWithUnevenRunes(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
-	assertNoErrors(t, err)
+	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
 	assertIntEqualMsg(t, index, 10, "Unexpected index: ")
 }
 
@@ -500,8 +498,7 @@ func TestBufferIndexFromRuneCoordWithEmptyLine(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 0})
-	assertNoErrors(t, err)
+	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 0})
 	assertIntEqualMsg(t, index, 7, "Unexpected index: ")
 }
 
@@ -511,15 +508,13 @@ func TestBufferIndexFromRuneCoordOutsideTheLine(t *testing.T) {
 	content := strings.Join([]string{"line 1", "line 2", "line 3"}, nl)
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrorsMsg(t, err, "Could not create buffer from content: ")
-	index, err := buffer.IndexFromRuneCoord(Point{row: 1, col: 20})
-	assertNoErrorsMsg(t, err, "Could not find index from rune coord")
+	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 20})
 	expected := 14
 	if index != expected {
 		t.Errorf("Unexpected index %d, expected %d", index, expected)
 	}
 
-	index, err = buffer.IndexFromRuneCoord(Point{row: 2, col: 20})
-	assertNoErrorsMsg(t, err, "Could not find index from rune coord")
+	index = buffer.IndexFromRuneCoord(Point{row: 2, col: 20})
 	expected = 20
 	if index != expected {
 		t.Errorf("Unexpected index %d, expected %d", index, expected)

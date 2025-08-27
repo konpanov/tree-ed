@@ -12,6 +12,14 @@ func (r Rect) Height() int {
 	return r.bot - r.top
 }
 
+func (r Rect) AxisH() int {
+	return (r.left + r.right) / 2
+}
+
+func (r Rect) AxisV() int {
+	return (r.top + r.bot) / 2
+}
+
 func (r Rect) TopLeft() Point {
 	return Point{row: r.top, col: r.left}
 }

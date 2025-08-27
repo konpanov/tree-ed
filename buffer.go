@@ -60,7 +60,7 @@ type IBuffer interface {
 
 	// If point lies after the line end the index of the start of the next
 	// line or the eof index is given.
-	IndexFromRuneCoord(p Point) (int, error)
+	IndexFromRuneCoord(p Point) int
 
 	Tree() *sitter.Tree
 
@@ -227,26 +227,28 @@ func (b *Buffer) RuneCoord(index int) (Point, error) {
 	return Point{row: row, col: utf8.RuneCount(b.Content()[line.start:index])}, nil
 }
 
-func (b *Buffer) IndexFromRuneCoord(p Point) (int, error) {
-	if err := b.CheckLine(p.row); err != nil {
-		return 0, err
-	}
+func (b *Buffer) IndexFromRuneCoord(p Point) int {
 	lines := b.Lines()
-	line := lines[p.row]
-	in_runes := []rune(string(b.Content()[line.start:line.end]))
-	if p.col < 0 {
-		return 0, fmt.Errorf("%w: coord col cannot be negative (%d)", ErrCoordOutOfRange, p.col)
-	} else if p.col > len(in_runes) {
-		next_line_row := p.row + 1
-		if next_line_row != len(lines) {
-			return lines[next_line_row].start, nil
-		} else {
-			return len(b.Content()), nil
+	if len(lines) == 0 {
+		if debug {
+			log.Panicf("Lines should not be empty")
 		}
-	} else {
-		line_len_before_coord_in_bytes := len(string(in_runes[:p.col]))
-		return lines[p.row].start + line_len_before_coord_in_bytes, nil
+		return 0
 	}
+	p.row = min(max(0, p.row), len(lines)-1)
+	line := lines[p.row]
+	if p.col < 0 {
+		if debug {
+			log.Panicf("Line column cannot be less than zero: %d\n", p.col)
+		}
+		p.col = 0
+	}
+	text := []rune(string(b.Content()[line.start:line.end]))
+	if p.col > len(text) {
+		return line.full_end
+	}
+	byte_col := len(string(text[:p.col]))
+	return line.start + byte_col
 }
 
 func (b *Buffer) calculateLines() []Region {

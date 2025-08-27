@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math"
 
@@ -9,9 +8,57 @@ import (
 )
 
 type View interface {
-	Draw()
-	SetRoi(roi Rect)
-	GetRoi() Rect
+	Draw(ctx DrawContext)
+}
+
+type DrawContext struct {
+	screen tcell.Screen
+	roi    Rect
+	theme  Theme
+}
+
+type StyleMod func(style tcell.Style) tcell.Style
+
+type Theme struct {
+	base         StyleMod
+	text         StyleMod
+	selection    StyleMod
+	nodeOdd      StyleMod
+	nodeEven     StyleMod
+	node         StyleMod
+	secondary    StyleMod
+	secondary_bg StyleMod
+}
+
+var default_theme = DefaultTheme()
+
+func BgMod(color tcell.Color) StyleMod {
+	return func(style tcell.Style) tcell.Style {
+		return style.Background(color)
+	}
+}
+
+func CombineMods(mods []StyleMod) StyleMod {
+	return func(style tcell.Style) tcell.Style {
+		for _, m := range mods {
+			style = m(style)
+		}
+		return style
+	}
+}
+
+func DefaultTheme() Theme {
+	type S = tcell.Style
+	var hex = tcell.NewHexColor
+	return Theme{
+		base:         func(s S) S { return s.Background(hex(0x0C060F)).Foreground(hex(0xD6D6D6)) },
+		selection:    func(s S) S { return s.Background(hex(0x426154)) },
+		nodeOdd:      func(s S) S { return s.Background(hex(0x2a2640)) },
+		nodeEven:     func(s S) S { return s.Background(hex(0x3d3659)) },
+		secondary:    func(s S) S { return s.Foreground(hex(0x938581)) },
+		secondary_bg: func(s S) S { return s.Background(hex(0x211D1C)) },
+		node:         func(s S) S { return s.Background(hex(0x211A23)) },
+	}
 }
 
 /******************************************************/
@@ -31,29 +78,24 @@ func view_pos_to_screen_pos(pos Point, roi Rect) Point {
 	return screen_pos
 }
 
-var ErrOutOfFrame = fmt.Errorf("")
-var ErrLeftOfFrame = fmt.Errorf("Text position is left of window frame.%w", ErrOutOfFrame)
-var ErrRightOfFrame = fmt.Errorf("Text position is right of window frame.%w", ErrOutOfFrame)
-var ErrAboveFrame = fmt.Errorf("Text position is above window frame.%w", ErrOutOfFrame)
-var ErrBelowFrame = fmt.Errorf("Text position is below window frame.%w", ErrOutOfFrame)
-
-func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error) {
-	if pos.col < 0 || pos.row < 0 {
-		log.Panicf("Text position coordinates should not be negative %+v", pos)
+func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
+	if debug {
+		if pos.col < 0 || pos.row < 0 {
+			log.Panicf("Text position coordinates should not be negative %+v", pos)
+		}
+		if pos.col < 0 || pos.row < 0 {
+			log.Panicf("Text position coordinates should not be negative %+v", pos)
+		} else if pos.col < text_offset.col {
+			log.Panicln("Text position is left of window frame.")
+		} else if pos.col >= text_offset.col+roi.Width() {
+			log.Panicln("Text position is right of window frame.")
+		} else if pos.row < text_offset.row {
+			log.Panicln("Text position is above window frame.")
+		} else if pos.row >= text_offset.row+roi.Height() {
+			log.Panicln("Text position is below window frame.")
+		}
 	}
-	// var err error
-	// if pos.col < text_offset.col {
-	// 	err = ErrLeftOfFrame
-	// } else if pos.col >= text_offset.col+roi.Width() {
-	// 	err = ErrRightOfFrame
-	// } else if pos.row < text_offset.row {
-	// 	err = ErrAboveFrame
-	// } else if pos.row >= text_offset.row+roi.Height() {
-	// 	err = ErrBelowFrame
-	// }
-	// if err != nil {
-	// 	return Point{}, fmt.Errorf("%w Text pos: %+v, Text offset: %+v, View roi: %+v", err, pos, text_offset, roi)
-	// }
+
 	view_pos := Point{
 		col: min(pos.col-text_offset.col, roi.Width()-1),
 		row: min(pos.row-text_offset.row, roi.Height()-1),
@@ -61,23 +103,13 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) (Point, error)
 	if view_pos.row < 0 || view_pos.col < 0 {
 		log.Panicf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)
 	}
-	return view_pos, nil
+	return view_pos
 }
 
-func text_pos_to_screen(pos Point, offset Point, roi Rect) (Point, error) {
-	in_view, err := text_pos_to_view_pos(pos, offset, roi)
-	if err != nil {
-		return Point{}, err
-	}
-	return view_pos_to_screen_pos(in_view, roi), nil
-}
-
-func set_rune(screen tcell.Screen, pos Point, value rune) {
-	_, _, style, _ := screen.GetContent(pos.col, pos.row)
-	if value == '\r' || value == '\n' {
-		value = ' '
-	}
-	screen.SetContent(pos.col, pos.row, value, nil, style)
+func text_pos_to_screen(pos Point, offset Point, roi Rect) Point {
+	in_view := text_pos_to_view_pos(pos, offset, roi)
+	in_screen := view_pos_to_screen_pos(in_view, roi)
+	return in_screen
 }
 
 func set_style(screen tcell.Screen, pos Point, style tcell.Style) {
@@ -88,6 +120,20 @@ func set_style(screen tcell.Screen, pos Point, style tcell.Style) {
 func get_style(screen tcell.Screen, pos Point) tcell.Style {
 	_, _, style, _ := screen.GetContent(pos.col, pos.row)
 	return style
+}
+
+func set_rune(screen tcell.Screen, pos Point, value rune) {
+	style := get_style(screen, pos)
+	if value == '\r' || value == '\n' {
+		value = ' '
+	}
+	screen.SetContent(pos.col, pos.row, value, nil, style)
+}
+
+func apply_mod(screen tcell.Screen, pos Point, mod StyleMod) {
+	style := get_style(screen, pos)
+	style = mod(style)
+	set_style(screen, pos, style)
 }
 
 func default_buffer_line_number_max_width(buffer IBuffer) int {
@@ -101,6 +147,7 @@ func put_line(screen tcell.Screen, pos Point, text string, stop int) {
 		if col >= stop {
 			return
 		}
-		set_rune(screen, Point{row: row, col: col}, r)
+		pos := Point{row: row, col: col}
+		set_rune(screen, pos, r)
 	}
 }

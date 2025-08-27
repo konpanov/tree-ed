@@ -20,6 +20,13 @@ func mkTestScreen(t *testing.T, charset string) tcell.SimulationScreen {
 	return s
 }
 
+func mkTestEditor(t *testing.T, size Point) *Editor {
+	screen := mkTestScreen(t, "")
+	screen.SetSize(size.col, size.row)
+	editor := NewEditor(screen)
+	return editor
+}
+
 func as_content(lines []string, nl string) []byte {
 	return []byte(strings.Join(lines, nl))
 }

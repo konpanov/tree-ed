@@ -101,8 +101,8 @@ func (self BufferCursor) MoveToCol(number int) BufferCursor {
 		width--
 	}
 	col := clip(number, 0, max(width, 0))
-	index, err := self.buffer.IndexFromRuneCoord(Point{col: col, row: row})
-	panic_if_error(err)
+	point := Point{col: col, row: row}
+	index := self.buffer.IndexFromRuneCoord(point)
 	cursor := self.ToIndex(index)
 	return cursor
 }

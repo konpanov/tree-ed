@@ -15,25 +15,21 @@ type Editor struct {
 	buffers []IBuffer
 	windows []*Window
 	curwin  *Window
-	view    *ViewEditor
-	style   tcell.Style
+	view    View
+	theme   Theme
 
 	is_quiting bool
 }
 
 func NewEditor(screen tcell.Screen) *Editor {
-	view := &ViewEditor{screen: screen}
 	editor := &Editor{
 		screen:  screen,
 		scanner: NewEditorScanner(),
 		buffers: []IBuffer{},
 		windows: []*Window{},
-		view:    view,
-		style:   tcell.StyleDefault.Background(tcell.NewHexColor(SPACE_CADET)),
+		theme:   default_theme,
 	}
-	preview := &PreviewView{screen: screen}
-	view.main = preview
-	view.status_line = NewStatusLine(screen, editor)
+	editor.view = &ViewEditor{editor: editor}
 	return editor
 }
 
@@ -54,9 +50,6 @@ func (self *Editor) OpenBuffer(buffer IBuffer) {
 	w, h := self.screen.Size()
 	window := windowFromBuffer(buffer, w, h)
 	self.curwin = window
-	window_view := NewWindowView(self.screen, self.GetRoi(), self.curwin)
-	window_view.base_style = self.style
-	self.view.main = window_view
 }
 
 func (self *Editor) Close() {
@@ -65,15 +58,10 @@ func (self *Editor) Close() {
 	}
 }
 
-func (self *Editor) GetRoi() Rect {
-	width, height := self.screen.Size()
-	return Rect{left: 0, right: width, top: 0, bot: height}
-}
-
 func (self *Editor) Redraw() {
-	self.view.SetRoi(self.GetRoi())
-	self.screen.Fill(' ', self.style)
-	self.view.Draw()
+	width, height := self.screen.Size()
+	roi := Rect{left: 0, right: width, top: 0, bot: height}
+	self.view.Draw(DrawContext{screen: self.screen, roi: roi, theme: self.theme})
 	self.screen.Show()
 
 }

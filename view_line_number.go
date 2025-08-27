@@ -2,22 +2,26 @@ package main
 
 import (
 	"strconv"
-
-	"github.com/gdamore/tcell/v2"
 )
 
 type AbsoluteLineNumberView struct {
-	screen tcell.Screen
-	roi    Rect
 	window *Window
 }
 
-func (self AbsoluteLineNumberView) Draw() {
-	top := self.window.frame.top
-	bot := min(self.window.frame.bot, len(self.window.buffer.Lines()))
-	for line := top; line < bot; line++ {
-		pos := view_pos_to_screen_pos(Point{row: line - top, col: 0}, self.roi)
-		text := strconv.Itoa(line + 1)
-		put_line(self.screen, pos, text, self.roi.right)
+func (self AbsoluteLineNumberView) DrawNew(ctx DrawContext) {
+	start := min(self.window.frame.top, len(self.window.buffer.Lines()))
+	end := min(self.window.frame.bot, len(self.window.buffer.Lines()))
+
+	for i := 0; i < end-start; i++ {
+		pos := Point{col: 0, row: i}
+		line := strconv.Itoa(start + i + 1)
+		pos = view_pos_to_screen_pos(pos, ctx.roi)
+		put_line(ctx.screen, pos, line, ctx.roi.right)
+	}
+
+	for y := ctx.roi.top; y < ctx.roi.bot; y++ {
+		for x := ctx.roi.left; x < ctx.roi.right; x++ {
+			apply_mod(ctx.screen, Point{row: y, col: x}, ctx.theme.secondary)
+		}
 	}
 }

@@ -41,77 +41,106 @@ func assertCellsEmpty(t *testing.T, cells []tcell.SimCell) {
 
 func TestDrawSingleLineTextView(t *testing.T) {
 	screen := mkTestScreen(t, "")
+	w, h := 10, 4
+	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	text := []rune("hello")
-	var view View
-	view = NewTextView(screen, Rect{left: 0, top: 0, right: 10, bot: 10}, [][]rune{text})
-	view.Draw()
+	nl := NewLineUnix
+	content := []byte(strings.Join([]string{
+		"hello",
+	}, nl))
+	buf, err := bufferFromContent(content, []byte(nl), nil)
+	panic_if_error(err)
+	win := windowFromBuffer(buf, w, h)
+	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
+	WindowView{window: win}.DrawFrameText(ctx)
 
 	screen.Show()
-	cells, _, _ := screen.GetContents()
-	assertCells(t, cells[:5], text, "")
-	assertCellsEmpty(t, cells[5:])
+	assertScreenRunes(t, screen, []string{
+		"hello     ",
+		"          ",
+		"          ",
+		"          ",
+	})
 }
 
 func TestDrawDoubleLineTextView(t *testing.T) {
 	screen := mkTestScreen(t, "")
+	w, h := 10, 4
+	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	line1 := []rune("hello")
-	line2 := []rune("world")
-	var view View
-	view = NewTextView(screen, Rect{left: 0, top: 0, right: 10, bot: 10}, [][]rune{line1, line2})
-	view.Draw()
+	nl := NewLineUnix
+	content := []byte(strings.Join([]string{
+		"hello",
+		"world",
+	}, nl))
+	buf, err := bufferFromContent(content, []byte(nl), nil)
+	panic_if_error(err)
+	win := windowFromBuffer(buf, w, h)
+	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
+	WindowView{window: win}.DrawFrameText(ctx)
 
 	screen.Show()
-	cells, width, _ := screen.GetContents()
-	assertCells(t, cells[:len(line1)], line1, "")
-	assertCells(t, cells[width:width+len(line2)], line2, "")
-
-	assertCellsEmpty(t, cells[len(line1):width])
-	assertCellsEmpty(t, cells[width+len(line2):])
+	assertScreenRunes(t, screen, []string{
+		"hello     ",
+		"world     ",
+		"          ",
+		"          ",
+	})
 }
 
 func TestDrawDoubleLineTextViewWithOffsetRoi(t *testing.T) {
 	screen := mkTestScreen(t, "")
+	w, h := 10, 4
+	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	line1 := []rune("hello")
-	line2 := []rune("world")
-	var view View
-	view = NewTextView(screen, Rect{top: 3, left: 4, bot: 10, right: 10}, [][]rune{line1, line2})
-	view.Draw()
+	nl := NewLineUnix
+	content := []byte(strings.Join([]string{
+		"hello",
+		"world",
+	}, nl))
+	buf, err := bufferFromContent(content, []byte(nl), nil)
+	panic_if_error(err)
+	win := windowFromBuffer(buf, w, h)
+	ctx := DrawContext{screen: screen, roi: Rect{top: 1, left: 2, right: w, bot: h}, theme: default_theme}
+	WindowView{window: win}.DrawFrameText(ctx)
 
 	screen.Show()
-	cells, width, _ := screen.GetContents()
-	start := 3*width + 4
-	assertCells(t, cells[start:start+len(line1)], line1, "")
-	assertCells(t, cells[start+width:start+width+len(line2)], line2, "")
-
-	assertCellsEmpty(t, cells[start+len(line1):start+width])
-	assertCellsEmpty(t, cells[start+width+len(line2):])
+	assertScreenRunes(t, screen, []string{
+		"          ",
+		"  hello   ",
+		"  world   ",
+		"          ",
+	})
 }
 
 func TestDrawSkippedLineTextView(t *testing.T) {
 	screen := mkTestScreen(t, "")
+	w, h := 10, 4
+	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	line1 := []rune("hello")
-	line2 := []rune("")
-	line3 := []rune("world")
-
-	var view View
-	view = NewTextView(screen, Rect{top: 0, left: 0, bot: 10, right: 10}, [][]rune{line1, line2, line3})
-	view.Draw()
+	nl := NewLineUnix
+	content := []byte(strings.Join([]string{
+		"hello",
+		"",
+		"world",
+	}, nl))
+	buf, err := bufferFromContent(content, []byte(nl), nil)
+	panic_if_error(err)
+	win := windowFromBuffer(buf, w, h)
+	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
+	WindowView{window: win}.DrawFrameText(ctx)
 
 	screen.Show()
-	cells, width, _ := screen.GetContents()
-	assertCells(t, cells[:len(line1)], line1, "")
-	assertCellsEmpty(t, cells[len(line1):width])
-	assertCellsEmpty(t, cells[width:width*2])
-	assertCells(t, cells[width*2:width*2+len(line3)], line3, "")
-	assertCellsEmpty(t, cells[width*2+len(line3):])
+	assertScreenRunes(t, screen, []string{
+		"hello     ",
+		"          ",
+		"world     ",
+		"          ",
+	})
 }
 
 // WINDOW VIEW
@@ -131,8 +160,8 @@ func TestDrawWindowViewWithSingleLine(t *testing.T) {
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window_view := NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	cells, _, _ := screen.GetContents()
@@ -168,8 +197,8 @@ func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	window := windowFromBuffer(buffer, w, h)
-	window_view := NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	assertIntEqual(t, w, 10)
@@ -198,8 +227,8 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	window := windowFromBuffer(buffer, w, h)
 	var window_view View
-	window_view = NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view = WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 "+lines[0]), "")
@@ -233,8 +262,8 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 
 	// Setup window
 	var window_view View
-	window_view = NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view = WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	actual := window.cursor.RunePosition()
@@ -273,16 +302,15 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	window := windowFromBuffer(buffer, w, h)
 	window.setCursor(window.cursor.ToIndex(20), true)
-	window_view := NewWindowView(screen, roi, window)
+	window_view := WindowView{window: window}
 	assertIntEqualMsg(t, w, 8, "")
 	assertIntEqualMsg(t, h, 2, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 20, "")
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	window.setCursor(window.cursor.ToIndex(14), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 14, "")
-	window_view.SetRoi(roi)
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	screen.Show()
 
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
@@ -290,8 +318,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 
 	window.setCursor(window.cursor.ToIndex(8), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 8, "")
-	window_view.SetRoi(roi)
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	screen.Show()
 
 	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("2 line2"), "")
@@ -326,8 +353,8 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	assertIntEqualMsg(t, h, 8, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window_view := NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	assertPointsEqual(t, window.frame.TopLeft(), Point{col: 3, row: 0})
@@ -366,12 +393,11 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	assertIntEqualMsg(t, h, 8, "")
 	assertIntEqualMsg(t, window.cursor.Index(), 4, "")
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window_view := NewWindowView(screen, roi, window)
-	window_view.Draw()
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	window.setCursor(window.cursor.RunePrev(), true)
-	window_view.SetRoi(roi)
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 3, row: 0})
@@ -382,8 +408,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
 
 	window.setCursor(window.cursor.RunePrev(), true)
-	window_view.SetRoi(roi)
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 2, row: 0})
@@ -416,9 +441,12 @@ func TestDrawCharacterCursor(t *testing.T) {
 	// Setup window
 	w, h := screen.Size()
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
+	window := windowFromBuffer(buffer, w, h)
+	window.cursor = cursor
+
 	var cursorView View
-	cursorView = NewCharacterViewCursor(screen, roi, buffer, cursor, Point{0, 0})
-	cursorView.Draw()
+	cursorView = &CharacterViewCursor{window: window}
+	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	x, y, visible := screen.GetCursor()
@@ -453,8 +481,8 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = NewCharacterViewCursor(screen, roi, buffer, window.cursor, Point{})
-	cursorView.Draw()
+	cursorView = &CharacterViewCursor{window: window}
+	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	x, y, visible := screen.GetCursor()
@@ -489,8 +517,8 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = NewCharacterViewCursor(screen, roi, buffer, window.cursor, Point{0, 0})
-	cursorView.Draw()
+	cursorView = &CharacterViewCursor{window: window}
+	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	x, y, visible := screen.GetCursor()
@@ -525,8 +553,8 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = &IndexViewCursor{screen, roi, buffer, window.cursor, Point{0, 0}}
-	cursorView.Draw()
+	cursorView = &IndexViewCursor{window: window}
+	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
 	x, y, visible := screen.GetCursor()
@@ -556,25 +584,20 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 
 	// Setup cursor
 	window := windowFromBuffer(buffer, w, h)
-	window_view := NewWindowView(
-		screen,
-		Rect{left: 0, top: 0, right: w, bot: h},
-		window,
-	)
+	window_view := WindowView{window: window}
 
 	for range 5 {
 		window.cursorDown(1)
-		window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
-		window_view.Draw()
+		roi := Rect{left: 0, top: 0, right: w, bot: h}
+		window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	}
 	window.switchToVisual()
-	window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
-	window_view.Draw()
+	roi := Rect{left: 0, top: 0, right: w, bot: h}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	for i := 5; i < len(lines)-5; i++ {
 		window.cursorDown(1)
-		window_view.SetRoi(Rect{left: 0, top: 0, right: w, bot: h})
-		window_view.Draw()
+		window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	}
 
 	screen.Show()
@@ -596,14 +619,11 @@ func TestDrawWindowEraseAtCursor(t *testing.T) {
 	defer screen.Fini()
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
-	window_view := NewWindowView(
-		screen,
-		Rect{left: 0, top: 0, right: w, bot: h},
-		window,
-	)
-	window_view.Draw()
+	roi := Rect{left: 0, top: 0, right: w, bot: h}
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	window.eraseLineAtCursor(1)
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 }
 
 func TestDrawWindowInsertCursor(t *testing.T) {
@@ -622,12 +642,9 @@ func TestDrawWindowInsertCursor(t *testing.T) {
 	defer screen.Fini()
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
-	window_view := NewWindowView(
-		screen,
-		Rect{left: 0, top: 0, right: w, bot: h},
-		window,
-	)
-	window_view.Draw()
+	roi := Rect{left: 0, top: 0, right: w, bot: h}
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	x, y, visible := screen.GetCursor()
 	if !visible || x != 2 || y != 0 {
 		t.Errorf(
@@ -659,14 +676,11 @@ func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 	defer screen.Fini()
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
-	window_view := NewWindowView(
-		screen,
-		Rect{left: 0, top: 0, right: w, bot: h},
-		window,
-	)
+	roi := Rect{left: 0, top: 0, right: w, bot: h}
 	window.switchToInsert()
 	window.insertContent(false, []byte("a"))
-	window_view.Draw()
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	x, y, visible := screen.GetCursor()
 	if !visible || x != 3 || y != 0 {
 		t.Errorf(
@@ -711,10 +725,10 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 	w, h := screen.Size()
 	window := windowFromBuffer(buffer, w, h)
 
-	roi := Rect{top: 0, left: 0, bot: h, right: w}
-	window_view := NewWindowView(screen, roi, window)
 	screen.Clear()
-	window_view.Draw()
+	roi := Rect{top: 0, left: 0, bot: h, right: w}
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	expected := Rect{top: 0, left: 0, bot: 3, right: 6}
 	if window.frame != expected {
@@ -728,7 +742,7 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 
 	window.setCursor(window.cursor.MoveToRunePos(Point{row: 24, col: 2}), true)
 	screen.Clear()
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	assertScreenRunes(t, screen, []string{
 		"23  line23",
 		"24  line24",
@@ -737,10 +751,37 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 
 	window.setCursor(window.cursor.MoveToRunePos(Point{row: 8, col: 3}), true)
 	screen.Clear()
-	window_view.Draw()
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	assertScreenRunes(t, screen, []string{
 		"9   line9 ",
 		"10  line10",
 		"11  line11",
+	})
+}
+
+func TestDrawPreview(t *testing.T) {
+	editor := mkTestEditor(t, Point{col: 80, row: 20})
+	editor.Redraw()
+	assertScreenRunes(t, editor.screen, []string{
+		"                                                                                ",
+		"                                                                                ",
+		"                                                                                ",
+		"                                                                                ",
+		"                                                                       mm       ",
+		"       @@@**@@**@@@                                                  *@@@       ",
+		"       @*   @@   *@                                                    @@       ",
+		"            @@     *@@@m@@@   mm@*@@   mm@*@@           mm@*@@    m@**@@@       ",
+		"            !@       @@* **  m@*   @@ m@*   @@         m@*   @@ m@@    @@       ",
+		"            !@       @!      !@****** !@******  @@@@@  !@****** @!@    @!       ",
+		"            !@       @!      !@m    m !@m    m         !@m    m *!@    @!       ",
+		"            !@       !!      !!****** !!******         !!****** !!!    !!       ",
+		"            !!       !:      :!!      :!!              :!!      *:!    !:       ",
+		"          : :!::   : :::      : : ::   : : ::           : : ::   : : : ! :      ",
+		"                                                                                ",
+		"                                                                                ",
+		"                                                                                ",
+		"                                                                                ",
+		"--------------------------------------------------------------------------------",
+		"input:                                                                          ",
 	})
 }

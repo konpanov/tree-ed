@@ -1,31 +1,25 @@
 package main
 
-import (
-	"github.com/gdamore/tcell/v2"
-)
+import "github.com/gdamore/tcell/v2"
 
 type ViewEditor struct {
-	screen      tcell.Screen
-	roi         Rect
-	editor      *Editor
-	main        View
-	status_line IStatusLine
+	editor *Editor
 }
 
-func (self *ViewEditor) GetRoi() Rect {
-	return self.roi
-}
+func (self *ViewEditor) Draw(ctx DrawContext) {
+	status_line_height := 1
+	main_roi, status_line_roi := ctx.roi.SplitH(ctx.roi.Height() - status_line_height)
 
-func (self *ViewEditor) SetRoi(roi Rect) {
-	self.roi = roi
-}
+	ctx.screen.Fill(' ', ctx.theme.base(tcell.StyleDefault))
+	main_ctx := ctx
+	main_ctx.roi = main_roi
+	if self.editor.curwin == nil {
+		PreviewView{}.DrawNew(main_ctx)
+	} else {
+		WindowView{window: self.editor.curwin}.Draw(main_ctx)
+	}
 
-func (self *ViewEditor) Draw() {
-	status_line_height := self.status_line.GetHeight()
-	main_roi, status_line_roi := self.roi.SplitH(self.roi.Height() - status_line_height)
-
-	self.main.SetRoi(main_roi)
-	self.status_line.SetRoi(status_line_roi)
-	self.main.Draw()
-	self.status_line.Draw()
+	status_line_ctx := ctx
+	status_line_ctx.roi = status_line_roi
+	StatusLine{editor: self.editor}.DrawNew(status_line_ctx)
 }
