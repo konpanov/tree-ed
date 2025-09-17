@@ -32,12 +32,6 @@ type Theme struct {
 
 var default_theme = DefaultTheme()
 
-func BgMod(color tcell.Color) StyleMod {
-	return func(style tcell.Style) tcell.Style {
-		return style.Background(color)
-	}
-}
-
 func CombineMods(mods []StyleMod) StyleMod {
 	return func(style tcell.Style) tcell.Style {
 		for _, m := range mods {
@@ -53,11 +47,11 @@ func DefaultTheme() Theme {
 	return Theme{
 		base:         func(s S) S { return s.Background(hex(0x0C060F)).Foreground(hex(0xD6D6D6)) },
 		selection:    func(s S) S { return s.Background(hex(0x426154)) },
-		nodeOdd:      func(s S) S { return s.Background(hex(0x2a2640)) },
-		nodeEven:     func(s S) S { return s.Background(hex(0x3d3659)) },
+		nodeOdd:      func(s S) S { return s.Background(hex(0x262D40)) },
+		nodeEven:     func(s S) S { return s.Background(hex(0x3E2640)) },
 		secondary:    func(s S) S { return s.Foreground(hex(0x938581)) },
 		secondary_bg: func(s S) S { return s.Background(hex(0x211D1C)) },
-		node:         func(s S) S { return s.Background(hex(0x211A23)) },
+		node:         func(s S) S { return s.Background(hex(0x2C232F)) },
 	}
 }
 

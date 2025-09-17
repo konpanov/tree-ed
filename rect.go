@@ -56,6 +56,14 @@ func (r Rect) ShiftToInclude(pos Point) Rect {
 	return r
 }
 
+func (r Rect) Shift(pos Point) Rect {
+	r.bot = pos.row + r.Height()
+	r.right = pos.col + r.Width()
+	r.top = pos.row
+	r.left = pos.col
+	return r
+}
+
 func (r Rect) Size() Point {
 	return Point{col: r.Width(), row: r.Height()}
 }

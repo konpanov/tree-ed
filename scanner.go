@@ -149,9 +149,15 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'p': PasteClipboardOperation{},
 		'u': UndoChangeOperation{},
 		's': DeleteSelectionAndInsert{},
+		'z': OperationCenterFrame{},
 	}
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyCtrlR: RedoChangeOperation{},
+		tcell.KeyCtrlD: OperationHalfFrameDown{},
+		tcell.KeyCtrlU: OperationHalfFrameUp{},
+		tcell.KeyCtrlE: OperationFrameLineDown{},
+		tcell.KeyCtrlY: OperationFrameLineUp{},
+		tcell.KeyCtrlS: OperationSaveFile{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }
@@ -256,9 +262,9 @@ func MatchRuneOrKeysMap(
 	rune_map map[rune]Operation,
 	key_map map[tcell.Key]Operation,
 ) (Operation, ScanResult) {
-	op, result := MatchRuneMap(state, rune_map)
+	op, result := MatchKeyMap(state, key_map)
 	if result == ScanNone {
-		op, result = MatchKeyMap(state, key_map)
+		op, result = MatchRuneMap(state, rune_map)
 	}
 	return op, result
 }

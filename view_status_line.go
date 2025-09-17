@@ -20,7 +20,7 @@ func (self StatusLine) DrawNew(ctx DrawContext) {
 			parseError = "Error"
 		}
 		newline := newlinesToSymbols([]rune(string(curwin.buffer.Nl_seq())))
-		left_parts = append(left_parts, "file: "+curwin.filename)
+		left_parts = append(left_parts, "file: "+curwin.buffer.Filename())
 		left_parts = append(left_parts, "line: "+strconv.Itoa(pos.row+1))
 		left_parts = append(left_parts, "col: "+strconv.Itoa(pos.col+1))
 		left_parts = append(left_parts, "mode: "+string(curwin.mode))

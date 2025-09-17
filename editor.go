@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -34,6 +35,7 @@ func NewEditor(screen tcell.Screen) *Editor {
 }
 
 func (self *Editor) OpenFileInWindow(filename string) {
+	filename = filepath.Clean(filename)
 	content, err := os.ReadFile(filename)
 	panic_if_error(err)
 
@@ -41,6 +43,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	parser := sitter.NewParser()
 	parser.SetLanguage(language)
 	buffer, err := bufferFromContent(content, getContentNewLine(content), parser)
+	buffer.filename = filename
 	panic_if_error(err)
 	self.OpenBuffer(buffer)
 }

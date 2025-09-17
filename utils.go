@@ -23,15 +23,18 @@ const (
 )
 
 func newlinesToSymbols(text []rune) []rune {
-	for i, r := range text {
+	res := []rune{}
+	for _, r := range text {
 		switch r {
 		case '\r':
-			text[i] = SymborForCarriageReturn
+			res = append(res, SymborForCarriageReturn)
 		case '\n':
-			text[i] = SymborForLineFeed
+			res = append(res, SymborForLineFeed)
+		default:
+			res = append(res, 'X')
 		}
 	}
-	return text
+	return res
 }
 
 func assert(is_valid bool, message string) {

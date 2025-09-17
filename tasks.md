@@ -28,3 +28,42 @@
 15. Rewriting undo system
 8. Migrate to official golang treesitter package
 14. Add word end operator
+
+
+
+# PRESENTATION
+
+1. Nawigacja linie i znaki: jkhlwbeE
+2. Nawigacja słowami
+3. Nawigacja do początku linii, początku tekstu linii, końca linii
+3. Usuwanie znaków
+4. Usuwanie linii
+5. Pasek statusu
+6. Przesuwanie pół ekranu góra dół
+7. Wyśrodkowanie linii
+8. Przesuwanie ekranu linia góra dół
+6. Wprowadzanie tekstu
+7. Usuwanie tekstu w trakcie wprowadzania, usuwanie ostatniego słowa, usuwanie z przodu
+8. Cofanie i ponowienie zmian
+9. Wprowdzenie z usunięciem
+9. Powtarzanie zmian n razy
+10. Iść do linii, do ostatniej linii
+11. Zaznaczanie tekstu
+12. Kopiowanie tekstu
+13. Wklejanie tekstu
+14. Usuwanie tekstu
+15. Od zaznaczania do wprowadzenia z usunięciem
+16. Tryb drzewa
+17. węzeł w górę/ dół, prawo/lewo
+18. węzeł prawo/lewo do końca rodzeństwa
+20. Do końca rodzeńctwa
+21. do początku rodzeństwa
+22. Usunięcie węzła
+23. Zamiana miejscami z nastepnym i n nastepnym
+24. Inne języki programowania
+25. Ekran powitania
+
+
+Tryb do zmiany plików i innych operacji?
+
+

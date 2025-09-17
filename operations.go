@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 )
@@ -605,4 +607,99 @@ type DeleteSelectionAndInsert struct{}
 func (self DeleteSelectionAndInsert) Execute(editor *Editor, count int) {
 	EraseSelectionOperation{}.Execute(editor, count)
 	SwitchToInsertMode{}.Execute(editor, count)
+}
+
+type OperationHalfFrameDown struct{}
+
+func (self OperationHalfFrameDown) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	frame := editor.curwin.frame
+	rows := count * frame.Height() / 2
+	NormalCursorDown{}.Execute(editor, rows)
+	pos := Point{
+		row: min(max(frame.top+rows, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
+		col: frame.left,
+	}
+	editor.curwin.frame = frame.Shift(pos)
+}
+
+type OperationHalfFrameUp struct{}
+
+func (self OperationHalfFrameUp) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	frame := editor.curwin.frame
+	rows := count * frame.Height() / 2
+	NormalCursorUp{}.Execute(editor, rows)
+	pos := Point{
+		row: min(max(frame.top-rows, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
+		col: frame.left,
+	}
+	editor.curwin.frame = frame.Shift(pos)
+}
+
+type OperationFrameLineUp struct{}
+
+func (self OperationFrameLineUp) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	frame := editor.curwin.frame
+	NormalCursorUp{}.Execute(editor, count)
+	pos := Point{
+		row: min(max(frame.top-count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
+		col: frame.left,
+	}
+	editor.curwin.frame = frame.Shift(pos)
+}
+
+type OperationFrameLineDown struct{}
+
+func (self OperationFrameLineDown) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	frame := editor.curwin.frame
+	NormalCursorDown{}.Execute(editor, count)
+	pos := Point{
+		row: min(max(frame.top+count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
+		col: frame.left,
+	}
+	editor.curwin.frame = frame.Shift(pos)
+}
+
+type OperationCenterFrame struct{}
+
+func (self OperationCenterFrame) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	frame := editor.curwin.frame
+	cursor := editor.curwin.cursor
+	pos := Point{
+		row: max(cursor.Row()-frame.Height()/2, 0),
+		col: frame.left,
+	}
+	editor.curwin.frame = frame.Shift(pos)
+}
+
+type OperationSaveFile struct{}
+
+func (self OperationSaveFile) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	if editor.curwin.buffer == nil {
+		return
+	}
+	if editor.curwin.buffer.Filename() == "" {
+		return
+	}
+	filename := editor.curwin.buffer.Filename()
+	info, err := os.Stat(filename)
+	panic_if_error(err)
+	os.WriteFile(filename, editor.curwin.buffer.Content(), info.Mode())
 }

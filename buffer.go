@@ -46,6 +46,7 @@ func (self Point) Less(other Point) bool {
 
 // TODO Add filename field for file buffers that return nil for non file buffers
 type IBuffer interface {
+	Filename() string
 	Content() []byte
 	Nl_seq() []byte
 	CheckIndex(index int) error
@@ -89,6 +90,7 @@ type ReplacementInput struct {
 }
 
 type Buffer struct {
+	filename    string
 	content     []byte
 	nl_seq      []byte
 	tree_parser *sitter.Parser
@@ -136,6 +138,10 @@ func (b *Buffer) Close() {
 	if b.tree_parser != nil {
 		b.tree_parser.Close()
 	}
+}
+
+func (b *Buffer) Filename() string {
+	return b.filename
 }
 
 func (b *Buffer) Content() []byte {
