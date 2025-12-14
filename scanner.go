@@ -143,6 +143,7 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'd': EraseLineAtCursor{},
 		'x': EraseCharNormalMode{},
 		'a': SwitchToInsertModeAsAppend{},
+		'A': AppendAtLineEnd{},
 		'i': SwitchToInsertMode{},
 		'v': SwitchToVisualmode{},
 		't': SwitchToTreeMode{},

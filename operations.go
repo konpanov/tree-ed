@@ -77,6 +77,17 @@ func (self SwitchToInsertModeAsAppend) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(1)
 }
 
+type AppendAtLineEnd struct{}
+
+func (self AppendAtLineEnd) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	LineEndOperation{}.Execute(editor, 1)
+	editor.curwin.switchToInsert()
+	editor.curwin.cursorRight(1)
+}
+
 type SwitchToVisualmode struct{}
 
 func (self SwitchToVisualmode) Execute(editor *Editor, count int) {
