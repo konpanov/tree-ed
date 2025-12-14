@@ -170,11 +170,11 @@ type OperationGroupInsert struct {
 // TODO: Make erasing after insert continuous (single modification, single undo)
 func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc:       SwitchFromInsertToNormalMode{},
-		tcell.KeyBackspace: EraseCharInsertMode{},
-		tcell.KeyCtrlW:     DeleteToPreviousWordStart{},
-		tcell.KeyDelete:    DeleteCharForward{},
-		tcell.KeyDEL:       DeleteCharForward{},
+		tcell.KeyEsc:        SwitchFromInsertToNormalMode{},
+		tcell.KeyBackspace2: EraseCharInsertMode{},
+		tcell.KeyBackspace:  EraseCharInsertMode{},
+		tcell.KeyCtrlW:      DeleteToPreviousWordStart{},
+		tcell.KeyDelete:     DeleteCharForward{},
 	}
 	return MatchKeyMap(state, keyOperations)
 }
