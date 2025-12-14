@@ -188,14 +188,17 @@ func (b *Buffer) Row(index int) (int, error) {
 		return 0, err
 	}
 	lines := b.Lines()
-	for i, line := range lines {
-		next_line_start := len(b.content)
-		if i+1 < len(lines) {
-			next_line_start = lines[i+1].start
+	for l, r := 0, len(lines)-1; l <= r; {
+		m := (l + r) / 2
+		line := lines[m]
+		if line.start <= index && index < line.next_start {
+			return m, nil
+		} else if index < line.start {
+			r = m - 1
+		} else {
+			l = m + 1
 		}
-		if line.start <= index && index < next_line_start {
-			return i, nil
-		}
+
 	}
 	if index == len(b.Content()) {
 		return len(b.Lines()) - 1, nil
