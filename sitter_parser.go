@@ -7,19 +7,13 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"syscall"
-	"unsafe"
-
-	"github.com/ebitengine/purego"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
-	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 	sitter_bash "github.com/tree-sitter/tree-sitter-bash/bindings/go"
 	sitter_c_sharp "github.com/tree-sitter/tree-sitter-c-sharp/bindings/go"
 	sitter_c "github.com/tree-sitter/tree-sitter-c/bindings/go"
 	sitter_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
 	sitter_erb "github.com/tree-sitter/tree-sitter-embedded-template/bindings/go"
-
 	sitter_go "github.com/tree-sitter/tree-sitter-go/bindings/go"
 	sitter_hs "github.com/tree-sitter/tree-sitter-haskell/bindings/go"
 	sitter_html "github.com/tree-sitter/tree-sitter-html/bindings/go"
@@ -38,17 +32,6 @@ import (
 
 func GetFiletype(filename string) string {
 	return last(strings.Split(filename, "."))
-}
-
-func LoadLanguageDynamicly(dll_path string, func_name string) (*sitter.Language, error) {
-	var language func() uintptr
-	handle, err := syscall.LoadLibrary(dll_path)
-	if err != nil {
-		return nil, err
-	}
-	lib, err := uintptr(handle), err
-	purego.RegisterLibFunc(&language, lib, func_name)
-	return tree_sitter.NewLanguage(unsafe.Pointer(language())), nil
 }
 
 type LanguageConfigEntry struct {

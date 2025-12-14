@@ -40,8 +40,11 @@ func (self *Editor) OpenFileInWindow(filename string) {
 	panic_if_error(err)
 
 	language := ParserLanguageByFileType(GetFiletype(filename))
-	parser := sitter.NewParser()
-	parser.SetLanguage(language)
+	var parser *sitter.Parser
+	if language != nil {
+		parser = sitter.NewParser()
+		parser.SetLanguage(language)
+	}
 	buffer, err := bufferFromContent(content, getContentNewLine(content), parser)
 	buffer.filename = filename
 	panic_if_error(err)
