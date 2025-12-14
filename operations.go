@@ -646,10 +646,9 @@ func (self OperationHalfFrameDown) Execute(editor *Editor, count int) {
 	frame := editor.curwin.frame
 	rows := count * frame.Height() / 2
 	NormalCursorDown{}.Execute(editor, rows)
-	pos := Point{
-		row: min(max(frame.top+rows, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
-		col: frame.left,
-	}
+	pos := frame.TopLeft()
+	content_height := len(editor.curwin.buffer.Lines())
+	pos.row += max(min(rows, content_height-frame.bot), 0)
 	editor.curwin.frame = frame.Shift(pos)
 }
 
@@ -662,10 +661,8 @@ func (self OperationHalfFrameUp) Execute(editor *Editor, count int) {
 	frame := editor.curwin.frame
 	rows := count * frame.Height() / 2
 	NormalCursorUp{}.Execute(editor, rows)
-	pos := Point{
-		row: min(max(frame.top-rows, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
-		col: frame.left,
-	}
+	pos := frame.TopLeft()
+	pos.row = max(pos.row-rows, 0)
 	editor.curwin.frame = frame.Shift(pos)
 }
 
