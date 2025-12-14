@@ -241,7 +241,9 @@ func (self *Window) eraseLineAtCursor(count int) {
 
 // Add test if cursor after change is equal to current cursor
 func (self *Window) insertContent(continuous bool, content []byte) {
-	assert(len(content) != 0, "Inserted content should not be empty")
+	if len(content) == 0 {
+		return
+	}
 	var change ReplaceChange
 	last_change := self.undotree.Curr()
 	replace, is_replace := last_change.(ReplaceChange)
