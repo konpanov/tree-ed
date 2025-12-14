@@ -52,7 +52,7 @@ func (self BufferCursor) Hardstop() int {
 	return hardstop
 }
 
-func (self BufferCursor) Rowend(row Region) int {
+func (self BufferCursor) Rowend(row Line) int {
 	if self.as_edge {
 		return row.end
 	} else {
@@ -195,7 +195,7 @@ func (self BufferCursor) Match(seq []byte) bool {
 }
 
 func (self BufferCursor) IsNewLine() bool {
-	is_nl, _ := isNewLine(self.buffer.Content()[self.index:])
+	is_nl, _ := isLineBreak(self.buffer.Content()[self.index:])
 	return is_nl
 }
 

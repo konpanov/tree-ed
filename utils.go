@@ -161,7 +161,7 @@ func rune_class(value rune) RuneClass {
 	}
 }
 
-func isNewLine(content []byte) (bool, int) {
+func isLineBreak(content []byte) (bool, int) {
 	if matchBytes(content, []byte(NewLineWindows)) {
 		return true, len([]byte(NewLineWindows))
 	}
@@ -172,6 +172,21 @@ func isNewLine(content []byte) (bool, int) {
 		return true, len([]byte(NewLineMac))
 	}
 	return false, 0
+}
+
+func isLineBreakTerminated(content []byte) bool {
+	if len(content) == 0 {
+		return false
+	}
+	is_lb, w := isLineBreak(content[len(content)-1:])
+	if is_lb {
+		return true
+	}
+	if len(content) == 1 {
+		return false
+	}
+	is_lb, w = isLineBreak(content[len(content)-2:])
+	return is_lb && w == 2
 }
 
 // No intersection

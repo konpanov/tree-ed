@@ -14,18 +14,10 @@ import (
 // ^         ^
 // start     end
 // In other words start is inclusive and end is not
-type Region struct {
-	start, end int
-	full_end   int
-}
-
-func NewRegion(a, b int) Region {
-	start, end := min(a, b), max(a, b)
-	return Region{
-		start:    start,
-		end:      end,
-		full_end: end,
-	}
+type Line struct {
+	start      int
+	end        int
+	next_start int
 }
 
 type Point struct {
@@ -67,8 +59,8 @@ type IBuffer interface {
 
 	// Returns ranges in which lines are contained, without the new line sequences.
 	// New lines must be left out to treat the same last lines with new lines and without.
-	Lines() []Region
-	Line(line int) (Region, error)
+	Lines() []Line
+	Line(line int) (Line, error)
 	IsNewLine(index int) (bool, error)
 	LastIndex() int
 
@@ -95,8 +87,7 @@ type Buffer struct {
 	nl_seq      []byte
 	tree_parser *sitter.Parser
 	tree        *sitter.Tree
-	quiting     bool
-	lines       []Region
+	lines       []Line
 	cursors     []*BufferCursor
 }
 
@@ -116,7 +107,7 @@ func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
 		nl_seq:      nl_seq,
 		tree_parser: parser,
 		tree:        tree,
-		lines:       []Region{NewRegion(0, 0)},
+		lines:       []Line{{start: 0, end: 0, next_start: 0}},
 	}
 
 	return buffer, nil
@@ -251,46 +242,44 @@ func (b *Buffer) IndexFromRuneCoord(p Point) int {
 	}
 	text := []rune(string(b.Content()[line.start:line.end]))
 	if p.col > len(text) {
-		return line.full_end
+		return line.next_start
 	}
 	byte_col := len(string(text[:p.col]))
 	return line.start + byte_col
 }
 
-func (b *Buffer) calculateLines() []Region {
-	lines := []Region{}
-	line_finished := false
-	lines = append(lines, NewRegion(0, 0))
-	content := b.content
-	length := len(content)
+func (b *Buffer) calculateLines() []Line {
+	length := len(b.content)
+	lines := []Line{}
+	line := Line{0, length, length}
+
 	for i := 0; i < length; {
-		if line_finished {
-			lines[len(lines)-1].full_end = i
-			lines = append(lines, Region{start: i, end: i, full_end: length})
-			line_finished = false
-		}
-		is_nl, w := isNewLine(content[i:])
-		if is_nl {
-			lines[len(lines)-1].end = i
+		line_break, w := isLineBreak(b.content[i:])
+		if line_break {
+			line.end = i
 			i += w
-			line_finished = true
+			lines = append(lines, line)
+			line = Line{i, length, length}
 		} else {
-			i += 1
+			i++
 		}
 	}
-	if !line_finished {
-		lines[len(lines)-1].end = len(b.content)
+	if !isLineBreakTerminated(b.content) {
+		lines = append(lines, line)
+	}
+	for i := 0; i < len(lines)-1; i++ {
+		lines[i].next_start = lines[i+1].start
 	}
 	return lines
 }
 
-func (b *Buffer) Lines() []Region {
+func (b *Buffer) Lines() []Line {
 	return b.lines
 }
 
-func (b *Buffer) Line(line int) (Region, error) {
+func (b *Buffer) Line(line int) (Line, error) {
 	if err := b.CheckLine(line); err != nil {
-		return Region{}, err
+		return Line{}, err
 	}
 	return b.Lines()[line], nil
 }
