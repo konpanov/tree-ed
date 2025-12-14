@@ -179,6 +179,23 @@ func (self EraseLineAtCursor) Execute(editor *Editor, count int) {
 	editor.curwin.eraseLineAtCursor(count)
 }
 
+type CopyLineAtCursor struct{}
+
+func (self CopyLineAtCursor) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	if clipboard.Unsupported {
+		return
+	}
+	win := editor.curwin
+	row := win.cursor.Row()
+	line, err := win.buffer.Line(row)
+	panic_if_error(err)
+	text := win.buffer.Content()[line.start:line.next_start]
+	clipboard.WriteAll(string(text))
+}
+
 type EraseCharNormalMode struct{}
 
 func (self EraseCharNormalMode) Execute(editor *Editor, count int) {

@@ -141,6 +141,7 @@ type OperationGroupNormal struct {
 func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
 		'd': EraseLineAtCursor{},
+		'y': CopyLineAtCursor{},
 		'x': EraseCharNormalMode{},
 		'a': SwitchToInsertModeAsAppend{},
 		'A': AppendAtLineEnd{},
