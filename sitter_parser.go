@@ -82,7 +82,7 @@ func ParserLanguageByFileType(filetype string) *sitter.Language {
 		return sitter.NewLanguage(sitter_c.Language())
 	case "cs", "csx":
 		return sitter.NewLanguage(sitter_c_sharp.Language())
-	case "erb":
+	case "erb", "ejs":
 		return sitter.NewLanguage(sitter_erb.Language())
 	case "hs", "lhs", "hs-boot":
 		return sitter.NewLanguage(sitter_hs.Language())
