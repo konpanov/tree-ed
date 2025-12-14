@@ -1,9 +1,16 @@
 [
   {
-    "dll_path": "./parsers/tree-sitter-go.dll",
+    "path": "./parsers/tree-sitter-go.so",
     "func_name": "tree_sitter_go",
     "extensions": [
       "go"
     ]
   },
+  {
+    "path": "./parsers/tree-sitter-go.dll",
+    "func_name": "tree_sitter_go",
+    "extensions": [
+      "go"
+    ]
+  }
 ]

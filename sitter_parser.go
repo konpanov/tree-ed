@@ -52,7 +52,7 @@ func LoadLanguageDynamicly(dll_path string, func_name string) (*sitter.Language,
 }
 
 type LanguageConfigEntry struct {
-	DllPath    string   `json:"dll_path"`
+	Path       string   `json:"path"`
 	FuncName   string   `json:"func_name"`
 	Extensions []string `json:"extensions"`
 }
@@ -71,7 +71,7 @@ func LoadLanguageFromConfig(filetype string) (*sitter.Language, error) {
 
 	for _, entry := range config {
 		if slices.Contains(entry.Extensions, filetype) {
-			return LoadLanguageDynamicly(entry.DllPath, entry.FuncName)
+			return LoadLanguageDynamicly(entry.Path, entry.FuncName)
 		}
 	}
 	return nil, fmt.Errorf("Failed to match filetype %s to extensions from config file %s", filetype, config_filename)
