@@ -177,7 +177,7 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 			OldEndPosition: sitterPoint(end_point),
 			NewEndPosition: sitterPoint(new_end_point),
 		})
-		b.tree = b.tree_parser.Parse(b.Content(), nil)
+		b.tree = b.tree_parser.Parse(b.Content(), b.tree)
 		panic_if_error(err)
 	}
 	return nil
