@@ -728,3 +728,13 @@ func (self OperationSaveFile) Execute(editor *Editor, count int) {
 	panic_if_error(err)
 	os.WriteFile(filename, editor.curwin.buffer.Content(), info.Mode())
 }
+
+type OperationStartNewLine struct{}
+
+func (self OperationStartNewLine) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	AppendAtLineEnd{}.Execute(editor, count)
+	editor.curwin.insertContent(false, editor.curwin.buffer.Nl_seq())
+}

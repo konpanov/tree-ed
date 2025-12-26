@@ -152,6 +152,7 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'u': UndoChangeOperation{},
 		's': DeleteSelectionAndInsert{},
 		'z': OperationCenterFrame{},
+		'o': OperationStartNewLine{},
 	}
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyCtrlR: RedoChangeOperation{},
