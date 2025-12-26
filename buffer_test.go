@@ -567,3 +567,15 @@ func TestBufferCalculateLinesAfterDeletingEmptySecondLine(t *testing.T) {
 		t.Errorf("Expected first line to start from 0, but got %d", lines[0].start)
 	}
 }
+
+func TestBufferCalculateLinesAfterInsertingNewlinAtTheEnd(t *testing.T) {
+
+	content := strings.Join([]string{
+		"01234",
+		"",
+		"",
+	}, "\n")
+	buffer, _ := bufferFromContent([]byte(content), []byte(NewLineUnix), nil)
+	input := []byte{'x', '\n'}
+	buffer.Edit(ReplacementInput{start: 7, end: 7, replacement: input})
+}

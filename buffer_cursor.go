@@ -61,9 +61,7 @@ func (self BufferCursor) Rowend(row Line) int {
 }
 
 func (self BufferCursor) Row() int {
-	row, err := self.buffer.Row(self.Index())
-	panic_if_error(err)
-	return row
+	return self.buffer.Row(self.Index())
 }
 
 func (self BufferCursor) BytePosition() Point {

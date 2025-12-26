@@ -43,7 +43,7 @@ type IBuffer interface {
 	Nl_seq() []byte
 	CheckIndex(index int) error
 	CheckLine(line int) error
-	Row(index int) (int, error)
+	Row(index int) int
 
 	// Modifications
 	Edit(input ReplacementInput) error
@@ -179,45 +179,34 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	return nil
 }
 
-func (b *Buffer) Row(index int) (int, error) {
-	if err := b.CheckIndex(index); err != nil {
-		return 0, err
+func (b *Buffer) Row(index int) int {
+	if index < 0 {
+		return 0
 	}
 	lines := b.Lines()
 	for l, r := 0, len(lines)-1; l <= r; {
 		m := (l + r) / 2
-		line := lines[m]
-		if line.start <= index && (index <= line.end || index < line.next_start) {
-			return m, nil
-		} else if index < line.start {
+		if index < lines[m].start {
 			r = m - 1
-		} else {
+		} else if index >= lines[m].next_start {
 			l = m + 1
+		} else {
+			return m
 		}
 
 	}
-	if index >= len(b.Content()) {
-		return len(b.Lines()) - 1, nil
-	}
-	log.Panicf("Could not find index that is in buffer range.\n Index: %d\n Buffer %+v", index, b)
-	return 0, ErrUnexpected
+	return len(lines) - 1
 }
 
 func (b *Buffer) Coord(index int) (Point, error) {
-	row, err := b.Row(index)
-	if err != nil {
-		return Point{}, err
-	}
+	row := b.Row(index)
 	line, err := b.Line(row)
 	panic_if_error(err)
 	return Point{row: row, col: index - line.start}, nil
 }
 
 func (b *Buffer) RuneCoord(index int) (Point, error) {
-	row, err := b.Row(index)
-	if err != nil {
-		return Point{}, err
-	}
+	row := b.Row(index)
 	line, err := b.Line(row)
 	panic_if_error(err)
 	return Point{row: row, col: utf8.RuneCount(b.Content()[line.start:index])}, nil
@@ -249,7 +238,7 @@ func (b *Buffer) IndexFromRuneCoord(p Point) int {
 
 func (b *Buffer) calculateLines(input ReplacementInput) []Line {
 	length := len(b.content)
-	row, _ := b.Row(input.start)
+	row := b.Row(input.start)
 	lines := b.lines[:row]
 	line := Line{b.lines[row].start, length, length}
 
@@ -321,10 +310,7 @@ func (b *Buffer) LastIndex() int {
 }
 
 func (b *Buffer) IsNewLine(index int) (bool, error) {
-	row, err := b.Row(index)
-	if err != nil {
-		return false, err
-	}
+	row := b.Row(index)
 	line, err := b.Line(row)
 	if err != nil {
 		return false, err
