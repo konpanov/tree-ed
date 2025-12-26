@@ -158,11 +158,7 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	b.content = slices.Replace(b.content, input.start, input.end, input.replacement...)
 	b.lines = b.calculateLines(input)
 	for _, cur := range b.cursors {
-		if (*cur).Index() >= input.end {
-			*cur = (*cur).ToIndex((*cur).Index() - (input.end - input.start) + len(input.replacement))
-		} else if (*cur).Index() > input.start {
-			*cur = (*cur).ToIndex(min((*cur).Index(), input.start+len(input.replacement)))
-		}
+		*cur = (*cur).Update(input)
 	}
 
 	new_end := input.start + len(input.replacement)

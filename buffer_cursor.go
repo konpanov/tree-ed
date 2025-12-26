@@ -233,3 +233,15 @@ func (self BufferCursor) SearchBackward(seq []byte) (BufferCursor, error) {
 	}
 	return self, ErrSequenceNotFound
 }
+
+func (self BufferCursor) Update(edit ReplacementInput) BufferCursor {
+	if self.Index() >= edit.end {
+		offset := edit.start - edit.end + len(edit.replacement)
+		return self.ToIndex(self.Index() + offset)
+	} else if self.Index() > edit.start {
+		edit_end := edit.start + len(edit.replacement)
+		return self.ToIndex(min(self.Index(), edit_end))
+	} else {
+		return self
+	}
+}
