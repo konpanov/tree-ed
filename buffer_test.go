@@ -540,3 +540,30 @@ func BenchmarkBufferReadBigFile(b *testing.B) {
 		_, _ = bufferFromContent(content, []byte("\n"), nil)
 	}
 }
+
+func TestBufferCalculateLinesInit(t *testing.T) {
+	buffer, err := NewEmptyBuffer([]byte("\n"), nil)
+	assertNoErrorsMsg(t, err, "Cound not create empty buffer")
+	buffer.Edit(ReplacementInput{0, 0, []byte("hello\n")})
+	if len(buffer.lines) != 1 {
+		t.Errorf("There should be only 1 line, got %d\n", len(buffer.lines))
+	}
+
+}
+
+func TestBufferCalculateLinesAfterDeletingEmptySecondLine(t *testing.T) {
+	content := strings.Join([]string{
+		"package main",
+		"",
+		"whatever",
+	}, "\n")
+	buffer, _ := bufferFromContent([]byte(content), []byte(NewLineUnix), nil)
+	buffer.Edit(ReplacementInput{start: 12, end: 13, replacement: []byte{}})
+	lines := buffer.Lines()
+	if len(lines) != 2 {
+		t.Errorf("Expected lines to have 2 line, but got %d\n", len(lines))
+	}
+	if lines[0].start != 0 {
+		t.Errorf("Expected first line to start from 0, but got %d", lines[0].start)
+	}
+}

@@ -156,7 +156,7 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	panic_if_error(err)
 
 	b.content = slices.Replace(b.content, input.start, input.end, input.replacement...)
-	b.lines = b.calculateLines()
+	b.lines = b.calculateLines(input)
 	for _, cur := range b.cursors {
 		if (*cur).Index() >= input.end {
 			*cur = (*cur).ToIndex((*cur).Index() - (input.end - input.start) + len(input.replacement))
@@ -191,7 +191,7 @@ func (b *Buffer) Row(index int) (int, error) {
 	for l, r := 0, len(lines)-1; l <= r; {
 		m := (l + r) / 2
 		line := lines[m]
-		if line.start <= index && index < line.next_start {
+		if line.start <= index && (index <= line.end || index < line.next_start) {
 			return m, nil
 		} else if index < line.start {
 			r = m - 1
@@ -200,7 +200,7 @@ func (b *Buffer) Row(index int) (int, error) {
 		}
 
 	}
-	if index == len(b.Content()) {
+	if index >= len(b.Content()) {
 		return len(b.Lines()) - 1, nil
 	}
 	log.Panicf("Could not find index that is in buffer range.\n Index: %d\n Buffer %+v", index, b)
@@ -251,12 +251,13 @@ func (b *Buffer) IndexFromRuneCoord(p Point) int {
 	return line.start + byte_col
 }
 
-func (b *Buffer) calculateLines() []Line {
+func (b *Buffer) calculateLines(input ReplacementInput) []Line {
 	length := len(b.content)
-	lines := []Line{}
-	line := Line{0, length, length}
+	row, _ := b.Row(input.start)
+	lines := b.lines[:row]
+	line := Line{b.lines[row].start, length, length}
 
-	for i := 0; i < length; {
+	for i := line.start; i < length; {
 		line_break, w := isLineBreak(b.content[i:])
 		if line_break {
 			line.end = i
