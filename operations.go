@@ -748,3 +748,15 @@ func (self OperationStartNewLine) Execute(editor *Editor, count int) {
 	AppendAtLineEnd{}.Execute(editor, count)
 	editor.curwin.insertContent(false, editor.curwin.buffer.Nl_seq())
 }
+
+type OperationStartNewLineAbove struct{}
+
+func (self OperationStartNewLineAbove) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+
+	InsertAtLineStart{}.Execute(editor, count)
+	editor.curwin.insertContent(false, editor.curwin.buffer.Nl_seq())
+	NormalCursorUp{}.Execute(editor, count)
+}
