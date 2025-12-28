@@ -40,6 +40,7 @@ func (self Point) Less(other Point) bool {
 type IBuffer interface {
 	Filename() string
 	Content() []byte
+	Length() int
 	Nl_seq() []byte
 	CheckIndex(index int) error
 	CheckLine(line int) error
@@ -62,7 +63,6 @@ type IBuffer interface {
 	Lines() []Line
 	Line(line int) (Line, error)
 	IsNewLine(index int) (bool, error)
-	LastIndex() int
 
 	RegisterCursor(curosr *BufferCursor)
 
@@ -302,11 +302,8 @@ func (b *Buffer) Nl_seq() []byte {
 	return b.nl_seq
 }
 
-func (b *Buffer) LastIndex() int {
-	line, err := b.Line(len(b.Lines()) - 1)
-	panic_if_error(err)
-	last_index := max(line.start, line.end-1)
-	return last_index
+func (b *Buffer) Length() int {
+	return len(b.content)
 }
 
 func (b *Buffer) IsNewLine(index int) (bool, error) {

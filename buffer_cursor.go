@@ -18,7 +18,7 @@ func (self BufferCursor) Index() int {
 }
 
 func (self BufferCursor) ToIndex(index int) BufferCursor {
-	self.index = clip(index, 0, self.Hardstop())
+	self.index = clip(index, 0, self.buffer.Length())
 	row, err := self.buffer.Line(self.Row())
 	panic_if_error(err)
 	self.index = min(self.index, self.Rowend(row))
@@ -42,14 +42,6 @@ func (self BufferCursor) AsEdge() BufferCursor {
 func (self BufferCursor) AsChar() BufferCursor {
 	self.as_edge = false
 	return self.ToIndex(self.index)
-}
-
-func (self BufferCursor) Hardstop() int {
-	hardstop := self.buffer.LastIndex()
-	if self.as_edge {
-		hardstop++
-	}
-	return hardstop
 }
 
 func (self BufferCursor) Rowend(row Line) int {
@@ -127,7 +119,7 @@ func (self BufferCursor) RunePrev() BufferCursor {
 }
 
 func (self BufferCursor) WordStartNext() BufferCursor {
-	hardstop := self.buffer.LastIndex()
+	hardstop := self.buffer.Length()
 	for prev := self; self.Index() < hardstop; prev, self = self, self.RuneNext() {
 		if self.Class() != RuneClassSpace && self.Class() != prev.Class() {
 			break
@@ -137,7 +129,7 @@ func (self BufferCursor) WordStartNext() BufferCursor {
 }
 
 func (self BufferCursor) WordEndNext() BufferCursor {
-	hardstop := self.buffer.LastIndex()
+	hardstop := self.buffer.Length()
 	self = self.RuneNext()
 	for next := self; self.Index() < hardstop; self, next = next, next.RuneNext() {
 		if self.Class() != RuneClassSpace && self.Class() != next.Class() {
@@ -202,7 +194,7 @@ func (self BufferCursor) IsLineStart() bool {
 }
 
 func (self BufferCursor) IsEnd() bool {
-	return self.Index() >= self.Hardstop()
+	return self.Index() >= self.buffer.Length()
 }
 
 func (self BufferCursor) IsBegining() bool {
@@ -211,7 +203,7 @@ func (self BufferCursor) IsBegining() bool {
 
 func (self BufferCursor) SearchForward(seq []byte) (BufferCursor, error) {
 	cursor := self
-	hardstop := cursor.Hardstop()
+	hardstop := cursor.buffer.Length()
 	for cursor.Index() != hardstop {
 		cursor = cursor.BytesForward(1)
 		if cursor.Match(seq) {
