@@ -88,6 +88,16 @@ func (self AppendAtLineEnd) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(1)
 }
 
+type InsertAtLineStart struct{}
+
+func (self InsertAtLineStart) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	LineStartOperation{}.Execute(editor, 1)
+	editor.curwin.switchToInsert()
+}
+
 type SwitchToVisualmode struct{}
 
 func (self SwitchToVisualmode) Execute(editor *Editor, count int) {

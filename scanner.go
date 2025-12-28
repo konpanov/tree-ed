@@ -146,6 +146,7 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'a': SwitchToInsertModeAsAppend{},
 		'A': AppendAtLineEnd{},
 		'i': SwitchToInsertMode{},
+		'I': InsertAtLineStart{},
 		'v': SwitchToVisualmode{},
 		't': SwitchToTreeMode{},
 		'p': PasteClipboardOperation{},
