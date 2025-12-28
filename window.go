@@ -273,7 +273,8 @@ func (self *Window) eraseContent(continuous bool) {
 		last_change.Reverse().Apply(self)
 		change = replace
 		if len(change.after) != 0 {
-			change.after = change.after[:len(change.after)-1] // TODO: Adjust after adding insert left/right movements
+			size := cursor_before.Index() - cursor_after.Index()
+			change.after = change.after[:len(change.after)-size] // TODO: Adjust after adding insert left/right movements
 		} else {
 			start := cursor_after.Index()
 			change.before = slices.Clone(self.buffer.Content()[start : change.at+len(change.before)])

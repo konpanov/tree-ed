@@ -785,3 +785,62 @@ func TestDrawPreview(t *testing.T) {
 		"input:                                                                          ",
 	})
 }
+
+func TestDrawEmptyBuffer(t *testing.T) {
+	screen := mkTestScreen(t, "")
+	screen.SetSize(10, 3)
+	defer screen.Fini()
+
+	nl := NewLineUnix
+	lines := []string{}
+	content := as_content(lines, nl)
+	buffer := mkTestBuffer(t, string(content), nl)
+
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
+
+	screen.Clear()
+	roi := Rect{top: 0, left: 0, bot: h, right: w}
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
+
+	expected := Rect{top: 0, left: 0, bot: 3, right: 8}
+	if window.frame != expected {
+		t.Errorf("Unexpected window frame %+v, expected %+v.", window.frame, expected)
+	}
+	assertScreenRunes(t, screen, []string{
+		"1         ",
+		"          ",
+		"          ",
+	})
+}
+
+
+func TestDrawSignleCharBuffer(t *testing.T) {
+	screen := mkTestScreen(t, "")
+	screen.SetSize(10, 3)
+	defer screen.Fini()
+
+	nl := NewLineUnix
+	lines := []string{"a"}
+	content := as_content(lines, nl)
+	buffer := mkTestBuffer(t, string(content), nl)
+
+	w, h := screen.Size()
+	window := windowFromBuffer(buffer, w, h)
+
+	screen.Clear()
+	roi := Rect{top: 0, left: 0, bot: h, right: w}
+	window_view := WindowView{window: window}
+	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
+
+	expected := Rect{top: 0, left: 0, bot: 3, right: 8}
+	if window.frame != expected {
+		t.Errorf("Unexpected window frame %+v, expected %+v.", window.frame, expected)
+	}
+	assertScreenRunes(t, screen, []string{
+		"1 a       ",
+		"          ",
+		"          ",
+	})
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -578,4 +579,21 @@ func TestBufferCalculateLinesAfterInsertingNewlinAtTheEnd(t *testing.T) {
 	buffer, _ := bufferFromContent([]byte(content), []byte(NewLineUnix), nil)
 	input := []byte{'x', '\n'}
 	buffer.Edit(ReplacementInput{start: 7, end: 7, replacement: input})
+}
+
+func TestBufferRemoveUnicodeCharacter(t *testing.T) {
+	buffer, _ := bufferFromContent([]byte("Привет"), []byte(NewLineUnix), nil)
+	expected := []byte("Привет")
+	actual := buffer.Content()
+	if slices.Compare[[]byte](expected, actual) != 0 {
+		msg := "Expected buffer content \"%s\", but got \"%s\""
+		t.Errorf(msg, expected, actual)
+	}
+	buffer.Edit(ReplacementInput{0, 2, []byte{}})
+	expected = []byte("ривет")
+	actual = buffer.Content()
+	if slices.Compare[[]byte](expected, actual) != 0 {
+		msg := "Expected buffer content \"%s\", but got \"%s\""
+		t.Errorf(msg, expected, actual)
+	}
 }
