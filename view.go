@@ -59,10 +59,10 @@ func DefaultTheme() Theme {
 /*                     Utils                          */
 /******************************************************/
 
-func view_pos_to_screen_pos(pos Point, roi Rect) Point {
+func view_pos_to_screen_pos(pos Pos, roi Rect) Pos {
 	col := pos.col + roi.left
 	row := pos.row + roi.top
-	screen_pos := Point{col: col, row: row}
+	screen_pos := Pos{col: col, row: row}
 	if row >= roi.bot || row < roi.top {
 		log.Panicf("View should not draw outside it's roi (horizontal).\nView roi: %+v.\nView height: %d\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Height(), screen_pos, pos)
 	}
@@ -72,13 +72,13 @@ func view_pos_to_screen_pos(pos Point, roi Rect) Point {
 	return screen_pos
 }
 
-func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
+func text_pos_to_view_pos(pos Pos, text_offset Pos, roi Rect) Pos {
 	if debug {
 		if pos.col < 0 || pos.row < 0 {
-			log.Panicf("Text position coordinates should not be negative %+v", pos)
+			log.Panicf("Text position should not be negative %+v", pos)
 		}
 		if pos.col < 0 || pos.row < 0 {
-			log.Panicf("Text position coordinates should not be negative %+v", pos)
+			log.Panicf("Text position should not be negative %+v", pos)
 		} else if pos.col < text_offset.col {
 			log.Panicln("Text position is left of window frame.")
 		} else if pos.col >= text_offset.col+roi.Width() {
@@ -90,7 +90,7 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
 		}
 	}
 
-	view_pos := Point{
+	view_pos := Pos{
 		col: min(pos.col-text_offset.col, roi.Width()-1),
 		row: min(pos.row-text_offset.row, roi.Height()-1),
 	}
@@ -100,23 +100,23 @@ func text_pos_to_view_pos(pos Point, text_offset Point, roi Rect) Point {
 	return view_pos
 }
 
-func text_pos_to_screen(pos Point, offset Point, roi Rect) Point {
+func text_pos_to_screen(pos Pos, offset Pos, roi Rect) Pos {
 	in_view := text_pos_to_view_pos(pos, offset, roi)
 	in_screen := view_pos_to_screen_pos(in_view, roi)
 	return in_screen
 }
 
-func set_style(screen tcell.Screen, pos Point, style tcell.Style) {
+func set_style(screen tcell.Screen, pos Pos, style tcell.Style) {
 	value, _, _, _ := screen.GetContent(pos.col, pos.row)
 	screen.SetContent(pos.col, pos.row, value, nil, style)
 }
 
-func get_style(screen tcell.Screen, pos Point) tcell.Style {
+func get_style(screen tcell.Screen, pos Pos) tcell.Style {
 	_, _, style, _ := screen.GetContent(pos.col, pos.row)
 	return style
 }
 
-func set_rune(screen tcell.Screen, pos Point, value rune) {
+func set_rune(screen tcell.Screen, pos Pos, value rune) {
 	style := get_style(screen, pos)
 	if value == '\r' || value == '\n' {
 		value = ' '
@@ -124,7 +124,7 @@ func set_rune(screen tcell.Screen, pos Point, value rune) {
 	screen.SetContent(pos.col, pos.row, value, nil, style)
 }
 
-func apply_mod(screen tcell.Screen, pos Point, mod StyleMod) {
+func apply_mod(screen tcell.Screen, pos Pos, mod StyleMod) {
 	style := get_style(screen, pos)
 	style = mod(style)
 	set_style(screen, pos, style)
@@ -134,14 +134,14 @@ func default_buffer_line_number_max_width(buffer IBuffer) int {
 	return int(math.Log10(float64(len(buffer.Lines())))) + 2
 }
 
-func put_line(screen tcell.Screen, pos Point, text string, stop int) {
+func put_line(screen tcell.Screen, pos Pos, text string, stop int) {
 	for i, r := range text {
 		row := pos.row
 		col := pos.col + i
 		if col >= stop {
 			return
 		}
-		pos := Point{row: row, col: col}
+		pos := Pos{row: row, col: col}
 		set_rune(screen, pos, r)
 	}
 }

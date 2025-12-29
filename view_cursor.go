@@ -9,7 +9,7 @@ type CharacterViewCursor struct {
 }
 
 func (self *CharacterViewCursor) Draw(ctx DrawContext) {
-	pos := self.window.cursor.RunePosition()
+	pos := self.window.cursor.Pos()
 	offset := self.window.frame.TopLeft()
 	rel_pos := self.window.frame.RelativePosition(pos)
 	assert(rel_pos == Inside, "Main cursor should always be in frame")
@@ -23,7 +23,7 @@ type IndexViewCursor struct {
 }
 
 func (self *IndexViewCursor) Draw(ctx DrawContext) {
-	pos := self.window.cursor.RunePosition()
+	pos := self.window.cursor.Pos()
 	offset := self.window.frame.TopLeft()
 	rel_pos := self.window.frame.RelativePosition(pos)
 	assert(rel_pos == Inside, "Main cursor should always be in frame")
@@ -41,12 +41,12 @@ func (self *SelectionViewCursor) Draw(ctx DrawContext) {
 	frame := self.window.frame
 
 	start_index, end_index := self.window.getSelection()
-	start_index = max(start_index, uint(buffer.IndexFromRuneCoord(frame.TopLeft())))
-	end_index = min(end_index, uint(buffer.IndexFromRuneCoord(frame.BotRight())))
+	start_index = max(start_index, uint(buffer.Index(frame.TopLeft())))
+	end_index = min(end_index, uint(buffer.Index(frame.BotRight())))
 
 	cursor := self.window.cursor.AsEdge().ToIndex(int(start_index))
 	for ; cursor.Index() < int(end_index); cursor = cursor.RuneNext() {
-		pos := cursor.RunePosition()
+		pos := cursor.Pos()
 		line := cursor.buffer.Lines()[pos.row]
 
 		skip_new_line := cursor.IsNewLine() && line.start != line.end

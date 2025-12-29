@@ -20,12 +20,12 @@ func (r Rect) AxisV() int {
 	return (r.top + r.bot) / 2
 }
 
-func (r Rect) TopLeft() Point {
-	return Point{row: r.top, col: r.left}
+func (r Rect) TopLeft() Pos {
+	return Pos{row: r.top, col: r.left}
 }
 
-func (r Rect) BotRight() Point {
-	return Point{row: r.bot, col: r.right}
+func (r Rect) BotRight() Pos {
+	return Pos{row: r.bot, col: r.right}
 }
 
 // Split by a horizontal line
@@ -44,7 +44,7 @@ func (r Rect) SplitV(at int) (Rect, Rect) {
 	return to_the_left, to_the_right
 }
 
-func (r Rect) ShiftToInclude(pos Point) Rect {
+func (r Rect) ShiftToInclude(pos Pos) Rect {
 	w := r.Width()
 	r.left = max(min(r.left, pos.col), pos.col-w+1)
 	r.right = r.left + w
@@ -56,7 +56,7 @@ func (r Rect) ShiftToInclude(pos Point) Rect {
 	return r
 }
 
-func (r Rect) Shift(pos Point) Rect {
+func (r Rect) Shift(pos Pos) Rect {
 	r.bot = pos.row + r.Height()
 	r.right = pos.col + r.Width()
 	r.top = pos.row
@@ -64,8 +64,8 @@ func (r Rect) Shift(pos Point) Rect {
 	return r
 }
 
-func (r Rect) Size() Point {
-	return Point{col: r.Width(), row: r.Height()}
+func (r Rect) Size() Pos {
+	return Pos{col: r.Width(), row: r.Height()}
 }
 
 type RelativePosition int
@@ -83,7 +83,7 @@ const (
 // LeftOf \ Inside \ RightOf
 // -------+--------+--------
 // Below  \ Below  \ Below
-func (r Rect) RelativePosition(pos Point) RelativePosition {
+func (r Rect) RelativePosition(pos Pos) RelativePosition {
 	switch {
 	case pos.row < r.top:
 		return Above
@@ -96,8 +96,4 @@ func (r Rect) RelativePosition(pos Point) RelativePosition {
 	default:
 		return Inside
 	}
-}
-
-func (r Rect) IsPointAbove(p Point) bool {
-	return r.top > p.row
 }

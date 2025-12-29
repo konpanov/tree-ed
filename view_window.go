@@ -38,7 +38,7 @@ func (self WindowView) DrawFrameText(ctx DrawContext) {
 	offset := frame.TopLeft()
 	cursor := self.window.cursor.AsEdge().MoveToRunePos(offset)
 	for !cursor.IsEnd() {
-		pos := cursor.RunePosition()
+		pos := cursor.Pos()
 		rel_pos := frame.RelativePosition(pos)
 		if rel_pos == Below {
 			break

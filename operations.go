@@ -253,7 +253,7 @@ func (self InsertContentOperation) Execute(editor *Editor, count int) {
 		} else if ek.Key() == tcell.KeyTab {
 			content = append(content, '\t')
 		} else if ek.Key() == tcell.KeyCR {
-			content = append(content, editor.curwin.buffer.Nl_seq()...)
+			content = append(content, editor.curwin.buffer.LineBreak()...)
 		} else if ek.Key() == tcell.KeyLF {
 			content = append(content, '\n')
 		} else {
@@ -501,7 +501,7 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	pos := editor.curwin.cursor.RunePosition()
+	pos := editor.curwin.cursor.Pos()
 	pos.col = editor.curwin.originColumn
 	pos.row = max(0, count-1)
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
@@ -513,7 +513,7 @@ func (self GoEndOperation) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	pos := editor.curwin.cursor.RunePosition()
+	pos := editor.curwin.cursor.Pos()
 	pos.col = editor.curwin.originColumn
 	pos.row = max(0, len(editor.curwin.buffer.Lines())-1)
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
@@ -682,7 +682,7 @@ func (self OperationFrameLineUp) Execute(editor *Editor, count int) {
 	}
 	frame := editor.curwin.frame
 	NormalCursorUp{}.Execute(editor, count)
-	pos := Point{
+	pos := Pos{
 		row: min(max(frame.top-count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
 		col: frame.left,
 	}
@@ -697,7 +697,7 @@ func (self OperationFrameLineDown) Execute(editor *Editor, count int) {
 	}
 	frame := editor.curwin.frame
 	NormalCursorDown{}.Execute(editor, count)
-	pos := Point{
+	pos := Pos{
 		row: min(max(frame.top+count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
 		col: frame.left,
 	}
@@ -712,7 +712,7 @@ func (self OperationCenterFrame) Execute(editor *Editor, count int) {
 	}
 	frame := editor.curwin.frame
 	cursor := editor.curwin.cursor
-	pos := Point{
+	pos := Pos{
 		row: max(cursor.Row()-frame.Height()/2, 0),
 		col: frame.left,
 	}
@@ -744,7 +744,7 @@ func (self OperationStartNewLine) Execute(editor *Editor, count int) {
 		return
 	}
 	AppendAtLineEnd{}.Execute(editor, count)
-	editor.curwin.insertContent(false, editor.curwin.buffer.Nl_seq())
+	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
 }
 
 type OperationStartNewLineAbove struct{}
@@ -755,6 +755,6 @@ func (self OperationStartNewLineAbove) Execute(editor *Editor, count int) {
 	}
 
 	InsertAtLineStart{}.Execute(editor, count)
-	editor.curwin.insertContent(false, editor.curwin.buffer.Nl_seq())
+	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
 	NormalCursorUp{}.Execute(editor, count)
 }

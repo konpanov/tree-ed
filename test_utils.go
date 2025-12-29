@@ -20,7 +20,7 @@ func mkTestScreen(t *testing.T, charset string) tcell.SimulationScreen {
 	return s
 }
 
-func mkTestEditor(t *testing.T, size Point) *Editor {
+func mkTestEditor(t *testing.T, size Pos) *Editor {
 	screen := mkTestScreen(t, "")
 	screen.SetSize(size.col, size.row)
 	editor := NewEditor(screen)
@@ -36,12 +36,12 @@ func assertScreenRunes(t *testing.T, screen tcell.Screen, lines []string) {
 
 	expected := borderedRunes(stringsToRunes(lines))
 	received := borderedRunes(screenToRunes(screen))
-	to_color := []Point{}
+	to_color := []Pos{}
 	for y, line := range expected {
 		for x, r := range line {
 			actual := received[y][x]
 			if actual != r {
-				to_color = append(to_color, Point{y, x})
+				to_color = append(to_color, Pos{y, x})
 				correct = false
 			}
 		}
@@ -57,7 +57,7 @@ func assertScreenRunes(t *testing.T, screen tcell.Screen, lines []string) {
 	}
 }
 
-func highlightError(runes [][]rune, pos Point) [][]rune {
+func highlightError(runes [][]rune, pos Pos) [][]rune {
 	x, y := pos.col, pos.row
 	pre := string(runes[y][:x])
 	this := string(runes[y][x : x+1])

@@ -22,23 +22,23 @@ func (self PreviewView) DrawNew(ctx DrawContext) {
 func DrawLines(screen tcell.Screen, roi Rect, lines []string) {
 	for row, line := range lines {
 		for col, value := range []rune(line) {
-			pos := Point{row: row, col: col}
+			pos := Pos{row: row, col: col}
 			pos = view_pos_to_screen_pos(pos, roi)
 			set_rune(screen, pos, value)
 		}
 	}
 }
 
-func LinesSize(lines []string) Point {
+func LinesSize(lines []string) Pos {
 	h := len(lines)
 	w := 0
 	for _, line := range lines {
 		w = max(len(line), w)
 	}
-	return Point{row: h, col: w}
+	return Pos{row: h, col: w}
 }
 
-func CenterRoi(roi Rect, content_size Point) Rect {
+func CenterRoi(roi Rect, content_size Pos) Rect {
 	new_roi := Rect{}
 	new_roi.left = roi.left + roi.Width()/2 - content_size.col/2
 	new_roi.top = roi.top + roi.Height()/2 - content_size.row/2

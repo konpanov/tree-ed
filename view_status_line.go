@@ -14,12 +14,12 @@ func (self StatusLine) DrawNew(ctx DrawContext) {
 
 	if self.editor.curwin != nil {
 		curwin := self.editor.curwin
-		pos := curwin.cursor.RunePosition()
+		pos := curwin.cursor.Pos()
 		parseError := "Correct"
 		if curwin.buffer.Tree() != nil && curwin.buffer.Tree().RootNode().HasError() {
 			parseError = "Error"
 		}
-		newline := newlinesToSymbols([]rune(string(curwin.buffer.Nl_seq())))
+		newline := newlinesToSymbols([]rune(string(curwin.buffer.LineBreak())))
 		left_parts = append(left_parts, "file: "+curwin.buffer.Filename())
 		left_parts = append(left_parts, "line: "+strconv.Itoa(pos.row+1))
 		left_parts = append(left_parts, "col: "+strconv.Itoa(pos.col+1))
@@ -34,7 +34,7 @@ func (self StatusLine) DrawNew(ctx DrawContext) {
 	mod := CombineMods([]StyleMod{ctx.theme.secondary, ctx.theme.secondary_bg})
 	for y := ctx.roi.top; y < ctx.roi.bot; y++ {
 		for x := ctx.roi.left; x < ctx.roi.right; x++ {
-			apply_mod(ctx.screen, Point{row: y, col: x}, mod)
+			apply_mod(ctx.screen, Pos{row: y, col: x}, mod)
 		}
 	}
 	put_line(ctx.screen, ctx.roi.TopLeft(), string(text), ctx.roi.right)

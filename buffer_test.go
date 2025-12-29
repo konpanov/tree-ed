@@ -160,24 +160,21 @@ func TestBufferEraseOutOfBound(t *testing.T) {
 	}
 }
 
-func TestBufferFindCoordOnSingleLine(t *testing.T) {
+func TestBufferFindPosOnSingleLine(t *testing.T) {
 	var err error
 	nl := "\n"
 	content := ""
 	content += "first line"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.Coord(5)
-	if err != nil {
-		t.Error(err)
-	}
-	expected := Point{row: 0, col: 5}
-	if coord != expected {
-		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	pos := buffer.BytePos(5)
+	expected := Pos{row: 0, col: 5}
+	if pos != expected {
+		t.Errorf("Recieved position does not match expected value %#v != %#v", pos, expected)
 	}
 }
 
-func TestBufferFindCoordOnSecondLine(t *testing.T) {
+func TestBufferFindPosOnSecondLine(t *testing.T) {
 	var err error
 	nl := "\n"
 	content := ""
@@ -186,17 +183,14 @@ func TestBufferFindCoordOnSecondLine(t *testing.T) {
 	content += "second line"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.Coord(17)
-	if err != nil {
-		t.Error(err)
-	}
-	expected := Point{row: 1, col: 6}
-	if coord != expected {
-		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	pos := buffer.BytePos(17)
+	expected := Pos{row: 1, col: 6}
+	if pos != expected {
+		t.Errorf("Recieved position does not match expected value %#v != %#v", pos, expected)
 	}
 }
 
-func TestBufferFindCoordOnEmptyLine(t *testing.T) {
+func TestBufferFindPosOnEmptyLine(t *testing.T) {
 	var err error
 	nl := "\n"
 	content := ""
@@ -206,17 +200,14 @@ func TestBufferFindCoordOnEmptyLine(t *testing.T) {
 	content += "third line"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.Coord(6)
-	if err != nil {
-		t.Error(err)
-	}
-	expected := Point{row: 1, col: 0}
-	if coord != expected {
-		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	pos := buffer.BytePos(6)
+	expected := Pos{row: 1, col: 0}
+	if pos != expected {
+		t.Errorf("Recieved position does not match expected value %#v != %#v", pos, expected)
 	}
 }
 
-func TestBufferFindCoordAfterEmptyLine(t *testing.T) {
+func TestBufferFindPosAfterEmptyLine(t *testing.T) {
 	var err error
 	nl := "\n"
 	content := ""
@@ -226,17 +217,14 @@ func TestBufferFindCoordAfterEmptyLine(t *testing.T) {
 	content += "third line"
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.Coord(7)
-	if err != nil {
-		t.Error(err)
-	}
-	expected := Point{row: 2, col: 0}
-	if coord != expected {
-		t.Errorf("Recieved coordinates do not match expected value %#v != %#v", coord, expected)
+	pos := buffer.BytePos(7)
+	expected := Pos{row: 2, col: 0}
+	if pos != expected {
+		t.Errorf("Recieved position does not match expected value %#v != %#v", pos, expected)
 	}
 }
 
-func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
+func TestBufferFindPosOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
 	var err error
 	nl := "\r\n"
 	content := ""
@@ -247,17 +235,14 @@ func TestBufferFindCoordOnEmptyLineWithWindowsNewLineSeq(t *testing.T) {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
 
-	coord, err := buffer.Coord(6)
-	assertNoErrors(t, err)
-	assertPointsEqual(t, coord, Point{row: 0, col: 6})
+	pos := buffer.BytePos(6)
+	assertPositionsEqual(t, pos, Pos{row: 0, col: 6})
 
-	coord, err = buffer.Coord(7)
-	assertNoErrors(t, err)
-	assertPointsEqual(t, coord, Point{row: 1, col: 0})
+	pos = buffer.BytePos(7)
+	assertPositionsEqual(t, pos, Pos{row: 1, col: 0})
 
-	coord, err = buffer.Coord(8)
-	assertNoErrors(t, err)
-	assertPointsEqual(t, coord, Point{row: 1, col: 1})
+	pos = buffer.BytePos(8)
+	assertPositionsEqual(t, pos, Pos{row: 1, col: 1})
 }
 
 func TestBufferLineInfoOnContentWithoutNewLineAtTheEnd(t *testing.T) {
@@ -380,7 +365,7 @@ func TestBufferLineInfoOnEmptyLine(t *testing.T) {
 	assertIntEqual(t, lines[2].end, 22)
 }
 
-func TestBufferRuneCoordWithoutNonAsciiRunes(t *testing.T) {
+func TestBufferRunePosWithoutNonAsciiRunes(t *testing.T) {
 	nl := "\n"
 	content := ""
 	//          0123456789
@@ -395,12 +380,12 @@ func TestBufferRuneCoordWithoutNonAsciiRunes(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.RuneCoord(18)
-	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
-	assertIntEqualMsg(t, coord.col, 6, "Unexpected rune coord col: ")
+	pos := buffer.RunePos(18)
+	assertIntEqualMsg(t, pos.row, 2, "Unexpected rune pos row: ")
+	assertIntEqualMsg(t, pos.col, 6, "Unexpected rune pos col: ")
 }
 
-func TestBufferRuneCoordWithNonAsciiRunes(t *testing.T) {
+func TestBufferRunePosWithNonAsciiRunes(t *testing.T) {
 	nl := "\n"
 	content := ""
 	//          0123456789
@@ -415,12 +400,12 @@ func TestBufferRuneCoordWithNonAsciiRunes(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.RuneCoord(20)
-	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
-	assertIntEqualMsg(t, coord.col, 7, "Unexpected rune coord col: ")
+	pos := buffer.RunePos(20)
+	assertIntEqualMsg(t, pos.row, 2, "Unexpected rune pos row: ")
+	assertIntEqualMsg(t, pos.col, 7, "Unexpected rune pos col: ")
 }
 
-func TestBufferRuneCoordInbetweenNewLines(t *testing.T) {
+func TestBufferRunePosInbetweenNewLines(t *testing.T) {
 	nl := "\n"
 	content := ""
 	//          0123456789
@@ -435,12 +420,12 @@ func TestBufferRuneCoordInbetweenNewLines(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.RuneCoord(11)
-	assertIntEqualMsg(t, coord.row, 1, "Unexpected rune coord row: ")
-	assertIntEqualMsg(t, coord.col, 0, "Unexpected rune coord col: ")
+	pos := buffer.RunePos(11)
+	assertIntEqualMsg(t, pos.row, 1, "Unexpected rune pos row: ")
+	assertIntEqualMsg(t, pos.col, 0, "Unexpected rune pos col: ")
 }
 
-func TestBufferRuneCoordFileEndingNewLine(t *testing.T) {
+func TestBufferRunePosFileEndingNewLine(t *testing.T) {
 	nl := "\n"
 	content := ""
 	//          0123456789	  10
@@ -453,12 +438,12 @@ func TestBufferRuneCoordFileEndingNewLine(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	coord, err := buffer.RuneCoord(28)
-	assertIntEqualMsg(t, coord.row, 2, "Unexpected rune coord row: ")
-	assertIntEqualMsg(t, coord.col, 13, "Unexpected rune coord col: ")
+	pos := buffer.RunePos(28)
+	assertIntEqualMsg(t, pos.row, 2, "Unexpected rune pos row: ")
+	assertIntEqualMsg(t, pos.col, 13, "Unexpected rune pos col: ")
 }
 
-func TestBufferIndexFromRuneCoord(t *testing.T) {
+func TestBufferIndexFromRunePos(t *testing.T) {
 	nl := "\n"
 	lines := []string{
 		"line1",
@@ -469,11 +454,11 @@ func TestBufferIndexFromRuneCoord(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
+	index := buffer.Index(Pos{row: 1, col: 2})
 	assertIntEqualMsg(t, index, 8, "Unexpected index: ")
 }
 
-func TestBufferIndexFromRuneCoordWithUnevenRunes(t *testing.T) {
+func TestBufferIndexFromRunePosWithUnevenRunes(t *testing.T) {
 	nl := "\n"
 	lines := []string{
 		"ląne1",
@@ -484,11 +469,11 @@ func TestBufferIndexFromRuneCoordWithUnevenRunes(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 2})
+	index := buffer.Index(Pos{row: 1, col: 2})
 	assertIntEqualMsg(t, index, 10, "Unexpected index: ")
 }
 
-func TestBufferIndexFromRuneCoordWithEmptyLine(t *testing.T) {
+func TestBufferIndexFromRunePosWithEmptyLine(t *testing.T) {
 	nl := "\n"
 	lines := []string{
 		"ląne1",
@@ -499,23 +484,23 @@ func TestBufferIndexFromRuneCoordWithEmptyLine(t *testing.T) {
 
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrors(t, err)
-	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 0})
+	index := buffer.Index(Pos{row: 1, col: 0})
 	assertIntEqualMsg(t, index, 7, "Unexpected index: ")
 }
 
-func TestBufferIndexFromRuneCoordOutsideTheLine(t *testing.T) {
+func TestBufferIndexFromRunePosOutsideTheLine(t *testing.T) {
 	var err error
 	nl := "\n"
 	content := strings.Join([]string{"line 1", "line 2", "line 3"}, nl)
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)
 	assertNoErrorsMsg(t, err, "Could not create buffer from content: ")
-	index := buffer.IndexFromRuneCoord(Point{row: 1, col: 20})
+	index := buffer.Index(Pos{row: 1, col: 20})
 	expected := 14
 	if index != expected {
 		t.Errorf("Unexpected index %d, expected %d", index, expected)
 	}
 
-	index = buffer.IndexFromRuneCoord(Point{row: 2, col: 20})
+	index = buffer.Index(Pos{row: 2, col: 20})
 	expected = 20
 	if index != expected {
 		t.Errorf("Unexpected index %d, expected %d", index, expected)

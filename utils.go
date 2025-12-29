@@ -104,9 +104,9 @@ func assertStringEqual(t *testing.T, a string, b string) {
 	}
 }
 
-func assertPointsEqual(t *testing.T, result Point, expected Point) {
+func assertPositionsEqual(t *testing.T, result Pos, expected Pos) {
 	if result != expected {
-		t.Errorf("Recieved point does not match expected value %#v != %#v", result, expected)
+		t.Errorf("Recieved position does not match expected value %#v != %#v", result, expected)
 	}
 }
 

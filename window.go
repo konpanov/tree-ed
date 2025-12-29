@@ -49,8 +49,8 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 func (self *Window) ResizeFrame(width int, height int) {
 	self.frame.right = self.frame.left + width
 	self.frame.bot = self.frame.top + height
-	self.frame = self.frame.ShiftToInclude(self.anchor.RunePosition())
-	self.frame = self.frame.ShiftToInclude(self.cursor.RunePosition())
+	self.frame = self.frame.ShiftToInclude(self.anchor.Pos())
+	self.frame = self.frame.ShiftToInclude(self.cursor.Pos())
 }
 
 func (self *Window) switchToInsert() {
@@ -81,12 +81,12 @@ func (self *Window) switchToTree() {
 func (self *Window) setCursor(cursor BufferCursor, setOriginColumn bool) {
 	self.cursor = cursor
 	if setOriginColumn {
-		self.originColumn = self.cursor.RunePosition().col
+		self.originColumn = self.cursor.Pos().col
 	}
 	if self.mode == InsertMode || self.mode == NormalMode {
 		self.setAnchor(self.cursor)
 	}
-	self.frame = self.frame.ShiftToInclude(self.cursor.RunePosition())
+	self.frame = self.frame.ShiftToInclude(self.cursor.Pos())
 }
 
 func (self *Window) setAnchor(anchor BufferCursor) {
@@ -204,22 +204,22 @@ func (self *Window) nodeToLastSibling() {
 }
 
 func (self *Window) cursorRight(count int) {
-	col := self.cursor.RunePosition().col + count
+	col := self.cursor.Pos().col + count
 	self.setCursor(self.cursor.MoveToCol(col), true)
 }
 
 func (self *Window) cursorLeft(count int) {
-	col := self.cursor.RunePosition().col - count
+	col := self.cursor.Pos().col - count
 	self.setCursor(self.cursor.MoveToCol(col), true)
 }
 
 func (self *Window) cursorUp(count int) {
-	pos := Point{row: self.cursor.Row() - count, col: self.originColumn}
+	pos := Pos{row: self.cursor.Row() - count, col: self.originColumn}
 	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 
 func (self *Window) cursorDown(count int) {
-	pos := Point{row: self.cursor.Row() + count, col: self.originColumn}
+	pos := Pos{row: self.cursor.Row() + count, col: self.originColumn}
 	self.setCursor(self.cursor.MoveToRunePos(pos), false)
 }
 

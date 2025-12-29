@@ -23,7 +23,7 @@ func assertCells(t *testing.T, cells []tcell.SimCell, text []rune, msg string) {
 	}
 }
 
-func assertScreenText(t *testing.T, screen tcell.SimulationScreen, pos Point, text []rune, msg string) {
+func assertScreenText(t *testing.T, screen tcell.SimulationScreen, pos Pos, text []rune, msg string) {
 	cells, width, _ := screen.GetContents()
 	start := width*pos.row + pos.col
 	assertCells(t, cells[start:start+len(text)], text, msg)
@@ -203,9 +203,9 @@ func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	screen.Show()
 	assertIntEqual(t, w, 10)
 	assertIntEqual(t, h, 5)
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 "+lines[0]), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 "+lines[1]), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 "+lines[2]), "")
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("1 "+lines[0]), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("2 "+lines[1]), "")
+	assertScreenText(t, screen, Pos{row: 2, col: 0}, []rune("3 "+lines[2]), "")
 }
 
 func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
@@ -231,8 +231,8 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 "+lines[0]), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 "+lines[1]), "")
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("1 "+lines[0]), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("2 "+lines[1]), "")
 }
 
 func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
@@ -266,8 +266,8 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
-	actual := window.cursor.RunePosition()
-	expected := Point{row: 3, col: 2}
+	actual := window.cursor.Pos()
+	expected := Pos{row: 3, col: 2}
 	if actual != expected {
 		t.Errorf("Unexpected cursor position %+v, expected %+v.", actual, expected)
 	}
@@ -275,8 +275,8 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 		"3 line3 ",
 		"4 line4 ",
 	})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("3 line3"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("4 line4"), "")
 }
 
 func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
@@ -313,16 +313,16 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	screen.Show()
 
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("3 line3"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("4 line4"), "")
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("3 line3"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("4 line4"), "")
 
 	window.setCursor(window.cursor.ToIndex(8), true)
 	assertIntEqualMsg(t, window.cursor.Index(), 8, "")
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	screen.Show()
 
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("2 line2"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("3 line3"), "")
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("2 line2"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("3 line3"), "")
 }
 
 func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
@@ -357,12 +357,12 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
-	assertPointsEqual(t, window.frame.TopLeft(), Point{col: 3, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
+	assertPositionsEqual(t, window.frame.TopLeft(), Pos{col: 3, row: 0})
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("1 e1"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("2 e2"), "")
+	assertScreenText(t, screen, Pos{row: 2, col: 0}, []rune("3 e3"), "")
+	assertScreenText(t, screen, Pos{row: 3, col: 0}, []rune("4 e4"), "")
+	assertScreenText(t, screen, Pos{row: 4, col: 0}, []rune("5 e5"), "")
 }
 
 func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
@@ -400,23 +400,23 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
-	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 3, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 e1"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 e2"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 e3"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 e4"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 e5"), "")
+	assertPositionsEqual(t, window_view.window.frame.TopLeft(), Pos{col: 3, row: 0})
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("1 e1"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("2 e2"), "")
+	assertScreenText(t, screen, Pos{row: 2, col: 0}, []rune("3 e3"), "")
+	assertScreenText(t, screen, Pos{row: 3, col: 0}, []rune("4 e4"), "")
+	assertScreenText(t, screen, Pos{row: 4, col: 0}, []rune("5 e5"), "")
 
 	window.setCursor(window.cursor.RunePrev(), true)
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
-	assertPointsEqual(t, window_view.window.frame.TopLeft(), Point{col: 2, row: 0})
-	assertScreenText(t, screen, Point{row: 0, col: 0}, []rune("1 ne"), "")
-	assertScreenText(t, screen, Point{row: 1, col: 0}, []rune("2 ne"), "")
-	assertScreenText(t, screen, Point{row: 2, col: 0}, []rune("3 ne"), "")
-	assertScreenText(t, screen, Point{row: 3, col: 0}, []rune("4 źe"), "")
-	assertScreenText(t, screen, Point{row: 4, col: 0}, []rune("5 ne"), "")
+	assertPositionsEqual(t, window_view.window.frame.TopLeft(), Pos{col: 2, row: 0})
+	assertScreenText(t, screen, Pos{row: 0, col: 0}, []rune("1 ne"), "")
+	assertScreenText(t, screen, Pos{row: 1, col: 0}, []rune("2 ne"), "")
+	assertScreenText(t, screen, Pos{row: 2, col: 0}, []rune("3 ne"), "")
+	assertScreenText(t, screen, Pos{row: 3, col: 0}, []rune("4 źe"), "")
+	assertScreenText(t, screen, Pos{row: 4, col: 0}, []rune("5 ne"), "")
 }
 
 // CHARACTER CURSOR
@@ -740,7 +740,7 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 		"3   line3 ",
 	})
 
-	window.setCursor(window.cursor.MoveToRunePos(Point{row: 24, col: 2}), true)
+	window.setCursor(window.cursor.MoveToRunePos(Pos{row: 24, col: 2}), true)
 	screen.Clear()
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	assertScreenRunes(t, screen, []string{
@@ -749,7 +749,7 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 		"25  line25",
 	})
 
-	window.setCursor(window.cursor.MoveToRunePos(Point{row: 8, col: 3}), true)
+	window.setCursor(window.cursor.MoveToRunePos(Pos{row: 8, col: 3}), true)
 	screen.Clear()
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	assertScreenRunes(t, screen, []string{
@@ -760,7 +760,7 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 }
 
 func TestDrawPreview(t *testing.T) {
-	editor := mkTestEditor(t, Point{col: 80, row: 20})
+	editor := mkTestEditor(t, Pos{col: 80, row: 20})
 	editor.Redraw()
 	assertScreenRunes(t, editor.screen, []string{
 		"                                                                                ",

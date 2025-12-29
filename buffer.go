@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"slices"
 	"unicode/utf8"
 
@@ -20,58 +19,33 @@ type Line struct {
 	next_start int
 }
 
-type Point struct {
+type Pos struct {
 	row, col int
 }
 
-func sitterPoint(p Point) sitter.Point {
+func sitterPoint(p Pos) sitter.Point {
 	return sitter.Point{Row: uint(p.row), Column: uint(p.col)}
 }
 
-func (self Point) Add(other Point) Point {
-	return Point{row: self.row + other.row, col: self.col + other.col}
-}
-
-func (self Point) Less(other Point) bool {
-	return self.row-2 < other.row
-}
-
-// TODO Add filename field for file buffers that return nil for non file buffers
 type IBuffer interface {
 	Filename() string
 	Content() []byte
 	Length() int
-	Nl_seq() []byte
-	CheckIndex(index int) error
-	CheckLine(line int) error
+	LineBreak() []byte
 	Row(index int) int
-
-	// Modifications
 	Edit(input ReplacementInput) error
-
-	Coord(index int) (Point, error)
-	RuneCoord(index int) (Point, error)
-
-	// If point lies after the line end the index of the start of the next
-	// line or the eof index is given.
-	IndexFromRuneCoord(p Point) int
+	BytePos(index int) Pos
+	RunePos(index int) Pos
+	Index(p Pos) int
 
 	Tree() *sitter.Tree
-
-	// Returns ranges in which lines are contained, without the new line sequences.
-	// New lines must be left out to treat the same last lines with new lines and without.
 	Lines() []Line
-
 	RegisterCursor(curosr *BufferCursor)
-
 	Close()
 }
 
 var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
 var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
-var ErrLineIndexOutOfRange = fmt.Errorf("line index is negative or greater than or equal to number of lines")
-var ErrCoordOutOfRange = fmt.Errorf("Coordinate does not exist in the buffer")
-var ErrUnexpected = fmt.Errorf("An unexpected error occured")
 
 type ReplacementInput struct {
 	start       int
@@ -139,19 +113,19 @@ func (b *Buffer) Content() []byte {
 
 // TODO: Make Edit operate on ReplaceChange instead of ReplacementInput and delete ReplacementInput
 func (b *Buffer) Edit(input ReplacementInput) error {
-	var err error
-	if err = b.CheckIndex(input.start); err != nil {
+	err := b.checkIndex(input.start)
+	if err == nil {
+		err = b.checkIndex(input.end)
+	}
+	if err != nil {
 		return err
 	}
 
-	if err = b.CheckIndex(input.end); err != nil {
-		return err
-	}
-
-	start_point, err := b.Coord(input.start)
-	panic_if_error(err)
-	end_point, err := b.Coord(input.end)
-	panic_if_error(err)
+	sitter_input := &sitter.InputEdit{}
+	sitter_input.StartByte = uint(input.start)
+	sitter_input.OldEndByte = uint(input.end)
+	sitter_input.StartPosition = sitterPoint(b.BytePos(input.start))
+	sitter_input.OldEndPosition = sitterPoint(b.BytePos(input.end))
 
 	b.content = slices.Replace(b.content, input.start, input.end, input.replacement...)
 	b.lines = b.calculateLines(input)
@@ -160,19 +134,12 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	}
 
 	new_end := input.start + len(input.replacement)
-	new_end_point, _ := b.Coord(new_end)
+	sitter_input.OldEndByte = uint(new_end)
+	sitter_input.StartPosition = sitterPoint(b.BytePos(new_end))
 
 	if b.tree_parser != nil {
-		b.tree.Edit(&sitter.InputEdit{
-			StartByte:      uint(input.start),
-			OldEndByte:     uint(input.end),
-			NewEndByte:     uint(new_end),
-			StartPosition:  sitterPoint(start_point),
-			OldEndPosition: sitterPoint(end_point),
-			NewEndPosition: sitterPoint(new_end_point),
-		})
+		b.tree.Edit(sitter_input)
 		b.tree = b.tree_parser.Parse(b.Content(), b.tree)
-		panic_if_error(err)
 	}
 	return nil
 }
@@ -196,39 +163,30 @@ func (b *Buffer) Row(index int) int {
 	return len(lines) - 1
 }
 
-func (b *Buffer) Coord(index int) (Point, error) {
+func (b *Buffer) BytePos(index int) Pos {
 	row := b.Row(index)
 	line := b.Lines()[row]
-	return Point{row: row, col: index - line.start}, nil
+	return Pos{row: row, col: index - line.start}
 }
 
-func (b *Buffer) RuneCoord(index int) (Point, error) {
+func (b *Buffer) RunePos(index int) Pos {
 	row := b.Row(index)
 	line := b.Lines()[row]
-	return Point{row: row, col: utf8.RuneCount(b.Content()[line.start:index])}, nil
+	line_text := b.Content()[line.start:index]
+	col := utf8.RuneCount(line_text)
+	return Pos{row: row, col: col}
 }
 
-func (b *Buffer) IndexFromRuneCoord(p Point) int {
+func (b *Buffer) Index(p Pos) int {
 	lines := b.Lines()
-	if len(lines) == 0 {
-		if debug {
-			log.Panicf("Lines should not be empty")
-		}
-		return 0
-	}
-	p.row = min(max(0, p.row), len(lines)-1)
-	line := lines[p.row]
-	if p.col < 0 {
-		if debug {
-			log.Panicf("Line column cannot be less than zero: %d\n", p.col)
-		}
-		p.col = 0
-	}
-	text := []rune(string(b.Content()[line.start:line.end]))
-	if p.col > len(text) {
+	row := clip(p.row, 0, len(lines)-1)
+	line := b.Lines()[row]
+	line_text := b.Content()[line.start:line.end]
+	line_runes := []rune(string(line_text))
+	if p.col > len(line_runes) {
 		return line.next_start
 	}
-	byte_col := len(string(text[:p.col]))
+	byte_col := len(string(line_runes[:p.col]))
 	return line.start + byte_col
 }
 
@@ -259,10 +217,24 @@ func (b *Buffer) calculateLines(input ReplacementInput) []Line {
 }
 
 func (b *Buffer) Lines() []Line {
+	empty := len(b.lines) == 0
+	assert(!empty, "Lines should not be empty")
 	return b.lines
 }
 
-func (b *Buffer) CheckIndex(index int) error {
+func (b *Buffer) Tree() *sitter.Tree {
+	return b.tree
+}
+
+func (b *Buffer) LineBreak() []byte {
+	return b.nl_seq
+}
+
+func (b *Buffer) Length() int {
+	return len(b.content)
+}
+
+func (b *Buffer) checkIndex(index int) error {
 	if index < 0 {
 		return ErrIndexLessThanZero
 	}
@@ -270,27 +242,4 @@ func (b *Buffer) CheckIndex(index int) error {
 		return ErrIndexGreaterThanBufferSize
 	}
 	return nil
-}
-
-func (b *Buffer) CheckLine(line int) error {
-	if line < 0 {
-		return fmt.Errorf("%w: coord row cannot be negative (%d)", ErrCoordOutOfRange, line)
-	}
-	lines := b.Lines()
-	if line >= len(lines) {
-		return fmt.Errorf("%w: coord row cannot be greater than the number of lines (%d > %d)", ErrCoordOutOfRange, line, len(lines))
-	}
-	return nil
-}
-
-func (b *Buffer) Tree() *sitter.Tree {
-	return b.tree
-}
-
-func (b *Buffer) Nl_seq() []byte {
-	return b.nl_seq
-}
-
-func (b *Buffer) Length() int {
-	return len(b.content)
 }

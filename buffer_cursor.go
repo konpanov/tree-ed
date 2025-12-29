@@ -55,16 +55,8 @@ func (self BufferCursor) Row() int {
 	return self.buffer.Row(self.Index())
 }
 
-func (self BufferCursor) BytePosition() Point {
-	coord, err := self.buffer.Coord(self.index)
-	panic_if_error(err)
-	return coord
-}
-
-func (self BufferCursor) RunePosition() Point {
-	coord, err := self.buffer.RuneCoord(self.index)
-	panic_if_error(err)
-	return coord
+func (self BufferCursor) Pos() Pos {
+	return self.buffer.RunePos(self.index)
 }
 
 func (self BufferCursor) BytesForward(count int) BufferCursor {
@@ -90,15 +82,15 @@ func (self BufferCursor) MoveToCol(number int) BufferCursor {
 		width--
 	}
 	col := clip(number, 0, max(width, 0))
-	point := Point{col: col, row: row}
-	index := self.buffer.IndexFromRuneCoord(point)
+	rune_pos := Pos{col: col, row: row}
+	index := self.buffer.Index(rune_pos)
 	cursor := self.ToIndex(index)
 	return cursor
 }
 
-func (self BufferCursor) MoveToRunePos(pos Point) BufferCursor {
-	self = self.MoveToRow(pos.row)
-	self = self.MoveToCol(pos.col)
+func (self BufferCursor) MoveToRunePos(rune_pos Pos) BufferCursor {
+	self = self.MoveToRow(rune_pos.row)
+	self = self.MoveToCol(rune_pos.col)
 	return self
 }
 
@@ -186,7 +178,7 @@ func (self BufferCursor) IsNewLine() bool {
 }
 
 func (self BufferCursor) IsLineStart() bool {
-	return self.BytePosition().col == 0
+	return self.Pos().col == 0
 }
 
 func (self BufferCursor) IsEnd() bool {

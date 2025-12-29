@@ -42,12 +42,12 @@ func (self *TreeColorView) DrawNew(ctx DrawContext) {
 func (self *TreeColorView) ColorNode(ctx DrawContext, node *sitter.Node, mod StyleMod) {
 	frame := self.window.frame
 	start, end := int(node.StartByte()), int(node.EndByte())
-	start = max(start, self.window.buffer.IndexFromRuneCoord(frame.TopLeft()))
-	end = min(end, self.window.buffer.IndexFromRuneCoord(frame.BotRight()))
+	start = max(start, self.window.buffer.Index(frame.TopLeft()))
+	end = min(end, self.window.buffer.Index(frame.BotRight()))
 
 	cursor := BufferCursor{buffer: self.window.buffer}.AsEdge().ToIndex(start)
 	for ; !cursor.IsEnd() && cursor.Index() < end; cursor = cursor.RuneNext() {
-		pos := cursor.RunePosition()
+		pos := cursor.Pos()
 		line := cursor.buffer.Lines()[pos.row]
 		if cursor.IsNewLine() && line.start != line.end {
 			continue
