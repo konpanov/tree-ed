@@ -199,9 +199,7 @@ func (self CopyLineAtCursor) Execute(editor *Editor, count int) {
 		return
 	}
 	win := editor.curwin
-	row := win.cursor.Row()
-	line, err := win.buffer.Line(row)
-	panic_if_error(err)
+	line := win.buffer.Lines()[win.cursor.Row()]
 	text := win.buffer.Content()[line.start:line.next_start]
 	clipboard.WriteAll(string(text))
 }
@@ -460,7 +458,7 @@ func (self LineEndOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.setCursor(editor.curwin.cursor.ToRowEnd(), true)
+	editor.curwin.setCursor(editor.curwin.cursor.ToLineEnd(), true)
 
 }
 
@@ -471,7 +469,7 @@ func (self LineStartOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.setCursor(editor.curwin.cursor.ToRowStart(), true)
+	editor.curwin.setCursor(editor.curwin.cursor.ToLineStart(), true)
 
 }
 
@@ -482,7 +480,7 @@ func (self LineTextStartOperation) Execute(editor *Editor, count int) {
 		return
 	}
 	NormalCursorDown{}.Execute(editor, count-1)
-	editor.curwin.setCursor(editor.curwin.cursor.ToRowTextStart(), true)
+	editor.curwin.setCursor(editor.curwin.cursor.ToLineTextStart(), true)
 
 }
 

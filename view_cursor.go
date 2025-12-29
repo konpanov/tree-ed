@@ -47,8 +47,7 @@ func (self *SelectionViewCursor) Draw(ctx DrawContext) {
 	cursor := self.window.cursor.AsEdge().ToIndex(int(start_index))
 	for ; cursor.Index() < int(end_index); cursor = cursor.RuneNext() {
 		pos := cursor.RunePosition()
-		line, err := self.window.buffer.Line(pos.row)
-		panic_if_error(err)
+		line := cursor.buffer.Lines()[pos.row]
 
 		skip_new_line := cursor.IsNewLine() && line.start != line.end
 		is_inside := frame.RelativePosition(pos) == Inside

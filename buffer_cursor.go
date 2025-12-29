@@ -19,9 +19,8 @@ func (self BufferCursor) Index() int {
 
 func (self BufferCursor) ToIndex(index int) BufferCursor {
 	self.index = clip(index, 0, self.buffer.Length())
-	row, err := self.buffer.Line(self.Row())
-	panic_if_error(err)
-	self.index = min(self.index, self.Rowend(row))
+	line := self.buffer.Lines()[self.Row()]
+	self.index = min(self.index, self.LineEnd(line))
 	return self
 }
 
@@ -44,11 +43,11 @@ func (self BufferCursor) AsChar() BufferCursor {
 	return self.ToIndex(self.index)
 }
 
-func (self BufferCursor) Rowend(row Line) int {
+func (self BufferCursor) LineEnd(line Line) int {
 	if self.as_edge {
-		return row.end
+		return line.end
 	} else {
-		return max(row.start, row.end-1)
+		return max(line.start, line.end-1)
 	}
 }
 
@@ -158,23 +157,20 @@ func (self BufferCursor) WordEndPrev() BufferCursor {
 	return self
 }
 
-func (self BufferCursor) ToRowEnd() BufferCursor {
-	row, err := self.buffer.Line(self.Row())
-	panic_if_error(err)
-	return self.ToIndex(self.Rowend(row))
+func (self BufferCursor) ToLineEnd() BufferCursor {
+	line := self.buffer.Lines()[self.Row()]
+	return self.ToIndex(self.LineEnd(line))
 }
 
-func (self BufferCursor) ToRowStart() BufferCursor {
-	row, err := self.buffer.Line(self.Row())
-	panic_if_error(err)
-	return self.ToIndex(row.start)
+func (self BufferCursor) ToLineStart() BufferCursor {
+	line := self.buffer.Lines()[self.Row()]
+	return self.ToIndex(line.start)
 }
 
-func (self BufferCursor) ToRowTextStart() BufferCursor {
-	row, err := self.buffer.Line(self.Row())
-	panic_if_error(err)
-	self = self.ToIndex(row.start)
-	for self.Class() == RuneClassSpace && self.Index() <= self.Rowend(row) {
+func (self BufferCursor) ToLineTextStart() BufferCursor {
+	line := self.buffer.Lines()[self.Row()]
+	self = self.ToIndex(line.start)
+	for self.Class() == RuneClassSpace && self.Index() <= self.LineEnd(line) {
 		self = self.RuneNext()
 	}
 	return self

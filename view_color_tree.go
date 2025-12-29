@@ -48,8 +48,7 @@ func (self *TreeColorView) ColorNode(ctx DrawContext, node *sitter.Node, mod Sty
 	cursor := BufferCursor{buffer: self.window.buffer}.AsEdge().ToIndex(start)
 	for ; !cursor.IsEnd() && cursor.Index() < end; cursor = cursor.RuneNext() {
 		pos := cursor.RunePosition()
-		line, err := self.window.buffer.Line(pos.row)
-		panic_if_error(err)
+		line := cursor.buffer.Lines()[pos.row]
 		if cursor.IsNewLine() && line.start != line.end {
 			continue
 		}

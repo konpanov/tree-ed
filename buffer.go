@@ -61,8 +61,6 @@ type IBuffer interface {
 	// Returns ranges in which lines are contained, without the new line sequences.
 	// New lines must be left out to treat the same last lines with new lines and without.
 	Lines() []Line
-	Line(line int) (Line, error)
-	IsNewLine(index int) (bool, error)
 
 	RegisterCursor(curosr *BufferCursor)
 
@@ -200,15 +198,13 @@ func (b *Buffer) Row(index int) int {
 
 func (b *Buffer) Coord(index int) (Point, error) {
 	row := b.Row(index)
-	line, err := b.Line(row)
-	panic_if_error(err)
+	line := b.Lines()[row]
 	return Point{row: row, col: index - line.start}, nil
 }
 
 func (b *Buffer) RuneCoord(index int) (Point, error) {
 	row := b.Row(index)
-	line, err := b.Line(row)
-	panic_if_error(err)
+	line := b.Lines()[row]
 	return Point{row: row, col: utf8.RuneCount(b.Content()[line.start:index])}, nil
 }
 
@@ -266,13 +262,6 @@ func (b *Buffer) Lines() []Line {
 	return b.lines
 }
 
-func (b *Buffer) Line(line int) (Line, error) {
-	if err := b.CheckLine(line); err != nil {
-		return Line{}, err
-	}
-	return b.Lines()[line], nil
-}
-
 func (b *Buffer) CheckIndex(index int) error {
 	if index < 0 {
 		return ErrIndexLessThanZero
@@ -304,14 +293,4 @@ func (b *Buffer) Nl_seq() []byte {
 
 func (b *Buffer) Length() int {
 	return len(b.content)
-}
-
-func (b *Buffer) IsNewLine(index int) (bool, error) {
-	row := b.Row(index)
-	line, err := b.Line(row)
-	if err != nil {
-		return false, err
-	}
-	return index == line.end, nil
-
 }
