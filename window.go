@@ -17,14 +17,13 @@ const (
 )
 
 type Window struct {
-	filename         string
 	mode             WindowMode
 	buffer           IBuffer
 	cursor           BufferCursor
 	anchor           BufferCursor
 	originColumn     int
 	originDepth      int
-	undotree         *UndoTree
+	history          *History
 	continuousInsert bool
 	frame            Rect
 }
@@ -37,7 +36,7 @@ func windowFromBuffer(buffer IBuffer, width int, height int) *Window {
 		originColumn: 0,
 		anchor:       BufferCursor{buffer: buffer, index: 0, as_edge: false},
 		originDepth:  0,
-		undotree:     &UndoTree{buffer, []UndoState{}, 0},
+		history:      &History{buffer, []HistoryState{}, 0},
 		frame:        Rect{},
 	}
 	window.buffer.RegisterCursor(&window.cursor)
@@ -236,7 +235,7 @@ func (self *Window) eraseLineAtCursor(count int) {
 		change.anchorAfter = self.cursor.Index()
 		composite.changes = append(composite.changes, change)
 	}
-	self.undotree.Push(UndoState{change: composite}, true)
+	self.history.Push(HistoryState{change: composite})
 }
 
 // Add test if cursor after change is equal to current cursor
@@ -245,11 +244,11 @@ func (self *Window) insertContent(continuous bool, content []byte) {
 		return
 	}
 	var change ReplaceChange
-	last_change := self.undotree.Curr()
+	last_change := self.history.Curr()
 	replace, is_replace := last_change.(ReplaceChange)
 	cursor_pos := self.cursor.Index()
 	if continuous && last_change != nil && is_replace {
-		self.undotree.Back()
+		self.history.Back()
 		last_change.Reverse().Apply(self)
 		change = replace
 		change.after = append(change.after, content...) // TODO: Adjust after adding insert left/right movements
@@ -259,17 +258,17 @@ func (self *Window) insertContent(continuous bool, content []byte) {
 	change.cursorAfter = cursor_pos + len(content)
 	change.anchorAfter = change.cursorAfter
 	change.Apply(self)
-	self.undotree.Push(UndoState{change: change}, false)
+	self.history.Push(HistoryState{change: change})
 }
 
 func (self *Window) eraseContent(continuous bool) {
 	var change ReplaceChange
-	last_change := self.undotree.Curr()
+	last_change := self.history.Curr()
 	replace, is_replace := last_change.(ReplaceChange)
 	cursor_before := self.cursor
 	cursor_after := cursor_before.RunePrev()
 	if continuous && last_change != nil && is_replace {
-		self.undotree.Back()
+		self.history.Back()
 		last_change.Reverse().Apply(self)
 		change = replace
 		if len(change.after) != 0 {
@@ -287,5 +286,5 @@ func (self *Window) eraseContent(continuous bool) {
 	change.cursorAfter = cursor_after.Index()
 	change.anchorAfter = change.cursorAfter
 	change.Apply(self)
-	self.undotree.Push(UndoState{change: change}, false)
+	self.history.Push(HistoryState{change: change})
 }

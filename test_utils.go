@@ -27,8 +27,8 @@ func mkTestEditor(t *testing.T, size Pos) *Editor {
 	return editor
 }
 
-func as_content(lines []string, nl string) []byte {
-	return []byte(strings.Join(lines, nl))
+func as_content(lines []string, line_break string) []byte {
+	return []byte(strings.Join(lines, line_break))
 }
 
 func assertScreenRunes(t *testing.T, screen tcell.Screen, lines []string) {

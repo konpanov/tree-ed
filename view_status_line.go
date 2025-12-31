@@ -19,13 +19,13 @@ func (self StatusLine) DrawNew(ctx DrawContext) {
 		if curwin.buffer.Tree() != nil && curwin.buffer.Tree().RootNode().HasError() {
 			parseError = "Error"
 		}
-		newline := newlinesToSymbols([]rune(string(curwin.buffer.LineBreak())))
+		line_break := lineBreakDisplay([]rune(string(curwin.buffer.LineBreak())))
 		left_parts = append(left_parts, "file: "+curwin.buffer.Filename())
 		left_parts = append(left_parts, "line: "+strconv.Itoa(pos.row+1))
 		left_parts = append(left_parts, "col: "+strconv.Itoa(pos.col+1))
 		left_parts = append(left_parts, "mode: "+string(curwin.mode))
 		left_parts = append(left_parts, "parse state: "+parseError)
-		left_parts = append(left_parts, "newline: "+string(newline))
+		left_parts = append(left_parts, "line break: "+string(line_break))
 	}
 	left_parts = append(left_parts, "input: "+KeyEventsToString(self.editor.scanner.state.Input()))
 

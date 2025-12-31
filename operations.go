@@ -11,65 +11,65 @@ type Operation interface {
 	Execute(editor *Editor, count int)
 }
 
-type NoOperation struct{}
+type OpNone struct{}
 
-func (self NoOperation) Execute(editor *Editor, count int) {
+func (self OpNone) Execute(editor *Editor, count int) {
 }
 
-type QuitOperation struct{}
+type OpQuit struct{}
 
-func (self QuitOperation) Execute(editor *Editor, count int) {
+func (self OpQuit) Execute(editor *Editor, count int) {
 	editor.is_quiting = true
 }
 
-type NormalCursorDown struct{}
+type OpCursorDown struct{}
 
-func (self NormalCursorDown) Execute(editor *Editor, count int) {
+func (self OpCursorDown) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.cursorDown(count)
 }
 
-type NormalCursorUp struct{}
+type OpCursorUp struct{}
 
-func (self NormalCursorUp) Execute(editor *Editor, count int) {
+func (self OpCursorUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.cursorUp(count)
 }
 
-type NormalCursorLeft struct{}
+type OpCursorLeft struct{}
 
-func (self NormalCursorLeft) Execute(editor *Editor, count int) {
+func (self OpCursorLeft) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.cursorLeft(count)
 }
 
-type NormalCursorRight struct{}
+type OpCursorRight struct{}
 
-func (self NormalCursorRight) Execute(editor *Editor, count int) {
+func (self OpCursorRight) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.cursorRight(count)
 }
 
-type SwitchToInsertMode struct{}
+type OpInsertModeBeforeCursor struct{}
 
-func (self SwitchToInsertMode) Execute(editor *Editor, count int) {
+func (self OpInsertModeBeforeCursor) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.switchToInsert()
 }
 
-type SwitchToInsertModeAsAppend struct{}
+type OpInsertModeAfterCursor struct{}
 
-func (self SwitchToInsertModeAsAppend) Execute(editor *Editor, count int) {
+func (self OpInsertModeAfterCursor) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -77,62 +77,63 @@ func (self SwitchToInsertModeAsAppend) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(1)
 }
 
-type AppendAtLineEnd struct{}
+type OpInsertModeAfterLine struct{}
 
-func (self AppendAtLineEnd) Execute(editor *Editor, count int) {
+func (self OpInsertModeAfterLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	LineEndOperation{}.Execute(editor, 1)
+	OpLineEnd{}.Execute(editor, 1)
 	editor.curwin.switchToInsert()
 	editor.curwin.cursorRight(1)
 }
 
-type InsertAtLineStart struct{}
+type OpInsertModeBeforeLine struct{}
 
-func (self InsertAtLineStart) Execute(editor *Editor, count int) {
+func (self OpInsertModeBeforeLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	LineStartOperation{}.Execute(editor, 1)
+	OpLineStart{}.Execute(editor, 1)
 	editor.curwin.switchToInsert()
 }
 
-type SwitchToVisualmode struct{}
+type OpVisualMode struct{}
 
-func (self SwitchToVisualmode) Execute(editor *Editor, count int) {
+func (self OpVisualMode) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.switchToVisual()
 }
 
-type SwitchToVisualmodeAsSecondCursor struct{}
+type OpVisualModeAsAnchor struct{}
 
-func (self SwitchToVisualmodeAsSecondCursor) Execute(editor *Editor, count int) {
-	OperationSwapCursors{}.Execute(editor, count)
-	SwitchToVisualmode{}.Execute(editor, count)
+func (self OpVisualModeAsAnchor) Execute(editor *Editor, count int) {
+	OpSwapCursorWithAnchor{}.Execute(editor, count)
+	OpVisualMode{}.Execute(editor, count)
 }
 
-type SwitchToNormalMode struct{}
+type OpNormalMode struct{}
 
-func (self SwitchToNormalMode) Execute(editor *Editor, count int) {
+func (self OpNormalMode) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
+	editor.curwin.continuousInsert = false
 	editor.curwin.switchToNormal()
 }
 
-type OperationSwitchToNormalModeAsSecondCursor struct{}
+type OpNormalModeAsAnchor struct{}
 
-func (self OperationSwitchToNormalModeAsSecondCursor) Execute(editor *Editor, count int) {
-	OperationSwapCursors{}.Execute(editor, count)
-	SwitchToNormalMode{}.Execute(editor, count)
+func (self OpNormalModeAsAnchor) Execute(editor *Editor, count int) {
+	OpSwapCursorWithAnchor{}.Execute(editor, count)
+	OpNormalMode{}.Execute(editor, count)
 }
 
-type OperationSwapCursors struct{}
+type OpSwapCursorWithAnchor struct{}
 
-func (self OperationSwapCursors) Execute(editor *Editor, count int) {
+func (self OpSwapCursorWithAnchor) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -142,19 +143,9 @@ func (self OperationSwapCursors) Execute(editor *Editor, count int) {
 	editor.curwin.setAnchor(cursor)
 }
 
-type SwitchFromInsertToNormalMode struct{}
+type OpTreeMode struct{}
 
-func (self SwitchFromInsertToNormalMode) Execute(editor *Editor, count int) {
-	if editor.curwin == nil {
-		return
-	}
-	editor.curwin.continuousInsert = false
-	editor.curwin.switchToNormal()
-}
-
-type SwitchToTreeMode struct{}
-
-func (self SwitchToTreeMode) Execute(editor *Editor, count int) {
+func (self OpTreeMode) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -166,9 +157,9 @@ func (self SwitchToTreeMode) Execute(editor *Editor, count int) {
 	}
 }
 
-type SwitchFromVisualToTreeMode struct{}
+type OpTreeModeFormVisual struct{}
 
-func (self SwitchFromVisualToTreeMode) Execute(editor *Editor, count int) {
+func (self OpTreeModeFormVisual) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -180,18 +171,18 @@ func (self SwitchFromVisualToTreeMode) Execute(editor *Editor, count int) {
 	}
 }
 
-type EraseLineAtCursor struct{}
+type OpEraseCursorLine struct{}
 
-func (self EraseLineAtCursor) Execute(editor *Editor, count int) {
+func (self OpEraseCursorLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.eraseLineAtCursor(count)
 }
 
-type CopyLineAtCursor struct{}
+type OpCopyCursorLine struct{}
 
-func (self CopyLineAtCursor) Execute(editor *Editor, count int) {
+func (self OpCopyCursorLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -204,9 +195,9 @@ func (self CopyLineAtCursor) Execute(editor *Editor, count int) {
 	clipboard.WriteAll(string(text))
 }
 
-type EraseCharNormalMode struct{}
+type OpEraseRuneNormalMode struct{}
 
-func (self EraseCharNormalMode) Execute(editor *Editor, count int) {
+func (self OpEraseRuneNormalMode) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -216,21 +207,21 @@ func (self EraseCharNormalMode) Execute(editor *Editor, count int) {
 	win := editor.curwin
 	composite := CompositeChange{}
 	for range count {
-		if win.cursor.IsNewLine() {
+		if win.cursor.IsLineBreak() {
 			break
 		}
 		change := NewEraseRuneChange(win, win.cursor.Index())
 		change.Apply(win)
 		composite.changes = append(composite.changes, change)
 	}
-	win.undotree.Push(UndoState{change: composite}, true)
+	win.history.Push(HistoryState{change: composite})
 }
 
-type EraseCharInsertMode struct {
+type OpEraseRuneInsertMode struct {
 }
 
 // TODO add composite modification?
-func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
+func (self OpEraseRuneInsertMode) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -238,11 +229,11 @@ func (self EraseCharInsertMode) Execute(editor *Editor, count int) {
 	editor.curwin.continuousInsert = true
 }
 
-type InsertContentOperation struct {
+type OpInsertInput struct {
 	content []*tcell.EventKey
 }
 
-func (self InsertContentOperation) Execute(editor *Editor, count int) {
+func (self OpInsertInput) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -264,9 +255,9 @@ func (self InsertContentOperation) Execute(editor *Editor, count int) {
 	editor.curwin.continuousInsert = true
 }
 
-type NodeUpOperation struct{}
+type OpNodeUp struct{}
 
-func (self NodeUpOperation) Execute(editor *Editor, count int) {
+func (self OpNodeUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -277,9 +268,9 @@ func (self NodeUpOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodeDownOperation struct{}
+type OpNodeDown struct{}
 
-func (self NodeDownOperation) Execute(editor *Editor, count int) {
+func (self OpNodeDown) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -290,9 +281,9 @@ func (self NodeDownOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodeNextSiblingOperation struct{}
+type OpNodeNextSibling struct{}
 
-func (self NodeNextSiblingOperation) Execute(editor *Editor, count int) {
+func (self OpNodeNextSibling) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -303,9 +294,9 @@ func (self NodeNextSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodeNextSiblingOrCousinOperation struct{}
+type OpNodeNextSiblingOrCousin struct{}
 
-func (self NodeNextSiblingOrCousinOperation) Execute(editor *Editor, count int) {
+func (self OpNodeNextSiblingOrCousin) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -316,9 +307,9 @@ func (self NodeNextSiblingOrCousinOperation) Execute(editor *Editor, count int) 
 	}
 }
 
-type NodePrevSiblingOperation struct{}
+type OpNodePrevSibling struct{}
 
-func (self NodePrevSiblingOperation) Execute(editor *Editor, count int) {
+func (self OpNodePrevSibling) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -329,9 +320,9 @@ func (self NodePrevSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodePrevSiblingOrCousinOperation struct{}
+type OpNodePrevSiblingOrCousin struct{}
 
-func (self NodePrevSiblingOrCousinOperation) Execute(editor *Editor, count int) {
+func (self OpNodePrevSiblingOrCousin) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -342,9 +333,9 @@ func (self NodePrevSiblingOrCousinOperation) Execute(editor *Editor, count int) 
 	}
 }
 
-type NodeFirstSiblingOperation struct{}
+type OpNodeFirstSibling struct{}
 
-func (self NodeFirstSiblingOperation) Execute(editor *Editor, count int) {
+func (self OpNodeFirstSibling) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -353,9 +344,9 @@ func (self NodeFirstSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type NodeLastSiblingOperation struct{}
+type OpNodeLastSibling struct{}
 
-func (self NodeLastSiblingOperation) Execute(editor *Editor, count int) {
+func (self OpNodeLastSibling) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -364,9 +355,9 @@ func (self NodeLastSiblingOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type EraseSelectionOperation struct{}
+type OpEraseSelection struct{}
 
-func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
+func (self OpEraseSelection) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -375,41 +366,41 @@ func (self EraseSelectionOperation) Execute(editor *Editor, count int) {
 	start, end = min(start, end), max(start, end)
 	change := NewEraseChange(win, start, end+1)
 	change.Apply(win)
-	win.undotree.Push(UndoState{change: change}, true)
+	win.history.Push(HistoryState{change: change})
 	win.switchToNormal()
 }
 
-type UndoChangeOperation struct{}
+type OpUndoChange struct{}
 
-func (self UndoChangeOperation) Execute(editor *Editor, count int) {
+func (self OpUndoChange) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	win := editor.curwin
 	for range count {
-		if mod := win.undotree.Back(); mod != nil {
+		if mod := win.history.Back(); mod != nil {
 			mod.Reverse().Apply(win)
 		}
 	}
 }
 
-type RedoChangeOperation struct{}
+type OpRedoChange struct{}
 
-func (self RedoChangeOperation) Execute(editor *Editor, count int) {
+func (self OpRedoChange) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	win := editor.curwin
 	for range count {
-		if mod := win.undotree.Forward(); mod != nil {
+		if mod := win.history.Forward(); mod != nil {
 			mod.Apply(win)
 		}
 	}
 }
 
-type WordStartForwardOperation struct{}
+type OpWordStartForward struct{}
 
-func (self WordStartForwardOperation) Execute(editor *Editor, count int) {
+func (self OpWordStartForward) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -418,9 +409,9 @@ func (self WordStartForwardOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type WordEndForwardOperation struct{}
+type OpWordEndForward struct{}
 
-func (self WordEndForwardOperation) Execute(editor *Editor, count int) {
+func (self OpWordEndForward) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -429,9 +420,9 @@ func (self WordEndForwardOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type WordEndBackwardOperation struct{}
+type OpWordEndBackward struct{}
 
-func (self WordEndBackwardOperation) Execute(editor *Editor, count int) {
+func (self OpWordEndBackward) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -440,9 +431,9 @@ func (self WordEndBackwardOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type WordBackwardOperation struct{}
+type OpWordStartBackward struct{}
 
-func (self WordBackwardOperation) Execute(editor *Editor, count int) {
+func (self OpWordStartBackward) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -451,53 +442,53 @@ func (self WordBackwardOperation) Execute(editor *Editor, count int) {
 	}
 }
 
-type LineEndOperation struct{}
+type OpLineEnd struct{}
 
-func (self LineEndOperation) Execute(editor *Editor, count int) {
+func (self OpLineEnd) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	NormalCursorDown{}.Execute(editor, count-1)
+	OpCursorDown{}.Execute(editor, count-1)
 	editor.curwin.setCursor(editor.curwin.cursor.ToLineEnd(), true)
 
 }
 
-type LineStartOperation struct{}
+type OpLineStart struct{}
 
-func (self LineStartOperation) Execute(editor *Editor, count int) {
+func (self OpLineStart) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	NormalCursorDown{}.Execute(editor, count-1)
+	OpCursorDown{}.Execute(editor, count-1)
 	editor.curwin.setCursor(editor.curwin.cursor.ToLineStart(), true)
 
 }
 
-type LineTextStartOperation struct{}
+type OpLineTextStart struct{}
 
-func (self LineTextStartOperation) Execute(editor *Editor, count int) {
+func (self OpLineTextStart) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	NormalCursorDown{}.Execute(editor, count-1)
+	OpCursorDown{}.Execute(editor, count-1)
 	editor.curwin.setCursor(editor.curwin.cursor.ToLineTextStart(), true)
 
 }
 
-type CountOperation struct {
+type OpCount struct {
 	count int
 	op    Operation
 }
 
-func (self CountOperation) Execute(editor *Editor, count int) {
+func (self OpCount) Execute(editor *Editor, count int) {
 	if self.op != nil {
 		self.op.Execute(editor, self.count)
 	}
 }
 
-type GoOperation struct{}
+type OpMoveToLineNumer struct{}
 
-func (self GoOperation) Execute(editor *Editor, count int) {
+func (self OpMoveToLineNumer) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -507,9 +498,9 @@ func (self GoOperation) Execute(editor *Editor, count int) {
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
 
-type GoEndOperation struct{}
+type OpMoveToLastLine struct{}
 
-func (self GoEndOperation) Execute(editor *Editor, count int) {
+func (self OpMoveToLastLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -519,9 +510,9 @@ func (self GoEndOperation) Execute(editor *Editor, count int) {
 	editor.curwin.setCursor(editor.curwin.cursor.MoveToRunePos(pos), false)
 }
 
-type SwapNodeForwardEndOperation struct{}
+type OpSwapNodeNext struct{}
 
-func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
+func (self OpSwapNodeNext) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -542,13 +533,13 @@ func (self SwapNodeForwardEndOperation) Execute(editor *Editor, count int) {
 
 		win.setCursor(win.cursor.ToIndex(-endA+startA+endB-1), true)
 		win.setAnchor(win.anchor.ToIndex(endB - 1))
-		win.undotree.Push(UndoState{change: change}, true)
+		win.history.Push(HistoryState{change: change})
 	}
 }
 
-type SwapNodeBackwardEndOperation struct{}
+type OpSwapNodePrev struct{}
 
-func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
+func (self OpSwapNodePrev) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -567,13 +558,13 @@ func (self SwapNodeBackwardEndOperation) Execute(editor *Editor, count int) {
 
 		win.setCursor(win.cursor.ToIndex(startA), true)
 		win.setAnchor(win.anchor.ToIndex(startA + endB - startB))
-		win.undotree.Push(UndoState{change: change}, true)
+		win.history.Push(HistoryState{change: change})
 	}
 }
 
-type PasteClipboardOperation struct{}
+type OpPasteClipboard struct{}
 
-func (self PasteClipboardOperation) Execute(editor *Editor, count int) {
+func (self OpPasteClipboard) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -585,9 +576,9 @@ func (self PasteClipboardOperation) Execute(editor *Editor, count int) {
 	editor.curwin.insertContent(false, []byte(text))
 }
 
-type CopyToClipboardOperation struct{}
+type OpSaveClipbaord struct{}
 
-func (self CopyToClipboardOperation) Execute(editor *Editor, count int) {
+func (self OpSaveClipbaord) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -600,18 +591,18 @@ func (self CopyToClipboardOperation) Execute(editor *Editor, count int) {
 	clipboard.WriteAll(string(text))
 }
 
-type OperationMoveDepthAnchorUp struct{}
+type OpDepthAnchorUp struct{}
 
-func (self OperationMoveDepthAnchorUp) Execute(editor *Editor, count int) {
+func (self OpDepthAnchorUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.originDepth = min(editor.curwin.originDepth - 1)
 }
 
-type DeleteToPreviousWordStart struct{}
+type OpEraseToPreviousWordStart struct{}
 
-func (self DeleteToPreviousWordStart) Execute(editor *Editor, count int) {
+func (self OpEraseToPreviousWordStart) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -619,14 +610,14 @@ func (self DeleteToPreviousWordStart) Execute(editor *Editor, count int) {
 	start := end.WordStartPrev()
 	change := NewEraseChange(editor.curwin, start.Index(), end.Index())
 	change.Apply(editor.curwin)
-	editor.curwin.undotree.Push(UndoState{change: change}, true)
+	editor.curwin.history.Push(HistoryState{change: change})
 	editor.curwin.continuousInsert = false
 }
 
 // TODO: Make continuous with inserts
-type DeleteCharForward struct{}
+type OpEraseCharNext struct{}
 
-func (self DeleteCharForward) Execute(editor *Editor, count int) {
+func (self OpEraseCharNext) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -634,54 +625,54 @@ func (self DeleteCharForward) Execute(editor *Editor, count int) {
 	end := start.RuneNext()
 	change := NewEraseChange(editor.curwin, start.Index(), end.Index())
 	change.Apply(editor.curwin)
-	editor.curwin.undotree.Push(UndoState{change: change}, true)
+	editor.curwin.history.Push(HistoryState{change: change})
 	editor.curwin.continuousInsert = false
 }
 
-type DeleteSelectionAndInsert struct{}
+type OpEraseSelectionAndInsert struct{}
 
-func (self DeleteSelectionAndInsert) Execute(editor *Editor, count int) {
-	EraseSelectionOperation{}.Execute(editor, count)
-	SwitchToInsertMode{}.Execute(editor, count)
+func (self OpEraseSelectionAndInsert) Execute(editor *Editor, count int) {
+	OpEraseSelection{}.Execute(editor, count)
+	OpInsertModeBeforeCursor{}.Execute(editor, count)
 }
 
-type OperationHalfFrameDown struct{}
+type OpMoveHalfFrameDown struct{}
 
-func (self OperationHalfFrameDown) Execute(editor *Editor, count int) {
+func (self OpMoveHalfFrameDown) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	frame := editor.curwin.frame
 	rows := count * frame.Height() / 2
-	NormalCursorDown{}.Execute(editor, rows)
+	OpCursorDown{}.Execute(editor, rows)
 	pos := frame.TopLeft()
 	content_height := len(editor.curwin.buffer.Lines())
 	pos.row += max(min(rows, content_height-frame.bot), 0)
 	editor.curwin.frame = frame.Shift(pos)
 }
 
-type OperationHalfFrameUp struct{}
+type OpMoveHalfFrameUp struct{}
 
-func (self OperationHalfFrameUp) Execute(editor *Editor, count int) {
+func (self OpMoveHalfFrameUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	frame := editor.curwin.frame
 	rows := count * frame.Height() / 2
-	NormalCursorUp{}.Execute(editor, rows)
+	OpCursorUp{}.Execute(editor, rows)
 	pos := frame.TopLeft()
 	pos.row = max(pos.row-rows, 0)
 	editor.curwin.frame = frame.Shift(pos)
 }
 
-type OperationFrameLineUp struct{}
+type OpMoveFrameByLineUp struct{}
 
-func (self OperationFrameLineUp) Execute(editor *Editor, count int) {
+func (self OpMoveFrameByLineUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	frame := editor.curwin.frame
-	NormalCursorUp{}.Execute(editor, count)
+	OpCursorUp{}.Execute(editor, count)
 	pos := Pos{
 		row: min(max(frame.top-count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
 		col: frame.left,
@@ -689,14 +680,14 @@ func (self OperationFrameLineUp) Execute(editor *Editor, count int) {
 	editor.curwin.frame = frame.Shift(pos)
 }
 
-type OperationFrameLineDown struct{}
+type OpMoveFrameByLineDown struct{}
 
-func (self OperationFrameLineDown) Execute(editor *Editor, count int) {
+func (self OpMoveFrameByLineDown) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	frame := editor.curwin.frame
-	NormalCursorDown{}.Execute(editor, count)
+	OpCursorDown{}.Execute(editor, count)
 	pos := Pos{
 		row: min(max(frame.top+count, 0), len(editor.curwin.buffer.Lines())-frame.Height()),
 		col: frame.left,
@@ -704,9 +695,9 @@ func (self OperationFrameLineDown) Execute(editor *Editor, count int) {
 	editor.curwin.frame = frame.Shift(pos)
 }
 
-type OperationCenterFrame struct{}
+type OpCenterFrame struct{}
 
-func (self OperationCenterFrame) Execute(editor *Editor, count int) {
+func (self OpCenterFrame) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -719,9 +710,9 @@ func (self OperationCenterFrame) Execute(editor *Editor, count int) {
 	editor.curwin.frame = frame.Shift(pos)
 }
 
-type OperationSaveFile struct{}
+type OpSaveFile struct{}
 
-func (self OperationSaveFile) Execute(editor *Editor, count int) {
+func (self OpSaveFile) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -737,24 +728,24 @@ func (self OperationSaveFile) Execute(editor *Editor, count int) {
 	os.WriteFile(filename, editor.curwin.buffer.Content(), info.Mode())
 }
 
-type OperationStartNewLine struct{}
+type OpStartNewLine struct{}
 
-func (self OperationStartNewLine) Execute(editor *Editor, count int) {
+func (self OpStartNewLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	AppendAtLineEnd{}.Execute(editor, count)
+	OpInsertModeAfterLine{}.Execute(editor, count)
 	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
 }
 
-type OperationStartNewLineAbove struct{}
+type OpStartNewLineAbove struct{}
 
-func (self OperationStartNewLineAbove) Execute(editor *Editor, count int) {
+func (self OpStartNewLineAbove) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 
-	InsertAtLineStart{}.Execute(editor, count)
+	OpInsertModeBeforeLine{}.Execute(editor, count)
 	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
-	NormalCursorUp{}.Execute(editor, count)
+	OpCursorUp{}.Execute(editor, count)
 }

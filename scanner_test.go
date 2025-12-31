@@ -29,7 +29,7 @@ func TestNormalScannerScanCursorDown(t *testing.T) {
 	if expected := ScanFull; res != expected {
 		t.Errorf("Unexpected scan result %+v, expected %+v\n", res, expected)
 	}
-	_, is_expected := op.(NormalCursorDown)
+	_, is_expected := op.(OpCursorDown)
 	if !is_expected {
 		t.Errorf("Expected NormalCursorDown operation, but got %T: %+v\n", op, op)
 	}

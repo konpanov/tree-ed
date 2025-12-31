@@ -17,11 +17,11 @@ func mkTestBuffer(t *testing.T, content string, nl string) IBuffer {
 
 func TestBufferCreateFromContent(t *testing.T) {
 	content := []byte("content\nfor\ntesting\n")
-	nl_seq := []byte("\n")
-	buffer, err := bufferFromContent(content, nl_seq, nil)
+	line_break := []byte("\n")
+	buffer, err := bufferFromContent(content, line_break, nil)
 	assertNoErrors(t, err)
 	assertBytesEqual(t, buffer.content, content)
-	assertBytesEqual(t, buffer.nl_seq, nl_seq)
+	assertBytesEqual(t, buffer.line_break, line_break)
 }
 
 func TestBufferInsertWhenEmpty(t *testing.T) {
@@ -297,7 +297,7 @@ func TestBufferLineInfoOnContentEndingOnNewLine(t *testing.T) {
 }
 
 func TestBufferLineInfoOnContentEndingOnNewLineWindowVersion(t *testing.T) {
-	nl := NewLineWindows
+	nl := string(LineBreakWindows)
 	content := ""
 	content += "abcde"
 	content += nl
@@ -543,7 +543,7 @@ func TestBufferCalculateLinesAfterDeletingEmptySecondLine(t *testing.T) {
 		"",
 		"whatever",
 	}, "\n")
-	buffer, _ := bufferFromContent([]byte(content), []byte(NewLineUnix), nil)
+	buffer, _ := bufferFromContent([]byte(content), LineBreakUnix, nil)
 	buffer.Edit(ReplacementInput{start: 12, end: 13, replacement: []byte{}})
 	lines := buffer.Lines()
 	if len(lines) != 2 {
@@ -561,13 +561,13 @@ func TestBufferCalculateLinesAfterInsertingNewlinAtTheEnd(t *testing.T) {
 		"",
 		"",
 	}, "\n")
-	buffer, _ := bufferFromContent([]byte(content), []byte(NewLineUnix), nil)
+	buffer, _ := bufferFromContent([]byte(content), LineBreakUnix, nil)
 	input := []byte{'x', '\n'}
 	buffer.Edit(ReplacementInput{start: 7, end: 7, replacement: input})
 }
 
 func TestBufferRemoveUnicodeCharacter(t *testing.T) {
-	buffer, _ := bufferFromContent([]byte("Привет"), []byte(NewLineUnix), nil)
+	buffer, _ := bufferFromContent([]byte("Привет"), LineBreakUnix, nil)
 	expected := []byte("Привет")
 	actual := buffer.Content()
 	if slices.Compare[[]byte](expected, actual) != 0 {

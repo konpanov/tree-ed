@@ -40,7 +40,7 @@ type IBuffer interface {
 
 	Tree() *sitter.Tree
 	Lines() []Line
-	RegisterCursor(curosr *BufferCursor)
+	RegisterCursor(cursor *BufferCursor)
 	Close()
 }
 
@@ -56,7 +56,7 @@ type ReplacementInput struct {
 type Buffer struct {
 	filename    string
 	content     []byte
-	nl_seq      []byte
+	line_break  []byte
 	tree_parser *sitter.Parser
 	tree        *sitter.Tree
 	lines       []Line
@@ -76,7 +76,7 @@ func NewEmptyBuffer(nl_seq []byte, parser *sitter.Parser) (*Buffer, error) {
 
 	buffer := &Buffer{
 		content:     content,
-		nl_seq:      nl_seq,
+		line_break:  nl_seq,
 		tree_parser: parser,
 		tree:        tree,
 		lines:       []Line{{start: 0, end: 0, next_start: 0}},
@@ -197,7 +197,7 @@ func (b *Buffer) calculateLines(input ReplacementInput) []Line {
 	line := Line{b.lines[row].start, length, length}
 
 	for i := line.start; i < length; {
-		line_break, w := isLineBreak(b.content[i:])
+		line_break, w := IsLineBreak(b.content[i:])
 		if line_break {
 			line.end = i
 			i += w
@@ -227,7 +227,7 @@ func (b *Buffer) Tree() *sitter.Tree {
 }
 
 func (b *Buffer) LineBreak() []byte {
-	return b.nl_seq
+	return b.line_break
 }
 
 func (b *Buffer) Length() int {

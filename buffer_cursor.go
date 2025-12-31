@@ -172,9 +172,9 @@ func (self BufferCursor) Match(seq []byte) bool {
 	return matchBytes(self.buffer.Content()[self.index:], seq)
 }
 
-func (self BufferCursor) IsNewLine() bool {
-	is_nl, _ := isLineBreak(self.buffer.Content()[self.index:])
-	return is_nl
+func (self BufferCursor) IsLineBreak() bool {
+	is_line_break, _ := IsLineBreak(self.buffer.Content()[self.index:])
+	return is_line_break
 }
 
 func (self BufferCursor) IsLineStart() bool {

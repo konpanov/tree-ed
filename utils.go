@@ -11,28 +11,24 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-const (
-	NewLineWindows string = "\r\n"
-	NewLineUnix    string = "\n"
-	NewLineMac     string = "\r"
+var (
+	LineBreakWindows = []byte("\r\n")
+	LineBreakUnix    = []byte("\n")
+	LineBreakMac     = []byte("\r")
 )
+var LineBreaks = [][]byte{LineBreakWindows, LineBreakUnix, LineBreakMac}
 
-const (
-	SymborForLineFeed       rune = 0x240A // LF \n
-	SymborForCarriageReturn rune = 0x240D // CR \r
-)
-
-func newlinesToSymbols(text []rune) []rune {
+func lineBreakDisplay(text []rune) []rune {
 	res := []rune{}
 	for _, r := range text {
-		switch r {
-		case '\r':
-			res = append(res, SymborForCarriageReturn)
-		case '\n':
-			res = append(res, SymborForLineFeed)
-		default:
-			res = append(res, 'X')
+		display, ok := map[rune][]rune{
+			'\r': []rune("CR"),
+			'\n': []rune("LF"),
+		}[r]
+		if !ok {
+			display = []rune{'X'}
 		}
+		res = append(res, display...)
 	}
 	return res
 }
@@ -43,20 +39,15 @@ func assert(is_valid bool, message string) {
 	}
 }
 
-func getContentNewLine(content []byte) []byte {
-	nl_windows := []byte(NewLineWindows)
-	nl_unix := []byte(NewLineUnix)
-	nl_mac := []byte(NewLineMac)
+func getContentLineBreak(content []byte) []byte {
 	for i := range content {
-		if matchBytes(content[i:], nl_windows) {
-			return nl_windows
-		} else if matchBytes(content[i:], nl_unix) {
-			return nl_unix
-		} else if matchBytes(content[i:], nl_mac) {
-			return nl_mac
+		for _, line_break := range LineBreaks {
+			if matchBytes(content[i:], line_break) {
+				return line_break
+			}
 		}
 	}
-	return nl_unix
+	return LineBreakUnix
 }
 
 func matchBytes(a []byte, b []byte) bool {
@@ -161,15 +152,11 @@ func rune_class(value rune) RuneClass {
 	}
 }
 
-func isLineBreak(content []byte) (bool, int) {
-	if matchBytes(content, []byte(NewLineWindows)) {
-		return true, len([]byte(NewLineWindows))
-	}
-	if matchBytes(content, []byte(NewLineUnix)) {
-		return true, len([]byte(NewLineUnix))
-	}
-	if matchBytes(content, []byte(NewLineMac)) {
-		return true, len([]byte(NewLineMac))
+func IsLineBreak(content []byte) (bool, int) {
+	for _, line_break := range LineBreaks {
+		if matchBytes(content, line_break) {
+			return true, len(line_break)
+		}
 	}
 	return false, 0
 }
@@ -178,14 +165,14 @@ func isLineBreakTerminated(content []byte) bool {
 	if len(content) == 0 {
 		return false
 	}
-	is_lb, w := isLineBreak(content[len(content)-1:])
+	is_lb, w := IsLineBreak(content[len(content)-1:])
 	if is_lb {
 		return true
 	}
 	if len(content) == 1 {
 		return false
 	}
-	is_lb, w = isLineBreak(content[len(content)-2:])
+	is_lb, w = IsLineBreak(content[len(content)-2:])
 	return is_lb && w == 2
 }
 

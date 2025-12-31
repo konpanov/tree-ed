@@ -91,7 +91,7 @@ func (self OperationGroupGlobal) Match(state *ScannerState) (Operation, ScanResu
 	case state.IsEnd():
 		return nil, ScanStop
 	case state.ScanKey(tcell.KeyCtrlC) == ScanFull:
-		return QuitOperation{}, ScanFull
+		return OpQuit{}, ScanFull
 	default:
 		return nil, ScanNone
 	}
@@ -107,7 +107,7 @@ func (self OperationGroupCount) Match(state *ScannerState) (Operation, ScanResul
 	case state.ScanDigit() == ScanFull:
 		res := state.ScanZeroOrMore(state.ScanDigit)
 		integer := EventKeysToInteger(state.Scanned())
-		return CountOperation{count: integer, op: nil}, res
+		return OpCount{count: integer, op: nil}, res
 	default:
 		return nil, ScanNone
 	}
@@ -118,19 +118,19 @@ type OperationGroupCursorMovement struct {
 
 func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, ScanResult) {
 	ops := map[rune]Operation{
-		'j': NormalCursorDown{},
-		'k': NormalCursorUp{},
-		'h': NormalCursorLeft{},
-		'l': NormalCursorRight{},
-		'w': WordStartForwardOperation{},
-		'b': WordBackwardOperation{},
-		'e': WordEndForwardOperation{},
-		'E': WordEndBackwardOperation{},
-		'g': GoOperation{},
-		'G': GoEndOperation{},
-		'$': LineEndOperation{},
-		'0': LineStartOperation{},
-		'_': LineTextStartOperation{},
+		'j': OpCursorDown{},
+		'k': OpCursorUp{},
+		'h': OpCursorLeft{},
+		'l': OpCursorRight{},
+		'w': OpWordStartForward{},
+		'b': OpWordStartBackward{},
+		'e': OpWordEndForward{},
+		'E': OpWordEndBackward{},
+		'g': OpMoveToLineNumer{},
+		'G': OpMoveToLastLine{},
+		'$': OpLineEnd{},
+		'0': OpLineStart{},
+		'_': OpLineTextStart{},
 	}
 	return MatchRuneMap(state, ops)
 }
@@ -140,29 +140,29 @@ type OperationGroupNormal struct {
 
 func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
-		'd': EraseLineAtCursor{},
-		'y': CopyLineAtCursor{},
-		'x': EraseCharNormalMode{},
-		'a': SwitchToInsertModeAsAppend{},
-		'A': AppendAtLineEnd{},
-		'i': SwitchToInsertMode{},
-		'I': InsertAtLineStart{},
-		'v': SwitchToVisualmode{},
-		't': SwitchToTreeMode{},
-		'p': PasteClipboardOperation{},
-		'u': UndoChangeOperation{},
-		's': DeleteSelectionAndInsert{},
-		'z': OperationCenterFrame{},
-		'o': OperationStartNewLine{},
-		'O': OperationStartNewLineAbove{},
+		'd': OpEraseCursorLine{},
+		'y': OpCopyCursorLine{},
+		'x': OpEraseRuneNormalMode{},
+		'a': OpInsertModeAfterCursor{},
+		'A': OpInsertModeAfterLine{},
+		'i': OpInsertModeBeforeCursor{},
+		'I': OpInsertModeBeforeLine{},
+		'v': OpVisualMode{},
+		't': OpTreeMode{},
+		'p': OpPasteClipboard{},
+		'u': OpUndoChange{},
+		's': OpEraseSelectionAndInsert{},
+		'z': OpCenterFrame{},
+		'o': OpStartNewLine{},
+		'O': OpStartNewLineAbove{},
 	}
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyCtrlR: RedoChangeOperation{},
-		tcell.KeyCtrlD: OperationHalfFrameDown{},
-		tcell.KeyCtrlU: OperationHalfFrameUp{},
-		tcell.KeyCtrlE: OperationFrameLineDown{},
-		tcell.KeyCtrlY: OperationFrameLineUp{},
-		tcell.KeyCtrlS: OperationSaveFile{},
+		tcell.KeyCtrlR: OpRedoChange{},
+		tcell.KeyCtrlD: OpMoveHalfFrameDown{},
+		tcell.KeyCtrlU: OpMoveHalfFrameUp{},
+		tcell.KeyCtrlE: OpMoveFrameByLineDown{},
+		tcell.KeyCtrlY: OpMoveFrameByLineUp{},
+		tcell.KeyCtrlS: OpSaveFile{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }
@@ -173,11 +173,11 @@ type OperationGroupInsert struct {
 // TODO: Make erasing after insert continuous (single modification, single undo)
 func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc:        SwitchFromInsertToNormalMode{},
-		tcell.KeyBackspace2: EraseCharInsertMode{},
-		tcell.KeyBackspace:  EraseCharInsertMode{},
-		tcell.KeyCtrlW:      DeleteToPreviousWordStart{},
-		tcell.KeyDelete:     DeleteCharForward{},
+		tcell.KeyEsc:        OpNormalMode{},
+		tcell.KeyBackspace2: OpEraseRuneInsertMode{},
+		tcell.KeyBackspace:  OpEraseRuneInsertMode{},
+		tcell.KeyCtrlW:      OpEraseToPreviousWordStart{},
+		tcell.KeyDelete:     OpEraseCharNext{},
 	}
 	return MatchKeyMap(state, keyOperations)
 }
@@ -187,7 +187,7 @@ type OperationGroupTextInsert struct{}
 func (self OperationGroupTextInsert) Match(state *ScannerState) (Operation, ScanResult) {
 	if state.ScanTextInput() == ScanFull {
 		state.ScanZeroOrMore(state.ScanTextInput)
-		return InsertContentOperation{content: state.Scanned()}, ScanFull
+		return OpInsertInput{content: state.Scanned()}, ScanFull
 	}
 	return nil, ScanNone
 }
@@ -197,16 +197,16 @@ type OperationGroupVisual struct {
 
 func (self OperationGroupVisual) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc: SwitchToNormalMode{},
+		tcell.KeyEsc: OpNormalMode{},
 	}
 	runeOperations := map[rune]Operation{
-		'i': SwitchToInsertMode{},
-		'a': SwitchToInsertModeAsAppend{},
-		'v': SwitchToNormalMode{},
-		'd': EraseSelectionOperation{},
-		't': SwitchFromVisualToTreeMode{},
-		'y': CopyToClipboardOperation{},
-		's': DeleteSelectionAndInsert{},
+		'i': OpInsertModeBeforeCursor{},
+		'a': OpInsertModeAfterCursor{},
+		'v': OpNormalMode{},
+		'd': OpEraseSelection{},
+		't': OpTreeModeFormVisual{},
+		'y': OpSaveClipbaord{},
+		's': OpEraseSelectionAndInsert{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }
@@ -216,28 +216,28 @@ type OperationGroupTree struct {
 
 func (self OperationGroupTree) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc:   SwitchToNormalMode{},
-		tcell.KeyCtrlR: RedoChangeOperation{},
-		tcell.KeyCtrlK: OperationMoveDepthAnchorUp{},
+		tcell.KeyEsc:   OpNormalMode{},
+		tcell.KeyCtrlR: OpRedoChange{},
+		tcell.KeyCtrlK: OpDepthAnchorUp{},
 	}
 	runeOperations := map[rune]Operation{
-		't': SwitchToNormalMode{},
-		'T': OperationSwitchToNormalModeAsSecondCursor{},
-		'v': SwitchToVisualmode{},
-		'V': SwitchToVisualmodeAsSecondCursor{},
-		'k': NodeUpOperation{},
-		'j': NodeDownOperation{},
-		'H': NodePrevSiblingOperation{},
-		'L': NodeNextSiblingOperation{},
-		'h': NodePrevSiblingOrCousinOperation{},
-		'l': NodeNextSiblingOrCousinOperation{},
-		'd': EraseSelectionOperation{},
-		'f': SwapNodeForwardEndOperation{},
-		'b': SwapNodeBackwardEndOperation{},
-		'$': NodeLastSiblingOperation{},
-		'_': NodeFirstSiblingOperation{},
-		'u': UndoChangeOperation{},
-		's': DeleteSelectionAndInsert{},
+		't': OpNormalMode{},
+		'T': OpNormalModeAsAnchor{},
+		'v': OpVisualMode{},
+		'V': OpVisualModeAsAnchor{},
+		'k': OpNodeUp{},
+		'j': OpNodeDown{},
+		'H': OpNodePrevSibling{},
+		'L': OpNodeNextSibling{},
+		'h': OpNodePrevSiblingOrCousin{},
+		'l': OpNodeNextSiblingOrCousin{},
+		'd': OpEraseSelection{},
+		'f': OpSwapNodeNext{},
+		'b': OpSwapNodePrev{},
+		'$': OpNodeLastSibling{},
+		'_': OpNodeFirstSibling{},
+		'u': OpUndoChange{},
+		's': OpEraseSelectionAndInsert{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }

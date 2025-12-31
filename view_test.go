@@ -45,11 +45,11 @@ func TestDrawSingleLineTextView(t *testing.T) {
 	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := LineBreakUnix
 	content := []byte(strings.Join([]string{
 		"hello",
-	}, nl))
-	buf, err := bufferFromContent(content, []byte(nl), nil)
+	}, string(nl)))
+	buf, err := bufferFromContent(content, nl, nil)
 	panic_if_error(err)
 	win := windowFromBuffer(buf, w, h)
 	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
@@ -70,12 +70,12 @@ func TestDrawDoubleLineTextView(t *testing.T) {
 	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := LineBreakUnix
 	content := []byte(strings.Join([]string{
 		"hello",
 		"world",
-	}, nl))
-	buf, err := bufferFromContent(content, []byte(nl), nil)
+	}, string(nl)))
+	buf, err := bufferFromContent(content, nl, nil)
 	panic_if_error(err)
 	win := windowFromBuffer(buf, w, h)
 	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
@@ -96,12 +96,12 @@ func TestDrawDoubleLineTextViewWithOffsetRoi(t *testing.T) {
 	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := LineBreakUnix
 	content := []byte(strings.Join([]string{
 		"hello",
 		"world",
-	}, nl))
-	buf, err := bufferFromContent(content, []byte(nl), nil)
+	}, string(nl)))
+	buf, err := bufferFromContent(content, nl, nil)
 	panic_if_error(err)
 	win := windowFromBuffer(buf, w, h)
 	ctx := DrawContext{screen: screen, roi: Rect{top: 1, left: 2, right: w, bot: h}, theme: default_theme}
@@ -122,13 +122,13 @@ func TestDrawSkippedLineTextView(t *testing.T) {
 	screen.SetSize(w, h)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := LineBreakUnix
 	content := []byte(strings.Join([]string{
 		"hello",
 		"",
 		"world",
-	}, nl))
-	buf, err := bufferFromContent(content, []byte(nl), nil)
+	}, string(nl)))
+	buf, err := bufferFromContent(content, nl, nil)
 	panic_if_error(err)
 	win := windowFromBuffer(buf, w, h)
 	ctx := DrawContext{screen: screen, roi: Rect{top: 0, left: 0, right: w, bot: h}, theme: default_theme}
@@ -152,7 +152,7 @@ func TestDrawWindowViewWithSingleLine(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	content := "hello"
 	buffer := mkTestBuffer(t, content+nl, nl)
 
@@ -182,7 +182,7 @@ func TestDrawWindowViewWithOverflowHeightLine(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -214,7 +214,7 @@ func TestDrawWindowViewWithNonAsciiCharacters(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"ląćź2",
@@ -242,7 +242,7 @@ func TestDrawWindowViewWithVerticalTextOffset(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -286,7 +286,7 @@ func TestDrawWindowViewWithVerticalTextOffsetAndReturn(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -332,7 +332,7 @@ func TestDrawWindowViewWithHorizontalTextOffset(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -372,7 +372,7 @@ func TestDrawWindowViewWithHorizontalTextOffsetAndReturn(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -427,7 +427,7 @@ func TestDrawCharacterCursor(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"ląćź2",
@@ -463,7 +463,7 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"line1",
 		"line2",
@@ -499,7 +499,7 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"ąźne1",
 		"ćłne2",
@@ -535,7 +535,7 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 	defer screen.Fini()
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{
 		"ąźne1",
 		"ćłne2",
@@ -574,7 +574,7 @@ func TestDrawSelectionCursorOnWholePage(t *testing.T) {
 	assertIntEqualMsg(t, h, 5, "Unexpected screen width: ")
 
 	// Setup buffer
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{}
 	for i := 0; i < h+10; i++ {
 		lines = append(lines, "line"+strconv.Itoa(i+1))
@@ -611,8 +611,8 @@ func TestDrawWindowEraseAtCursor(t *testing.T) {
 		"func main() {",
 		"	print(\"Hello, World!\")",
 		"}",
-	}, string(NewLineUnix)))
-	nl_seq := []byte(NewLineUnix)
+	}, string(LineBreakUnix)))
+	nl_seq := []byte(LineBreakUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	screen := mkTestScreen(t, "")
@@ -634,8 +634,8 @@ func TestDrawWindowInsertCursor(t *testing.T) {
 		"func main() {",
 		"	print(\"Hello, World!\")",
 		"}",
-	}, string(NewLineUnix)))
-	nl_seq := []byte(NewLineUnix)
+	}, string(LineBreakUnix)))
+	nl_seq := []byte(LineBreakUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	screen := mkTestScreen(t, "")
@@ -669,7 +669,7 @@ func TestDrawWindowInsertCursor(t *testing.T) {
 func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 	var err error
 	content := []byte{}
-	nl_seq := []byte(NewLineUnix)
+	nl_seq := []byte(LineBreakUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	screen := mkTestScreen(t, "")
@@ -695,7 +695,7 @@ func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 func TestDrawWindowAppendMode(t *testing.T) {
 	var err error
 	content := []byte("a")
-	nl_seq := []byte(NewLineUnix)
+	nl_seq := []byte(LineBreakUnix)
 	buffer, err := bufferFromContent(content, nl_seq, nil)
 	assertNoErrors(t, err)
 	screen := mkTestScreen(t, "")
@@ -714,7 +714,7 @@ func TestMoveBelowFrameAndUp(t *testing.T) {
 	screen.SetSize(10, 3)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{}
 	for i := range 100 {
 		lines = append(lines, fmt.Sprintf("line%d", i+1))
@@ -791,7 +791,7 @@ func TestDrawEmptyBuffer(t *testing.T) {
 	screen.SetSize(10, 3)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{}
 	content := as_content(lines, nl)
 	buffer := mkTestBuffer(t, string(content), nl)
@@ -815,13 +815,12 @@ func TestDrawEmptyBuffer(t *testing.T) {
 	})
 }
 
-
 func TestDrawSignleCharBuffer(t *testing.T) {
 	screen := mkTestScreen(t, "")
 	screen.SetSize(10, 3)
 	defer screen.Fini()
 
-	nl := NewLineUnix
+	nl := string(LineBreakUnix)
 	lines := []string{"a"}
 	content := as_content(lines, nl)
 	buffer := mkTestBuffer(t, string(content), nl)

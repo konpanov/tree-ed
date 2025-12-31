@@ -49,9 +49,10 @@ func (self *SelectionViewCursor) Draw(ctx DrawContext) {
 		pos := cursor.Pos()
 		line := cursor.buffer.Lines()[pos.row]
 
-		skip_new_line := cursor.IsNewLine() && line.start != line.end
-		is_inside := frame.RelativePosition(pos) == Inside
-		if !is_inside || skip_new_line {
+		if frame.RelativePosition(pos) != Inside {
+			continue
+		}
+		if cursor.IsLineBreak() && line.start != line.end {
 			continue
 		}
 

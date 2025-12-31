@@ -49,7 +49,7 @@ func (self *TreeColorView) ColorNode(ctx DrawContext, node *sitter.Node, mod Sty
 	for ; !cursor.IsEnd() && cursor.Index() < end; cursor = cursor.RuneNext() {
 		pos := cursor.Pos()
 		line := cursor.buffer.Lines()[pos.row]
-		if cursor.IsNewLine() && line.start != line.end {
+		if cursor.IsLineBreak() && line.start != line.end {
 			continue
 		}
 		if frame.RelativePosition(pos) == Inside {

@@ -45,7 +45,7 @@ func (self *Editor) OpenFileInWindow(filename string) {
 		parser = sitter.NewParser()
 		parser.SetLanguage(language)
 	}
-	buffer, err := bufferFromContent(content, getContentNewLine(content), parser)
+	buffer, err := bufferFromContent(content, getContentLineBreak(content), parser)
 	buffer.filename = filename
 	panic_if_error(err)
 	self.OpenBuffer(buffer)
@@ -74,7 +74,7 @@ func (self *Editor) Redraw() {
 func (self *Editor) Start() {
 	defer self.Close()
 
-	events := make(chan tcell.Event, 10000)
+	events := make(chan tcell.Event, 10)
 
 	go func() {
 		for {
@@ -140,7 +140,7 @@ func (self *OperationCombiner) Get() Operation {
 		return nil
 	}
 	op := self.input[0]
-	count_op, is_count := op.(CountOperation)
+	count_op, is_count := op.(OpCount)
 	if !is_count {
 		self.input = self.input[1:]
 		return op
