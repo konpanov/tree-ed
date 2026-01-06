@@ -62,8 +62,8 @@ func TestWindowUndoUnicodeInsert(t *testing.T) {
 	buffer := mkTestBuffer(t, "", string(LineBreakUnix))
 	window := windowFromBuffer(buffer, 10, 10)
 	window.switchToInsert()
-	window.insertContent(false, []byte("П"))
-	window.insertContent(false, []byte("р"))
+	window.insertContent([]byte("П"))
+	window.insertContent([]byte("р"))
 
 	window.history.Back().Reverse().Apply(window)
 
@@ -78,8 +78,8 @@ func TestWindowContinuouUnicodeInsertWithErase(t *testing.T) {
 	buffer := mkTestBuffer(t, "", string(LineBreakUnix))
 	window := windowFromBuffer(buffer, 10, 10)
 	window.switchToInsert()
-	window.insertContent(false, []byte("Пр"))
-	window.eraseContent(true)
+	window.insertContent([]byte("Пр"))
+	window.eraseContent()
 	expected := as_content([]string{"П"}, string(LineBreakUnix))
 	if slices.Compare(expected, buffer.Content()) != 0 {
 		t.Errorf("\"%+v\" != \"%+v\"\n", buffer.Content(), expected)

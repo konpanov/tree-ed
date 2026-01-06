@@ -195,9 +195,9 @@ func (self OpCopyCursorLine) Execute(editor *Editor, count int) {
 	clipboard.WriteAll(string(text))
 }
 
-type OpEraseRuneNormalMode struct{}
+type OpEraseRune struct{}
 
-func (self OpEraseRuneNormalMode) Execute(editor *Editor, count int) {
+func (self OpEraseRune) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -217,15 +217,15 @@ func (self OpEraseRuneNormalMode) Execute(editor *Editor, count int) {
 	win.history.Push(HistoryState{change: composite})
 }
 
-type OpEraseRuneInsertMode struct {
+type OpEraseRunePrev struct {
 }
 
 // TODO add composite modification?
-func (self OpEraseRuneInsertMode) Execute(editor *Editor, count int) {
+func (self OpEraseRunePrev) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	editor.curwin.eraseContent(editor.curwin.continuousInsert)
+	editor.curwin.eraseContent()
 	editor.curwin.continuousInsert = true
 }
 
@@ -251,7 +251,7 @@ func (self OpInsertInput) Execute(editor *Editor, count int) {
 			break
 		}
 	}
-	editor.curwin.insertContent(editor.curwin.continuousInsert, content)
+	editor.curwin.insertContent(content)
 	editor.curwin.continuousInsert = true
 }
 
@@ -486,9 +486,9 @@ func (self OpCount) Execute(editor *Editor, count int) {
 	}
 }
 
-type OpMoveToLineNumer struct{}
+type OpMoveToLineNumber struct{}
 
-func (self OpMoveToLineNumer) Execute(editor *Editor, count int) {
+func (self OpMoveToLineNumber) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -573,7 +573,7 @@ func (self OpPasteClipboard) Execute(editor *Editor, count int) {
 	}
 	text, err := clipboard.ReadAll()
 	panic_if_error(err)
-	editor.curwin.insertContent(false, []byte(text))
+	editor.curwin.insertContent([]byte(text))
 }
 
 type OpSaveClipbaord struct{}
@@ -600,9 +600,9 @@ func (self OpDepthAnchorUp) Execute(editor *Editor, count int) {
 	editor.curwin.originDepth = min(editor.curwin.originDepth - 1)
 }
 
-type OpEraseToPreviousWordStart struct{}
+type OpEraseWordBack struct{}
 
-func (self OpEraseToPreviousWordStart) Execute(editor *Editor, count int) {
+func (self OpEraseWordBack) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -615,9 +615,9 @@ func (self OpEraseToPreviousWordStart) Execute(editor *Editor, count int) {
 }
 
 // TODO: Make continuous with inserts
-type OpEraseCharNext struct{}
+type OpEraseRuneNext struct{}
 
-func (self OpEraseCharNext) Execute(editor *Editor, count int) {
+func (self OpEraseRuneNext) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -735,7 +735,7 @@ func (self OpStartNewLine) Execute(editor *Editor, count int) {
 		return
 	}
 	OpInsertModeAfterLine{}.Execute(editor, count)
-	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
+	editor.curwin.insertContent(editor.curwin.buffer.LineBreak())
 }
 
 type OpStartNewLineAbove struct{}
@@ -746,6 +746,6 @@ func (self OpStartNewLineAbove) Execute(editor *Editor, count int) {
 	}
 
 	OpInsertModeBeforeLine{}.Execute(editor, count)
-	editor.curwin.insertContent(false, editor.curwin.buffer.LineBreak())
+	editor.curwin.insertContent(editor.curwin.buffer.LineBreak())
 	OpCursorUp{}.Execute(editor, count)
 }

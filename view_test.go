@@ -678,7 +678,7 @@ func TestDrawWindowInsertCursorOnEmptyContent(t *testing.T) {
 	window := windowFromBuffer(buffer, w, h)
 	roi := Rect{left: 0, top: 0, right: w, bot: h}
 	window.switchToInsert()
-	window.insertContent(false, []byte("a"))
+	window.insertContent([]byte("a"))
 	window_view := WindowView{window: window}
 	window_view.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 	x, y, visible := screen.GetCursor()

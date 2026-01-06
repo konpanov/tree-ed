@@ -1,7 +1,10 @@
 package main
 
 type Rect struct {
-	left, right, top, bot int
+	left  int
+	right int
+	top   int
+	bot   int
 }
 
 func (r Rect) Width() int {

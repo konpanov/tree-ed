@@ -12,7 +12,7 @@ import (
 
 type Editor struct {
 	screen  tcell.Screen
-	scanner *EditorScaner
+	scanner *Scanner
 	buffers []IBuffer
 	windows []*Window
 	curwin  *Window
@@ -25,7 +25,7 @@ type Editor struct {
 func NewEditor(screen tcell.Screen) *Editor {
 	editor := &Editor{
 		screen:  screen,
-		scanner: NewEditorScanner(),
+		scanner: NewScanner(),
 		buffers: []IBuffer{},
 		windows: []*Window{},
 		theme:   default_theme,
@@ -74,11 +74,14 @@ func (self *Editor) Redraw() {
 func (self *Editor) Start() {
 	defer self.Close()
 
-	events := make(chan tcell.Event, 10)
+	events := make(chan tcell.Event, 10000)
 
 	go func() {
 		for {
 			ev := self.screen.PollEvent()
+			if ev == nil {
+				break
+			}
 			log.Printf("Polled event: %+v\n", ev)
 
 			switch v := ev.(type) {

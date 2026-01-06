@@ -239,7 +239,7 @@ func (self *Window) eraseLineAtCursor(count int) {
 }
 
 // Add test if cursor after change is equal to current cursor
-func (self *Window) insertContent(continuous bool, content []byte) {
+func (self *Window) insertContent(content []byte) {
 	if len(content) == 0 {
 		return
 	}
@@ -247,7 +247,7 @@ func (self *Window) insertContent(continuous bool, content []byte) {
 	last_change := self.history.Curr()
 	replace, is_replace := last_change.(ReplaceChange)
 	cursor_pos := self.cursor.Index()
-	if continuous && last_change != nil && is_replace {
+	if self.continuousInsert && last_change != nil && is_replace {
 		self.history.Back()
 		last_change.Reverse().Apply(self)
 		change = replace
@@ -261,13 +261,13 @@ func (self *Window) insertContent(continuous bool, content []byte) {
 	self.history.Push(HistoryState{change: change})
 }
 
-func (self *Window) eraseContent(continuous bool) {
+func (self *Window) eraseContent() {
 	var change ReplaceChange
 	last_change := self.history.Curr()
 	replace, is_replace := last_change.(ReplaceChange)
 	cursor_before := self.cursor
 	cursor_after := cursor_before.RunePrev()
-	if continuous && last_change != nil && is_replace {
+	if self.continuousInsert && last_change != nil && is_replace {
 		self.history.Back()
 		last_change.Reverse().Apply(self)
 		change = replace

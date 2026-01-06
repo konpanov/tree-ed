@@ -4,29 +4,24 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type Scanner interface {
-	Scan() (Operation, error)
-	Push(ev tcell.Event) error
-}
-
-type EditorScaner struct {
+type Scanner struct {
 	state *ScannerState
 	mode  WindowMode
 }
 
-func NewEditorScanner() *EditorScaner {
+func NewScanner() *Scanner {
 	state := &ScannerState{}
-	return &EditorScaner{
+	return &Scanner{
 		state: state,
 		mode:  NormalMode,
 	}
 }
 
-func (self *EditorScaner) Push(ev tcell.Event) {
+func (self *Scanner) Push(ev tcell.Event) {
 	self.state.Push(ev)
 }
 
-func (self *EditorScaner) Scan() (Operation, ScanResult) {
+func (self *Scanner) Scan() (Operation, ScanResult) {
 	op, res := OperationGroupGlobal{}.Match(self.state)
 	switch self.mode {
 	case NormalMode:
@@ -117,7 +112,7 @@ type OperationGroupCursorMovement struct {
 }
 
 func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, ScanResult) {
-	ops := map[rune]Operation{
+	runeOperations := map[rune]Operation{
 		'j': OpCursorDown{},
 		'k': OpCursorUp{},
 		'h': OpCursorLeft{},
@@ -126,13 +121,20 @@ func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, 
 		'b': OpWordStartBackward{},
 		'e': OpWordEndForward{},
 		'E': OpWordEndBackward{},
-		'g': OpMoveToLineNumer{},
+		'g': OpMoveToLineNumber{},
 		'G': OpMoveToLastLine{},
 		'$': OpLineEnd{},
 		'0': OpLineStart{},
 		'_': OpLineTextStart{},
+		'z': OpCenterFrame{},
 	}
-	return MatchRuneMap(state, ops)
+	keyOperations := map[tcell.Key]Operation{
+		tcell.KeyCtrlD: OpMoveHalfFrameDown{},
+		tcell.KeyCtrlU: OpMoveHalfFrameUp{},
+		tcell.KeyCtrlE: OpMoveFrameByLineDown{},
+		tcell.KeyCtrlY: OpMoveFrameByLineUp{},
+	}
+	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }
 
 type OperationGroupNormal struct {
@@ -142,7 +144,7 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 	runeOperations := map[rune]Operation{
 		'd': OpEraseCursorLine{},
 		'y': OpCopyCursorLine{},
-		'x': OpEraseRuneNormalMode{},
+		'x': OpEraseRune{},
 		'a': OpInsertModeAfterCursor{},
 		'A': OpInsertModeAfterLine{},
 		'i': OpInsertModeBeforeCursor{},
@@ -152,16 +154,11 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'p': OpPasteClipboard{},
 		'u': OpUndoChange{},
 		's': OpEraseSelectionAndInsert{},
-		'z': OpCenterFrame{},
 		'o': OpStartNewLine{},
 		'O': OpStartNewLineAbove{},
 	}
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyCtrlR: OpRedoChange{},
-		tcell.KeyCtrlD: OpMoveHalfFrameDown{},
-		tcell.KeyCtrlU: OpMoveHalfFrameUp{},
-		tcell.KeyCtrlE: OpMoveFrameByLineDown{},
-		tcell.KeyCtrlY: OpMoveFrameByLineUp{},
 		tcell.KeyCtrlS: OpSaveFile{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
@@ -174,10 +171,10 @@ type OperationGroupInsert struct {
 func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc:        OpNormalMode{},
-		tcell.KeyBackspace2: OpEraseRuneInsertMode{},
-		tcell.KeyBackspace:  OpEraseRuneInsertMode{},
-		tcell.KeyCtrlW:      OpEraseToPreviousWordStart{},
-		tcell.KeyDelete:     OpEraseCharNext{},
+		tcell.KeyBackspace2: OpEraseRunePrev{},
+		tcell.KeyBackspace:  OpEraseRunePrev{},
+		tcell.KeyCtrlW:      OpEraseWordBack{},
+		tcell.KeyDelete:     OpEraseRuneNext{},
 	}
 	return MatchKeyMap(state, keyOperations)
 }
