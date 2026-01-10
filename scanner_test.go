@@ -22,7 +22,7 @@ func TestScannerState(t *testing.T) {
 
 func TestNormalScannerScanCursorDown(t *testing.T) {
 	ek := RuneKey('j')
-	scanner := NewScanner()
+	scanner := &Scanner{}
 	scanner.mode = NormalMode
 	scanner.Push(ek)
 	op, res := scanner.Scan()

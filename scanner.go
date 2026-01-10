@@ -12,12 +12,6 @@ type Scanner struct {
 	start int
 }
 
-func NewScanner() *Scanner {
-	return &Scanner{
-		mode: NormalMode,
-	}
-}
-
 func (self *Scanner) Push(ev tcell.Event) {
 	switch value := ev.(type) {
 	case *tcell.EventKey:

@@ -26,7 +26,7 @@ type Editor struct {
 func NewEditor(screen tcell.Screen) *Editor {
 	editor := &Editor{
 		screen:  screen,
-		scanner: NewScanner(),
+		scanner: &Scanner{},
 		buffers: []IBuffer{},
 		windows: []*Window{},
 		theme:   default_theme,
