@@ -2,90 +2,96 @@ package main
 
 import (
 	"github.com/gdamore/tcell/v2"
+	"log"
 )
 
 type Scanner struct {
-	state *ScannerState
 	mode  WindowMode
+	keys  []*tcell.EventKey
+	curr  int
+	start int
 }
 
 func NewScanner() *Scanner {
-	state := &ScannerState{}
 	return &Scanner{
-		state: state,
-		mode:  NormalMode,
+		mode: NormalMode,
 	}
 }
 
 func (self *Scanner) Push(ev tcell.Event) {
-	self.state.Push(ev)
+	switch value := ev.(type) {
+	case *tcell.EventKey:
+		self.keys = append(self.keys, value)
+	default:
+		log.Printf("Scanner: ignoring non key event %+v\n", ev)
+	}
 }
 
 func (self *Scanner) Scan() (Operation, ScanResult) {
-	op, res := OperationGroupGlobal{}.Match(self.state)
+	op, res := OperationGroupGlobal{}.Match(self)
 	switch self.mode {
 	case NormalMode:
 		if res == ScanNone {
-			op, res = OperationGroupCursorMovement{}.Match(self.state)
+			op, res = OperationGroupCursorMovement{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupNormal{}.Match(self.state)
+			op, res = OperationGroupNormal{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupCount{}.Match(self.state)
+			op, res = OperationGroupCount{}.Match(self)
 		}
 	case InsertMode:
 		if res == ScanNone {
-			op, res = OperationGroupInsert{}.Match(self.state)
+			op, res = OperationGroupInsert{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupTextInsert{}.Match(self.state)
+			op, res = OperationGroupTextInsert{}.Match(self)
 		}
 	case VisualMode:
 		if res == ScanNone {
-			op, res = OperationGroupCursorMovement{}.Match(self.state)
+			op, res = OperationGroupCursorMovement{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupVisual{}.Match(self.state)
+			op, res = OperationGroupVisual{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupCount{}.Match(self.state)
+			op, res = OperationGroupCount{}.Match(self)
 		}
 	case TreeMode:
 		if res == ScanNone {
-			op, res = OperationGroupTree{}.Match(self.state)
+			op, res = OperationGroupTree{}.Match(self)
 		}
 		if res == ScanNone {
-			op, res = OperationGroupCount{}.Match(self.state)
+			op, res = OperationGroupCount{}.Match(self)
 		}
 	}
 
 	switch res {
 	case ScanFull:
-		self.state.Clear()
+		self.Clear()
 	case ScanNone:
-		if !self.state.IsEnd() {
-			self.state.Advance()
+		if !self.IsEnd() {
+			self.Advance()
 		}
-		self.state.Clear()
+		self.Clear()
 	case ScanStop:
-		self.state.Reset()
+		self.Reset()
 	}
 	return op, res
 }
 
 type OperationGroup interface {
-	Match(state *ScannerState) (Operation, ScanResult)
+	Match(scanner *Scanner) (Operation, ScanResult)
 }
 
 type OperationGroupGlobal struct {
 }
 
-func (self OperationGroupGlobal) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupGlobal) Match(scanner *Scanner) (Operation, ScanResult) {
 	switch {
-	case state.IsEnd():
+	case scanner.IsEnd():
 		return nil, ScanStop
-	case state.ScanKey(tcell.KeyCtrlC) == ScanFull:
+	case scanner.ScanKey(tcell.KeyCtrlC) == ScanFull:
 		return OpQuit{}, ScanFull
 	default:
 		return nil, ScanNone
@@ -95,13 +101,13 @@ func (self OperationGroupGlobal) Match(state *ScannerState) (Operation, ScanResu
 type OperationGroupCount struct {
 }
 
-func (self OperationGroupCount) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupCount) Match(scanner *Scanner) (Operation, ScanResult) {
 	switch {
-	case state.IsEnd():
+	case scanner.IsEnd():
 		return nil, ScanStop
-	case state.ScanDigit() == ScanFull:
-		res := state.ScanZeroOrMore(state.ScanDigit)
-		integer := EventKeysToInteger(state.Scanned())
+	case scanner.ScanDigit() == ScanFull:
+		res := scanner.ScanZeroOrMore(scanner.ScanDigit)
+		integer := EventKeysToInteger(scanner.Scanned())
 		return OpCount{count: integer, op: nil}, res
 	default:
 		return nil, ScanNone
@@ -111,7 +117,7 @@ func (self OperationGroupCount) Match(state *ScannerState) (Operation, ScanResul
 type OperationGroupCursorMovement struct {
 }
 
-func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupCursorMovement) Match(scanner *Scanner) (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
 		'j': OpCursorDown{},
 		'k': OpCursorUp{},
@@ -134,13 +140,13 @@ func (self OperationGroupCursorMovement) Match(state *ScannerState) (Operation, 
 		tcell.KeyCtrlE: OpMoveFrameByLineDown{},
 		tcell.KeyCtrlY: OpMoveFrameByLineUp{},
 	}
-	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+	return MatchRuneOrKeysMap(scanner, runeOperations, keyOperations)
 }
 
 type OperationGroupNormal struct {
 }
 
-func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupNormal) Match(scanner *Scanner) (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
 		'd': OpEraseCursorLine{},
 		'y': OpCopyCursorLine{},
@@ -161,14 +167,14 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		tcell.KeyCtrlR: OpRedoChange{},
 		tcell.KeyCtrlS: OpSaveFile{},
 	}
-	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+	return MatchRuneOrKeysMap(scanner, runeOperations, keyOperations)
 }
 
 type OperationGroupInsert struct {
 }
 
 // TODO: Make erasing after insert continuous (single modification, single undo)
-func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupInsert) Match(scanner *Scanner) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc:        OpNormal{},
 		tcell.KeyBackspace2: OpEraseRunePrev{},
@@ -176,15 +182,15 @@ func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResu
 		tcell.KeyCtrlW:      OpEraseWordBack{},
 		tcell.KeyDelete:     OpEraseRuneNext{},
 	}
-	return MatchKeyMap(state, keyOperations)
+	return MatchKeyMap(scanner, keyOperations)
 }
 
 type OperationGroupTextInsert struct{}
 
-func (self OperationGroupTextInsert) Match(state *ScannerState) (Operation, ScanResult) {
-	if state.ScanTextInput() == ScanFull {
-		state.ScanZeroOrMore(state.ScanTextInput)
-		return OpInsertInput{content: state.Scanned()}, ScanFull
+func (self OperationGroupTextInsert) Match(scanner *Scanner) (Operation, ScanResult) {
+	if scanner.ScanTextInput() == ScanFull {
+		scanner.ScanZeroOrMore(scanner.ScanTextInput)
+		return OpInsertInput{content: scanner.Scanned()}, ScanFull
 	}
 	return nil, ScanNone
 }
@@ -192,7 +198,7 @@ func (self OperationGroupTextInsert) Match(state *ScannerState) (Operation, Scan
 type OperationGroupVisual struct {
 }
 
-func (self OperationGroupVisual) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupVisual) Match(scanner *Scanner) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc: OpNormal{},
 	}
@@ -205,13 +211,13 @@ func (self OperationGroupVisual) Match(state *ScannerState) (Operation, ScanResu
 		'y': OpSaveClipbaord{},
 		's': OpReplaceSelection{},
 	}
-	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+	return MatchRuneOrKeysMap(scanner, runeOperations, keyOperations)
 }
 
 type OperationGroupTree struct {
 }
 
-func (self OperationGroupTree) Match(state *ScannerState) (Operation, ScanResult) {
+func (self OperationGroupTree) Match(scanner *Scanner) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc:   OpNormal{},
 		tcell.KeyCtrlR: OpRedoChange{},
@@ -238,12 +244,12 @@ func (self OperationGroupTree) Match(state *ScannerState) (Operation, ScanResult
 		's': OpReplaceSelection{},
 		'y': OpSaveClipbaord{},
 	}
-	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
+	return MatchRuneOrKeysMap(scanner, runeOperations, keyOperations)
 }
 
-func MatchRuneMap(state *ScannerState, m map[rune]Operation) (Operation, ScanResult) {
+func MatchRuneMap(scanner *Scanner, m map[rune]Operation) (Operation, ScanResult) {
 	for r, operation := range m {
-		res := state.ScanRune(r)
+		res := scanner.ScanRune(r)
 		if res == ScanFull {
 			return operation, res
 		}
@@ -251,9 +257,9 @@ func MatchRuneMap(state *ScannerState, m map[rune]Operation) (Operation, ScanRes
 	return nil, ScanNone
 }
 
-func MatchKeyMap(state *ScannerState, m map[tcell.Key]Operation) (Operation, ScanResult) {
+func MatchKeyMap(scanner *Scanner, m map[tcell.Key]Operation) (Operation, ScanResult) {
 	for key, operation := range m {
-		res := state.ScanKey(key)
+		res := scanner.ScanKey(key)
 		if res == ScanFull {
 			return operation, res
 		}
@@ -262,13 +268,13 @@ func MatchKeyMap(state *ScannerState, m map[tcell.Key]Operation) (Operation, Sca
 }
 
 func MatchRuneOrKeysMap(
-	state *ScannerState,
+	scanner *Scanner,
 	rune_map map[rune]Operation,
 	key_map map[tcell.Key]Operation,
 ) (Operation, ScanResult) {
-	op, result := MatchKeyMap(state, key_map)
+	op, result := MatchKeyMap(scanner, key_map)
 	if result == ScanNone {
-		op, result = MatchRuneMap(state, rune_map)
+		op, result = MatchRuneMap(scanner, rune_map)
 	}
 	return op, result
 }

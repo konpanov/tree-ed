@@ -5,17 +5,17 @@ import (
 )
 
 func TestScannerState(t *testing.T) {
-	state := &ScannerState{}
-	state.Push(RuneKey('j'))
-	if state.IsEnd() {
+	scanner := &Scanner{}
+	scanner.Push(RuneKey('j'))
+	if scanner.IsEnd() {
 		t.Errorf("Scanner state is at the end, when expected to be on 'j'\n")
 	}
-	curr := state.Peek()
+	curr := scanner.Peek()
 	if curr.Rune() != 'j' {
 		t.Errorf("Expected curr to be rune key event with rune 'j', but got key event %+v\n", curr)
 	}
-	curr = state.Advance()
-	if !state.IsEnd() {
+	curr = scanner.Advance()
+	if !scanner.IsEnd() {
 		t.Errorf("Expected scanner to be at the end")
 	}
 }
@@ -33,14 +33,14 @@ func TestNormalScannerScanCursorDown(t *testing.T) {
 	if !is_expected {
 		t.Errorf("Expected NormalCursorDown operation, but got %T: %+v\n", op, op)
 	}
-	scanner.state.Clear()
-	if input := scanner.state.Input(); len(input) != 0 {
+	scanner.Clear()
+	if input := scanner.Input(); len(input) != 0 {
 		t.Errorf("Expected input to be empty, but got %+v\n", input)
 	}
 }
 
 func TestScanIntegerNumberPartial(t *testing.T) {
-	scanner := &ScannerState{}
+	scanner := &Scanner{}
 	for _, ev := range StringToEvents("123") {
 		scanner.Push(ev)
 	}
@@ -55,7 +55,7 @@ func TestScanIntegerNumberPartial(t *testing.T) {
 }
 
 func TestScanIntegerNumberFull(t *testing.T) {
-	scanner := &ScannerState{}
+	scanner := &Scanner{}
 	for _, ev := range StringToEvents("123j") {
 		scanner.Push(ev)
 	}
@@ -78,7 +78,7 @@ func TestScanIntegerNumberFull(t *testing.T) {
 }
 
 func TestScanIntegerLeadingZero(t *testing.T) {
-	scanner := &ScannerState{}
+	scanner := &Scanner{}
 	for _, ev := range StringToEvents("000123j") {
 		scanner.Push(ev)
 	}

@@ -27,7 +27,7 @@ func (self StatusLine) DrawNew(ctx DrawContext) {
 		left_parts = append(left_parts, "parse state: "+parseError)
 		left_parts = append(left_parts, "line break: "+string(line_break))
 	}
-	left_parts = append(left_parts, "input: "+KeyEventsToString(self.editor.scanner.state.Input()))
+	left_parts = append(left_parts, "input: "+KeyEventsToString(self.editor.scanner.Input()))
 
 	text := []rune(strings.Join(left_parts, ", "))
 	text = text[:min(ctx.roi.Width(), len(text))]

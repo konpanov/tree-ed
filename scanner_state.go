@@ -1,16 +1,8 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gdamore/tcell/v2"
 )
-
-type ScannerState struct {
-	keys  []*tcell.EventKey
-	curr  int
-	start int
-}
 
 type ScanResult int
 
@@ -22,46 +14,37 @@ const (
 
 type ScanFunc func() ScanResult
 
-func (self *ScannerState) Push(ev tcell.Event) {
-	switch value := ev.(type) {
-	case *tcell.EventKey:
-		self.keys = append(self.keys, value)
-	default:
-		log.Printf("Scanner: ignoring non key event %+v\n", ev)
-	}
-}
-
-func (self *ScannerState) Peek() *tcell.EventKey {
+func (self *Scanner) Peek() *tcell.EventKey {
 	return self.keys[self.curr]
 }
 
-func (self *ScannerState) Advance() *tcell.EventKey {
+func (self *Scanner) Advance() *tcell.EventKey {
 	curr := self.Peek()
 	self.curr++
 	return curr
 }
 
-func (self *ScannerState) IsEnd() bool {
+func (self *Scanner) IsEnd() bool {
 	return self.curr >= len(self.keys)
 }
 
-func (self *ScannerState) Input() []*tcell.EventKey {
+func (self *Scanner) Input() []*tcell.EventKey {
 	return self.keys[self.start:]
 }
 
-func (self *ScannerState) Scanned() []*tcell.EventKey {
+func (self *Scanner) Scanned() []*tcell.EventKey {
 	return self.keys[self.start:self.curr]
 }
 
-func (self *ScannerState) Clear() {
+func (self *Scanner) Clear() {
 	self.start = self.curr
 }
 
-func (self *ScannerState) Reset() {
+func (self *Scanner) Reset() {
 	self.curr = self.start
 }
 
-func (self *ScannerState) ScanWithCondition(cond func() bool) ScanResult {
+func (self *Scanner) ScanWithCondition(cond func() bool) ScanResult {
 	if self.IsEnd() {
 		return ScanStop
 	} else if cond() {
@@ -72,7 +55,7 @@ func (self *ScannerState) ScanWithCondition(cond func() bool) ScanResult {
 	}
 }
 
-func (self *ScannerState) ScanZeroOrMore(scan ScanFunc) ScanResult {
+func (self *Scanner) ScanZeroOrMore(scan ScanFunc) ScanResult {
 	for {
 		switch scan() {
 		case ScanStop:
@@ -83,25 +66,25 @@ func (self *ScannerState) ScanZeroOrMore(scan ScanFunc) ScanResult {
 	}
 }
 
-func (self *ScannerState) ScanKey(key tcell.Key) ScanResult {
+func (self *Scanner) ScanKey(key tcell.Key) ScanResult {
 	return self.ScanWithCondition(func() bool {
 		return self.Peek().Key() == key
 	})
 }
 
-func (self *ScannerState) ScanRune(r rune) ScanResult {
+func (self *Scanner) ScanRune(r rune) ScanResult {
 	return self.ScanWithCondition(func() bool {
 		return self.Peek().Rune() == r
 	})
 }
 
-func (self *ScannerState) ScanDigit() ScanResult {
+func (self *Scanner) ScanDigit() ScanResult {
 	return self.ScanWithCondition(func() bool {
 		return IsDigitKey(self.Peek())
 	})
 }
 
-func (self *ScannerState) ScanTextInput() ScanResult {
+func (self *Scanner) ScanTextInput() ScanResult {
 	return self.ScanWithCondition(func() bool {
 		return IsTextInputKey(self.Peek())
 	})
