@@ -126,7 +126,8 @@ func (self *Window) getNode() *sitter.Node {
 
 func (self *Window) getSelection() (uint, uint) {
 	start, end := order(uint(self.cursor.Index()), uint(self.anchor.Index()))
-	return start, end + 1
+	_, rune_len := BufferCursor{buffer: self.buffer, index: int(end)}.Rune()
+	return start, end + uint(rune_len)
 }
 
 // Tree movements

@@ -33,15 +33,24 @@ func NodeLeaf(node *sitter.Node, index int) *sitter.Node {
 }
 
 func MinimalNode(node *sitter.Node, a uint, b uint) *sitter.Node {
-	if node.StartByte() <= a && node.EndByte() >= b {
+	if !NodeContains(node, a, b) {
+		return nil
+	}
+	for searching := true; searching; {
+		searching = false
 		for i := range node.ChildCount() {
-			if node := MinimalNode(node.Child(i), a, b); node != nil {
-				return node
+			if NodeContains(node.Child(i), a, b) {
+				node = node.Child(i)
+				searching = true
+				break
 			}
 		}
-		return node
 	}
-	return nil
+	return node
+}
+
+func NodeContains(node *sitter.Node, a uint, b uint) bool {
+	return node != nil && node.StartByte() <= a && b <= node.EndByte()
 }
 
 func MinimalNodeDepth(node *sitter.Node, a uint, b uint, depth int) *sitter.Node {

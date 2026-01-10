@@ -134,8 +134,8 @@ func (b *Buffer) Edit(input ReplacementInput) error {
 	}
 
 	new_end := input.start + len(input.replacement)
-	sitter_input.OldEndByte = uint(new_end)
-	sitter_input.StartPosition = sitterPoint(b.BytePos(new_end))
+	sitter_input.NewEndByte = uint(new_end)
+	sitter_input.NewEndPosition = sitterPoint(b.BytePos(new_end))
 
 	if b.tree_parser != nil {
 		b.tree.Edit(sitter_input)

@@ -145,16 +145,16 @@ func (self OperationGroupNormal) Match(state *ScannerState) (Operation, ScanResu
 		'd': OpEraseCursorLine{},
 		'y': OpCopyCursorLine{},
 		'x': OpEraseRune{},
-		'a': OpInsertModeAfterCursor{},
-		'A': OpInsertModeAfterLine{},
-		'i': OpInsertModeBeforeCursor{},
-		'I': OpInsertModeBeforeLine{},
-		'v': OpVisualMode{},
-		't': OpTreeMode{},
+		'a': OpInsertAfterCursor{},
+		'A': OpInsertAfterLine{},
+		'i': OpInsertBeforeCursor{},
+		'I': OpInsertBeforeLine{},
+		'v': OpVisual{},
+		't': OpTree{},
 		'p': OpPasteClipboard{},
 		'u': OpUndoChange{},
-		's': OpEraseSelectionAndInsert{},
-		'o': OpStartNewLine{},
+		's': OpReplaceSelection{},
+		'o': OpStartNewLineBelow{},
 		'O': OpStartNewLineAbove{},
 	}
 	keyOperations := map[tcell.Key]Operation{
@@ -170,7 +170,7 @@ type OperationGroupInsert struct {
 // TODO: Make erasing after insert continuous (single modification, single undo)
 func (self OperationGroupInsert) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc:        OpNormalMode{},
+		tcell.KeyEsc:        OpNormal{},
 		tcell.KeyBackspace2: OpEraseRunePrev{},
 		tcell.KeyBackspace:  OpEraseRunePrev{},
 		tcell.KeyCtrlW:      OpEraseWordBack{},
@@ -194,16 +194,16 @@ type OperationGroupVisual struct {
 
 func (self OperationGroupVisual) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc: OpNormalMode{},
+		tcell.KeyEsc: OpNormal{},
 	}
 	runeOperations := map[rune]Operation{
-		'i': OpInsertModeBeforeCursor{},
-		'a': OpInsertModeAfterCursor{},
-		'v': OpNormalMode{},
+		'i': OpInsertBeforeCursor{},
+		'a': OpInsertAfterCursor{},
+		'v': OpNormal{},
 		'd': OpEraseSelection{},
-		't': OpTreeModeFormVisual{},
+		't': OpTree{},
 		'y': OpSaveClipbaord{},
-		's': OpEraseSelectionAndInsert{},
+		's': OpReplaceSelection{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }
@@ -213,28 +213,30 @@ type OperationGroupTree struct {
 
 func (self OperationGroupTree) Match(state *ScannerState) (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
-		tcell.KeyEsc:   OpNormalMode{},
+		tcell.KeyEsc:   OpNormal{},
 		tcell.KeyCtrlR: OpRedoChange{},
-		tcell.KeyCtrlK: OpDepthAnchorUp{},
+		tcell.KeyCtrlK: OpDepthUp{},
+		tcell.KeyCtrlJ: OpDepthDown{},
 	}
 	runeOperations := map[rune]Operation{
-		't': OpNormalMode{},
-		'T': OpNormalModeAsAnchor{},
-		'v': OpVisualMode{},
-		'V': OpVisualModeAsAnchor{},
+		't': OpNormal{},
+		'v': OpVisual{},
+		'T': OpNormalAsAnchor{},
+		'V': OpVisualAsAnchor{},
 		'k': OpNodeUp{},
 		'j': OpNodeDown{},
 		'H': OpNodePrevSibling{},
 		'L': OpNodeNextSibling{},
-		'h': OpNodePrevSiblingOrCousin{},
-		'l': OpNodeNextSiblingOrCousin{},
+		'h': OpNodePrevDepth{},
+		'l': OpNodeNextDepth{},
 		'd': OpEraseSelection{},
 		'f': OpSwapNodeNext{},
 		'b': OpSwapNodePrev{},
 		'$': OpNodeLastSibling{},
 		'_': OpNodeFirstSibling{},
 		'u': OpUndoChange{},
-		's': OpEraseSelectionAndInsert{},
+		's': OpReplaceSelection{},
+		'y': OpSaveClipbaord{},
 	}
 	return MatchRuneOrKeysMap(state, runeOperations, keyOperations)
 }

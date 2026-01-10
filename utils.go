@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"fmt"
 	"log"
+	"runtime"
 	"testing"
 	"unicode"
 
@@ -13,10 +14,9 @@ import (
 
 var (
 	LineBreakWindows = []byte("\r\n")
-	LineBreakUnix    = []byte("\n")
-	LineBreakMac     = []byte("\r")
+	LineBreakPosix   = []byte("\n")
 )
-var LineBreaks = [][]byte{LineBreakWindows, LineBreakUnix, LineBreakMac}
+var LineBreaks = [][]byte{LineBreakWindows, LineBreakPosix}
 
 func lineBreakDisplay(text []rune) []rune {
 	res := []rune{}
@@ -47,7 +47,10 @@ func getContentLineBreak(content []byte) []byte {
 			}
 		}
 	}
-	return LineBreakUnix
+	if runtime.GOOS == "windows" {
+		return LineBreakWindows
+	}
+	return LineBreakPosix
 }
 
 func matchBytes(a []byte, b []byte) bool {

@@ -24,13 +24,13 @@ func (self BufferCursor) ToIndex(index int) BufferCursor {
 	return self
 }
 
-func (self BufferCursor) Rune() rune {
-	value, _ := utf8.DecodeRune(self.buffer.Content()[self.index:])
-	return value
+func (self BufferCursor) Rune() (rune, int) {
+	return utf8.DecodeRune(self.buffer.Content()[self.index:])
 }
 
 func (self BufferCursor) Class() RuneClass {
-	return rune_class(self.Rune())
+	r, _ := self.Rune()
+	return rune_class(r)
 }
 
 func (self BufferCursor) AsEdge() BufferCursor {
@@ -95,18 +95,35 @@ func (self BufferCursor) MoveToRunePos(rune_pos Pos) BufferCursor {
 }
 
 func (self BufferCursor) RuneNext() BufferCursor {
-	if !self.IsEnd() {
-		self.index += utf8.RuneLen(self.Rune())
+	if self.IsEnd() {
+		return self
 	}
-	return self
+	pos := self.Pos()
+	line := self.buffer.Lines()[pos.row]
+	if pos.col == line.end {
+		self.index = line.next_start
+		return self
+	} else {
+		_, width := self.Rune()
+		self.index += width
+		return self
+	}
 }
 
 func (self BufferCursor) RunePrev() BufferCursor {
-	if !self.IsBegining() {
+	if self.IsBegining() {
+		return self
+	}
+	pos := self.Pos()
+	if pos.col == 0 {
+		prev_line := self.buffer.Lines()[pos.row-1]
+		self.index = prev_line.end
+		return self
+	} else {
 		_, size := utf8.DecodeLastRune(self.buffer.Content()[:self.index])
 		self.index -= size
+		return self
 	}
-	return self
 }
 
 func (self BufferCursor) WordStartNext() BufferCursor {

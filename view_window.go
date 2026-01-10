@@ -44,7 +44,8 @@ func (self WindowView) DrawFrameText(ctx DrawContext) {
 			break
 		}
 		if rel_pos == Inside {
-			for _, value := range RenderedRune(cursor.Rune()) {
+			r, _ := cursor.Rune()
+			for _, value := range RenderedRune(r) {
 				screen_pos := text_pos_to_screen(pos, offset, ctx.roi)
 				set_rune(ctx.screen, screen_pos, value)
 			}

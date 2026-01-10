@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/atotto/clipboard"
@@ -58,18 +59,18 @@ func (self OpCursorRight) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(count)
 }
 
-type OpInsertModeBeforeCursor struct{}
+type OpInsertBeforeCursor struct{}
 
-func (self OpInsertModeBeforeCursor) Execute(editor *Editor, count int) {
+func (self OpInsertBeforeCursor) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.switchToInsert()
 }
 
-type OpInsertModeAfterCursor struct{}
+type OpInsertAfterCursor struct{}
 
-func (self OpInsertModeAfterCursor) Execute(editor *Editor, count int) {
+func (self OpInsertAfterCursor) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -77,9 +78,9 @@ func (self OpInsertModeAfterCursor) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(1)
 }
 
-type OpInsertModeAfterLine struct{}
+type OpInsertAfterLine struct{}
 
-func (self OpInsertModeAfterLine) Execute(editor *Editor, count int) {
+func (self OpInsertAfterLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -88,9 +89,9 @@ func (self OpInsertModeAfterLine) Execute(editor *Editor, count int) {
 	editor.curwin.cursorRight(1)
 }
 
-type OpInsertModeBeforeLine struct{}
+type OpInsertBeforeLine struct{}
 
-func (self OpInsertModeBeforeLine) Execute(editor *Editor, count int) {
+func (self OpInsertBeforeLine) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -98,25 +99,25 @@ func (self OpInsertModeBeforeLine) Execute(editor *Editor, count int) {
 	editor.curwin.switchToInsert()
 }
 
-type OpVisualMode struct{}
+type OpVisual struct{}
 
-func (self OpVisualMode) Execute(editor *Editor, count int) {
+func (self OpVisual) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.switchToVisual()
 }
 
-type OpVisualModeAsAnchor struct{}
+type OpVisualAsAnchor struct{}
 
-func (self OpVisualModeAsAnchor) Execute(editor *Editor, count int) {
+func (self OpVisualAsAnchor) Execute(editor *Editor, count int) {
 	OpSwapCursorWithAnchor{}.Execute(editor, count)
-	OpVisualMode{}.Execute(editor, count)
+	OpVisual{}.Execute(editor, count)
 }
 
-type OpNormalMode struct{}
+type OpNormal struct{}
 
-func (self OpNormalMode) Execute(editor *Editor, count int) {
+func (self OpNormal) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -124,11 +125,11 @@ func (self OpNormalMode) Execute(editor *Editor, count int) {
 	editor.curwin.switchToNormal()
 }
 
-type OpNormalModeAsAnchor struct{}
+type OpNormalAsAnchor struct{}
 
-func (self OpNormalModeAsAnchor) Execute(editor *Editor, count int) {
+func (self OpNormalAsAnchor) Execute(editor *Editor, count int) {
 	OpSwapCursorWithAnchor{}.Execute(editor, count)
-	OpNormalMode{}.Execute(editor, count)
+	OpNormal{}.Execute(editor, count)
 }
 
 type OpSwapCursorWithAnchor struct{}
@@ -143,23 +144,9 @@ func (self OpSwapCursorWithAnchor) Execute(editor *Editor, count int) {
 	editor.curwin.setAnchor(cursor)
 }
 
-type OpTreeMode struct{}
+type OpTree struct{}
 
-func (self OpTreeMode) Execute(editor *Editor, count int) {
-	if editor.curwin == nil {
-		return
-	}
-	if editor.curwin.buffer.Tree() != nil {
-		index := editor.curwin.cursor.Index()
-		node := NodeLeaf(editor.curwin.buffer.Tree().RootNode(), index)
-		editor.curwin.setNode(node, true)
-		editor.curwin.switchToTree()
-	}
-}
-
-type OpTreeModeFormVisual struct{}
-
-func (self OpTreeModeFormVisual) Execute(editor *Editor, count int) {
+func (self OpTree) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -190,8 +177,10 @@ func (self OpCopyCursorLine) Execute(editor *Editor, count int) {
 		return
 	}
 	win := editor.curwin
-	line := win.buffer.Lines()[win.cursor.Row()]
-	text := win.buffer.Content()[line.start:line.next_start]
+	row := win.cursor.Row()
+	start := win.buffer.Lines()[row].start
+	end := win.buffer.Lines()[row+count-1].next_start
+	text := win.buffer.Content()[start:end]
 	clipboard.WriteAll(string(text))
 }
 
@@ -237,6 +226,7 @@ func (self OpInsertInput) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
+
 	content := []byte{}
 	for _, ek := range self.content {
 		if ek.Key() == tcell.KeyRune {
@@ -294,9 +284,9 @@ func (self OpNodeNextSibling) Execute(editor *Editor, count int) {
 	}
 }
 
-type OpNodeNextSiblingOrCousin struct{}
+type OpNodeNextDepth struct{}
 
-func (self OpNodeNextSiblingOrCousin) Execute(editor *Editor, count int) {
+func (self OpNodeNextDepth) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -320,9 +310,9 @@ func (self OpNodePrevSibling) Execute(editor *Editor, count int) {
 	}
 }
 
-type OpNodePrevSiblingOrCousin struct{}
+type OpNodePrevDepth struct{}
 
-func (self OpNodePrevSiblingOrCousin) Execute(editor *Editor, count int) {
+func (self OpNodePrevDepth) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
@@ -362,9 +352,8 @@ func (self OpEraseSelection) Execute(editor *Editor, count int) {
 		return
 	}
 	win := editor.curwin
-	start, end := win.cursor.Index(), win.anchor.Index()
-	start, end = min(start, end), max(start, end)
-	change := NewEraseChange(win, start, end+1)
+	start, end := win.getSelection()
+	change := NewEraseChange(win, int(start), int(end))
 	change.Apply(win)
 	win.history.Push(HistoryState{change: change})
 	win.switchToNormal()
@@ -571,9 +560,25 @@ func (self OpPasteClipboard) Execute(editor *Editor, count int) {
 	if clipboard.Unsupported {
 		return
 	}
+	win := editor.curwin
 	text, err := clipboard.ReadAll()
 	panic_if_error(err)
-	editor.curwin.insertContent([]byte(text))
+	content := []byte(text)
+	isLineBreak := isLineBreakTerminated(content)
+	win.switchToInsert()
+	pos := win.cursor.Pos()
+	line := win.buffer.Lines()[pos.row]
+	for range count {
+		if isLineBreak {
+			win.setCursor(win.cursor.ToIndex(line.next_start), false)
+			win.insertContent(content)
+		} else {
+			win.insertContent(content)
+		}
+		win.continuousInsert = true
+	}
+	win.continuousInsert = false
+	OpNormal{}.Execute(editor, 1)
 }
 
 type OpSaveClipbaord struct{}
@@ -589,15 +594,27 @@ func (self OpSaveClipbaord) Execute(editor *Editor, count int) {
 	start, end := win.getSelection()
 	text := win.buffer.Content()[start:end]
 	clipboard.WriteAll(string(text))
+	OpNormal{}.Execute(editor, 1)
 }
 
-type OpDepthAnchorUp struct{}
+type OpDepthUp struct{}
 
-func (self OpDepthAnchorUp) Execute(editor *Editor, count int) {
+func (self OpDepthUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
 	editor.curwin.originDepth = min(editor.curwin.originDepth - 1)
+	log.Println(editor.curwin.originDepth)
+}
+
+type OpDepthDown struct{}
+
+func (self OpDepthDown) Execute(editor *Editor, count int) {
+	if editor.curwin == nil {
+		return
+	}
+	editor.curwin.originDepth = min(editor.curwin.originDepth + 1)
+	log.Println(editor.curwin.originDepth)
 }
 
 type OpEraseWordBack struct{}
@@ -629,11 +646,11 @@ func (self OpEraseRuneNext) Execute(editor *Editor, count int) {
 	editor.curwin.continuousInsert = false
 }
 
-type OpEraseSelectionAndInsert struct{}
+type OpReplaceSelection struct{}
 
-func (self OpEraseSelectionAndInsert) Execute(editor *Editor, count int) {
+func (self OpReplaceSelection) Execute(editor *Editor, count int) {
 	OpEraseSelection{}.Execute(editor, count)
-	OpInsertModeBeforeCursor{}.Execute(editor, count)
+	OpInsertBeforeCursor{}.Execute(editor, count)
 }
 
 type OpMoveHalfFrameDown struct{}
@@ -728,13 +745,13 @@ func (self OpSaveFile) Execute(editor *Editor, count int) {
 	os.WriteFile(filename, editor.curwin.buffer.Content(), info.Mode())
 }
 
-type OpStartNewLine struct{}
+type OpStartNewLineBelow struct{}
 
-func (self OpStartNewLine) Execute(editor *Editor, count int) {
+func (self OpStartNewLineBelow) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	OpInsertModeAfterLine{}.Execute(editor, count)
+	OpInsertAfterLine{}.Execute(editor, count)
 	editor.curwin.insertContent(editor.curwin.buffer.LineBreak())
 }
 
@@ -745,7 +762,7 @@ func (self OpStartNewLineAbove) Execute(editor *Editor, count int) {
 		return
 	}
 
-	OpInsertModeBeforeLine{}.Execute(editor, count)
+	OpInsertBeforeLine{}.Execute(editor, count)
 	editor.curwin.insertContent(editor.curwin.buffer.LineBreak())
 	OpCursorUp{}.Execute(editor, count)
 }

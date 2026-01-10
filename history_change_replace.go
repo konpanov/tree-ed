@@ -17,8 +17,6 @@ type ReplaceChange struct {
 
 	anchorAfter  int
 	anchorBefore int
-
-	resetAnchor bool
 }
 
 func (self ReplaceChange) Apply(win *Window) {
@@ -27,7 +25,7 @@ func (self ReplaceChange) Apply(win *Window) {
 		end:         self.at + len(self.before),
 		replacement: self.after,
 	})
-	win.setCursor(win.cursor.ToIndex(self.cursorAfter), self.resetAnchor)
+	win.setCursor(win.cursor.ToIndex(self.cursorAfter), true)
 	win.setAnchor(win.anchor.ToIndex(self.anchorAfter))
 }
 
@@ -47,7 +45,6 @@ func NewReplacementChange(at int, before []byte, after []byte) ReplaceChange {
 		cursorBefore: at,
 		anchorAfter:  at,
 		anchorBefore: at,
-		resetAnchor:  false,
 	}
 }
 

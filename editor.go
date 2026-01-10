@@ -1,6 +1,7 @@
 package main
 
 import (
+	// "log"
 	"log"
 	"os"
 	"path/filepath"
@@ -74,20 +75,13 @@ func (self *Editor) Redraw() {
 func (self *Editor) Start() {
 	defer self.Close()
 
-	events := make(chan tcell.Event, 10000)
+	events := make(chan tcell.Event, 100)
 
 	go func() {
-		for {
-			ev := self.screen.PollEvent()
-			if ev == nil {
-				break
-			}
-			log.Printf("Polled event: %+v\n", ev)
-
-			switch v := ev.(type) {
-			case *tcell.EventKey:
-				log.Printf(eventKeyToString(v))
-			}
+		var ev tcell.Event
+		for do := true; do; do = ev != nil {
+			log.Println("Polling event")
+			ev = self.screen.PollEvent()
 			events <- ev
 		}
 	}()
@@ -103,9 +97,14 @@ func (self *Editor) Start() {
 		for waiting_for_event {
 			select {
 			case e := <-events:
+				log.Printf("Polled event: %+v\n", e)
+				switch v := e.(type) {
+				case *tcell.EventKey:
+					log.Printf(eventKeyToString(v))
+				}
 				self.scanner.Push(e)
 				got_new_event = true
-			case <-time.Tick(10 * time.Millisecond):
+			case <-time.Tick(2 * time.Millisecond):
 				waiting_for_event = false
 			}
 		}
