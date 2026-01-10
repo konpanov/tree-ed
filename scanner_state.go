@@ -37,11 +37,14 @@ func (self *Scanner) Scanned() []*tcell.EventKey {
 }
 
 func (self *Scanner) Clear() {
-	self.start = self.curr
+	self.keys = self.keys[self.curr:]
+	self.start = 0
+	self.curr = 0
 }
 
 func (self *Scanner) Reset() {
-	self.curr = self.start
+	self.curr = 0
+	self.start = 0
 }
 
 func (self *Scanner) ScanWithCondition(cond func() bool) ScanResult {

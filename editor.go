@@ -109,48 +109,18 @@ func (self *Editor) Start() {
 			}
 		}
 
-		combo := &OperationCombiner{}
 		for got_new_event && !self.is_quiting {
 			if self.curwin != nil {
 				self.scanner.mode = self.curwin.mode
 			}
 			op, res := self.scanner.Scan()
+			self.scanner.Update(res)
 			if res == ScanStop {
 				break
 			}
-			if res == ScanFull {
-				combo.Push(op)
-				op = combo.Get()
-				if op != nil {
-					op.Execute(self, 1)
-				}
+			if res == ScanFull && op != nil {
+				op.Execute(self, 1)
 			}
 		}
 	}
-}
-
-type OperationCombiner struct {
-	input []Operation
-}
-
-func (self *OperationCombiner) Push(op Operation) {
-	self.input = append(self.input, op)
-}
-
-func (self *OperationCombiner) Get() Operation {
-	if len(self.input) == 0 {
-		return nil
-	}
-	op := self.input[0]
-	count_op, is_count := op.(OpCount)
-	if !is_count {
-		self.input = self.input[1:]
-		return op
-	}
-	if len(self.input) < 2 {
-		return nil
-	}
-	count_op.op = self.input[1]
-	self.input = self.input[2:]
-	return count_op
 }

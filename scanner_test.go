@@ -26,6 +26,7 @@ func TestNormalScannerScanCursorDown(t *testing.T) {
 	scanner.mode = NormalMode
 	scanner.Push(ek)
 	op, res := scanner.Scan()
+	scanner.Update(res)
 	if expected := ScanFull; res != expected {
 		t.Errorf("Unexpected scan result %+v, expected %+v\n", res, expected)
 	}

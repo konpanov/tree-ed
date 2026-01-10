@@ -65,7 +65,10 @@ func (self *Scanner) Scan() (Operation, ScanResult) {
 			op, res = OperationGroupCount{}.Match(self)
 		}
 	}
+	return op, res
+}
 
+func (self *Scanner) Update(res ScanResult) {
 	switch res {
 	case ScanFull:
 		self.Clear()
@@ -77,7 +80,6 @@ func (self *Scanner) Scan() (Operation, ScanResult) {
 	case ScanStop:
 		self.Reset()
 	}
-	return op, res
 }
 
 type OperationGroup interface {
@@ -105,13 +107,20 @@ func (self OperationGroupCount) Match(scanner *Scanner) (Operation, ScanResult) 
 	switch {
 	case scanner.IsEnd():
 		return nil, ScanStop
-	case scanner.ScanDigit() == ScanFull:
-		res := scanner.ScanZeroOrMore(scanner.ScanDigit)
-		integer := EventKeysToInteger(scanner.Scanned())
-		return OpCount{count: integer, op: nil}, res
-	default:
+	case scanner.ScanDigit() != ScanFull:
 		return nil, ScanNone
 	}
+	res := scanner.ScanZeroOrMore(scanner.ScanDigit)
+	integer := EventKeysToInteger(scanner.Scanned())
+	if res == ScanFull {
+		scanner.start = scanner.curr
+		op, sub_res := scanner.Scan()
+		if sub_res == ScanFull {
+			return OpCount{count: integer, op: op}, sub_res
+		}
+		return nil, ScanNone
+	}
+	return nil, res
 }
 
 type OperationGroupCursorMovement struct {
