@@ -18,21 +18,6 @@ var (
 )
 var LineBreaks = [][]byte{LineBreakWindows, LineBreakPosix}
 
-func lineBreakDisplay(text []rune) []rune {
-	res := []rune{}
-	for _, r := range text {
-		display, ok := map[rune][]rune{
-			'\r': []rune("CR"),
-			'\n': []rune("LF"),
-		}[r]
-		if !ok {
-			display = []rune{'X'}
-		}
-		res = append(res, display...)
-	}
-	return res
-}
-
 func assert(is_valid bool, message string) {
 	if debug && !is_valid {
 		log.Panic(message)

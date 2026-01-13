@@ -4,11 +4,11 @@ import (
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-type TreeColorView struct {
+type TreeView struct {
 	window *Window
 }
 
-func (self *TreeColorView) DrawNew(ctx DrawContext) {
+func (self *TreeView) Draw(ctx DrawContext) {
 	if self.window.buffer.Tree() == nil {
 		return
 	}
@@ -39,7 +39,7 @@ func (self *TreeColorView) DrawNew(ctx DrawContext) {
 	}
 }
 
-func (self *TreeColorView) ColorNode(ctx DrawContext, node *sitter.Node, mod StyleMod) {
+func (self *TreeView) ColorNode(ctx DrawContext, node *sitter.Node, mod StyleMod) {
 	frame := self.window.frame
 	start, end := int(node.StartByte()), int(node.EndByte())
 	start = max(start, self.window.buffer.Index(frame.TopLeft()))

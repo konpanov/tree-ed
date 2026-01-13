@@ -445,7 +445,7 @@ func TestDrawCharacterCursor(t *testing.T) {
 	window.cursor = cursor
 
 	var cursorView View
-	cursorView = &CharacterViewCursor{window: window}
+	cursorView = &CharCursorView{window: window}
 	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
@@ -481,7 +481,7 @@ func TestDrawCharacterCursorAfterMovement(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = &CharacterViewCursor{window: window}
+	cursorView = &CharCursorView{window: window}
 	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
@@ -517,7 +517,7 @@ func TestDrawCharacterCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = &CharacterViewCursor{window: window}
+	cursorView = &CharCursorView{window: window}
 	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()
@@ -553,7 +553,7 @@ func TestDrawIndexCursorAfterMovementOnNonAscii(t *testing.T) {
 
 	roi := Rect{top: 0, left: 0, bot: h, right: w}
 	var cursorView View
-	cursorView = &IndexViewCursor{window: window}
+	cursorView = &EdgeCursorView{window: window}
 	cursorView.Draw(DrawContext{screen: screen, roi: roi, theme: default_theme})
 
 	screen.Show()

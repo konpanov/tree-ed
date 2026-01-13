@@ -12,7 +12,7 @@ var logo []byte
 
 type PreviewView struct{}
 
-func (self PreviewView) DrawNew(ctx DrawContext) {
+func (self PreviewView) Draw(ctx DrawContext) {
 	lines := strings.Split(string(logo), string(getContentLineBreak(logo)))
 	lines_size := LinesSize(lines)
 	lines_roi := CenterRoi(ctx.roi, lines_size)

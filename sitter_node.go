@@ -78,17 +78,17 @@ func NextSiblingOrCousin(node *sitter.Node) *sitter.Node {
 	if parent == nil {
 		return nil
 	}
-	ancle := parent.NextSibling()
-	if ancle == nil {
-		ancle = NextSiblingOrCousin(parent)
-		if ancle == nil {
+	uncle := parent.NextSibling()
+	if uncle == nil {
+		uncle = NextSiblingOrCousin(parent)
+		if uncle == nil {
 			return nil
 		}
 	}
-	if ancle.ChildCount() == 0 {
-		return ancle
+	if uncle.ChildCount() == 0 {
+		return uncle
 	} else {
-		return ancle.Child(0)
+		return uncle.Child(0)
 	}
 }
 
@@ -98,21 +98,6 @@ func PrevSiblingOrCousinDepth(node *sitter.Node, depth int) *sitter.Node {
 		prev = prev.Child(prev.ChildCount() - 1)
 	}
 	return prev
-}
-
-func NextAncle(node *sitter.Node) *sitter.Node {
-	if node == nil {
-		return nil
-	}
-	parent := node.Parent()
-	if parent == nil {
-		return nil
-	}
-	ancle := parent.NextSibling()
-	if ancle == nil {
-		ancle = NextAncle(parent)
-	}
-	return ancle
 }
 
 func PrevSiblingOrCousin(node *sitter.Node) *sitter.Node {

@@ -1,41 +1,139 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
 
-type StatusLine struct {
+type StatusLineView struct {
 	editor *Editor
 }
 
-func (self StatusLine) DrawNew(ctx DrawContext) {
-	left_parts := []string{}
+func (self StatusLineView) Draw(ctx DrawContext) {
+	mode := self.modeDispaly()
+	parse_state := self.parseStateDisplay()
+	filename := self.filenameDisplay()
+	pos := self.positionDisplay()
+	linebreak := self.linebreakDisplay()
+	input := self.inputDispaly()
+	percent := self.percentDisplay()
 
-	if self.editor.curwin != nil {
-		curwin := self.editor.curwin
-		pos := curwin.cursor.Pos()
-		parseError := "Correct"
-		if curwin.buffer.Tree() != nil && curwin.buffer.Tree().RootNode().HasError() {
-			parseError = "Error"
-		}
-		line_break := lineBreakDisplay([]rune(string(curwin.buffer.LineBreak())))
-		left_parts = append(left_parts, "file: "+curwin.buffer.Filename())
-		left_parts = append(left_parts, "line: "+strconv.Itoa(pos.row+1))
-		left_parts = append(left_parts, "col: "+strconv.Itoa(pos.col+1))
-		left_parts = append(left_parts, "mode: "+string(curwin.mode))
-		left_parts = append(left_parts, "parse state: "+parseError)
-		left_parts = append(left_parts, "line break: "+string(line_break))
-	}
-	left_parts = append(left_parts, "input: "+KeyEventsToString(self.editor.scanner.Input()))
+	line1_left := fmt.Sprintf("%s %4s", mode, parse_state)
+	line1_right := fmt.Sprintf("%s %s", pos, percent)
+	line1 := self.constructLine(ctx, line1_left, line1_right)
+	put_line(ctx.screen, ctx.roi.TopLeft(), string(line1), ctx.roi.right)
 
-	text := []rune(strings.Join(left_parts, ", "))
-	text = text[:min(ctx.roi.Width(), len(text))]
 	mod := CombineMods([]StyleMod{ctx.theme.secondary, ctx.theme.secondary_bg})
-	for y := ctx.roi.top; y < ctx.roi.bot; y++ {
-		for x := ctx.roi.left; x < ctx.roi.right; x++ {
-			apply_mod(ctx.screen, Pos{row: y, col: x}, mod)
-		}
+	for x := ctx.roi.left; x < ctx.roi.right; x++ {
+		apply_mod(ctx.screen, Pos{row: ctx.roi.top, col: x}, mod)
 	}
-	put_line(ctx.screen, ctx.roi.TopLeft(), string(text), ctx.roi.right)
+
+	line2_left := fmt.Sprintf("%s %s", filename, linebreak)
+	line2_right := fmt.Sprintf("%s", input)
+	line2 := self.constructLine(ctx, line2_left, line2_right)
+
+	line2_start := ctx.roi.TopLeft()
+	line2_start.row++
+	put_line(ctx.screen, line2_start, string(line2), ctx.roi.right)
+
+}
+
+func (self StatusLineView) constructLine(ctx DrawContext, left string, right string) string {
+	line := []rune(strings.Repeat(" ", ctx.roi.Width()))
+
+	l := []rune(left)
+	for i, char := range l[:min(len(line), len(l))] {
+		line[i] = char
+	}
+
+	r := []rune(right)
+	for i, char := range r {
+		line[len(line)-len(r)+i] = char
+	}
+
+	return string(line)
+}
+
+func (self StatusLineView) modeDispaly() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	return map[WindowMode]string{
+		NormalMode: "[N]",
+		VisualMode: "[V]",
+		InsertMode: "[I]",
+		TreeMode:   "[T]",
+	}[self.editor.curwin.mode]
+}
+
+func (self StatusLineView) parseStateDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	curwin := self.editor.curwin
+	if curwin.buffer.Tree() == nil {
+		return ""
+	}
+	checkmark := "\u2713"
+	crossmark := "\u2715"
+	parseState := checkmark
+	if curwin.buffer.Tree().RootNode().HasError() {
+		parseState = crossmark
+	}
+	return parseState
+}
+
+func (self StatusLineView) filenameDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	return self.editor.curwin.buffer.Filename()
+}
+
+func (self StatusLineView) positionDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	curwin := self.editor.curwin
+	pos := curwin.cursor.Pos()
+	return fmt.Sprintf(
+		"%4.4s:%-4.4s",
+		strconv.Itoa(pos.row+1),
+		strconv.Itoa(pos.col+1),
+	)
+}
+
+func (self StatusLineView) linebreakDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	curwin := self.editor.curwin
+	res := []rune{}
+	for _, r := range []rune(string(curwin.buffer.LineBreak())) {
+		display, ok := map[rune][]rune{'\r': []rune("CR"), '\n': []rune("LF")}[r]
+		if !ok {
+			display = []rune{'X'}
+		}
+		res = append(res, display...)
+	}
+	return fmt.Sprintf("(%s)", string(res))
+}
+
+func (self StatusLineView) inputDispaly() string {
+	keys := self.editor.scanner.Input()
+	keys = keys[max(len(keys)-10, 0):]
+	input := KeyEventsToString(keys)
+	return fmt.Sprintf("%-10.10s", input)
+}
+
+func (self StatusLineView) percentDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	line_max := float32(len(self.editor.curwin.buffer.Lines()))
+	line_cur := float32(self.editor.curwin.frame.bot)
+	percent := min(max(line_cur/line_max, 0), 1)
+	percent *= 100
+	return fmt.Sprintf("%4.0f%%", percent)
 }

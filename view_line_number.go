@@ -4,11 +4,11 @@ import (
 	"strconv"
 )
 
-type AbsoluteLineNumberView struct {
+type LineNumberView struct {
 	window *Window
 }
 
-func (self AbsoluteLineNumberView) DrawNew(ctx DrawContext) {
+func (self LineNumberView) Draw(ctx DrawContext) {
 	start := min(self.window.frame.top, len(self.window.buffer.Lines()))
 	end := min(self.window.frame.bot, len(self.window.buffer.Lines()))
 

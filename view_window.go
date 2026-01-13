@@ -10,27 +10,34 @@ func (self WindowView) Draw(ctx DrawContext) {
 
 	self.window.ResizeFrame(main_roi.Width(), main_roi.Height())
 
-	tree_color := &TreeColorView{window: self.window}
-	ln := AbsoluteLineNumberView{window: self.window}
+	main_ctx := ctx
+	main_ctx.roi = main_roi
+
+	self.DrawFrameText(main_ctx)
+
+	tree_color := &TreeView{window: self.window}
+	tree_color.Draw(main_ctx)
+
 	var cursor_view View
 	switch self.window.mode {
 	case InsertMode:
-		cursor_view = &IndexViewCursor{window: self.window}
+		cursor_view = &EdgeCursorView{window: self.window}
+		cursor_view.Draw(main_ctx)
 	case VisualMode, TreeMode:
-		cursor_view = &SelectionViewCursor{window: self.window}
+		cursor_view = &RangeView{window: self.window}
+		cursor_view.Draw(main_ctx)
+		cursor_view = &CharCursorView{window: self.window}
+		cursor_view.Draw(main_ctx)
 	default:
-		cursor_view = &CharacterViewCursor{window: self.window}
+		cursor_view = &CharCursorView{window: self.window}
+		cursor_view.Draw(main_ctx)
 	}
 
-	main_ctx := ctx
-	main_ctx.roi = main_roi
-	self.DrawFrameText(main_ctx)
-	tree_color.DrawNew(main_ctx)
-	cursor_view.Draw(main_ctx)
-
+	ln := LineNumberView{window: self.window}
 	ln_ctx := ctx
 	ln_ctx.roi = line_numbers_roi
-	ln.DrawNew(ln_ctx)
+	ln.Draw(ln_ctx)
+
 }
 
 func (self WindowView) DrawFrameText(ctx DrawContext) {

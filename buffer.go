@@ -8,11 +8,6 @@ import (
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-// start and end specify "fenceposts" in between characters.
-// |h|e|l|l|o|
-// ^         ^
-// start     end
-// In other words start is inclusive and end is not
 type Line struct {
 	start      int
 	end        int
@@ -44,9 +39,6 @@ type IBuffer interface {
 	Close()
 }
 
-var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
-var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
-
 type ReplacementInput struct {
 	start       int
 	end         int
@@ -62,6 +54,9 @@ type Buffer struct {
 	lines       []Line
 	cursors     []*BufferCursor
 }
+
+var ErrIndexLessThanZero = fmt.Errorf("index cannot be less than zero")
+var ErrIndexGreaterThanBufferSize = fmt.Errorf("index cannot be greater than buffer size")
 
 func (self *Buffer) RegisterCursor(cursor *BufferCursor) {
 	self.cursors = append(self.cursors, cursor)

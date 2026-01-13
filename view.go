@@ -135,7 +135,7 @@ func default_buffer_line_number_max_width(buffer IBuffer) int {
 }
 
 func put_line(screen tcell.Screen, pos Pos, text string, stop int) {
-	for i, r := range text {
+	for i, r := range []rune(text) {
 		row := pos.row
 		col := pos.col + i
 		if col >= stop {

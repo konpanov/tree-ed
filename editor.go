@@ -31,7 +31,7 @@ func NewEditor(screen tcell.Screen) *Editor {
 		windows: []*Window{},
 		theme:   default_theme,
 	}
-	editor.view = &ViewEditor{editor: editor}
+	editor.view = &EditorView{editor: editor}
 	return editor
 }
 
@@ -111,7 +111,7 @@ func (self *Editor) Start() {
 
 		for got_new_event && !self.is_quiting {
 			if self.curwin != nil {
-				self.scanner.mode = self.curwin.mode
+				self.scanner.UpdateMode(self.curwin.mode)
 			}
 			op, res := self.scanner.Scan()
 			self.scanner.Update(res)

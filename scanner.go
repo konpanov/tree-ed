@@ -23,6 +23,10 @@ type Scanner struct {
 	start int
 }
 
+func (self *Scanner) UpdateMode(mode WindowMode) {
+	self.mode = mode
+}
+
 func (self *Scanner) Push(ev tcell.Event) {
 	switch value := ev.(type) {
 	case *tcell.EventKey:
@@ -32,90 +36,57 @@ func (self *Scanner) Push(ev tcell.Event) {
 	}
 }
 
-func (self *Scanner) Peek() *tcell.EventKey {
-	return self.keys[self.curr]
-}
-
-func (self *Scanner) Advance() *tcell.EventKey {
-	curr := self.Peek()
-	self.curr++
-	return curr
-}
-
-func (self *Scanner) IsEnd() bool {
-	return self.curr >= len(self.keys)
-}
-
-func (self *Scanner) Input() []*tcell.EventKey {
-	return self.keys[self.start:]
-}
-
-func (self *Scanner) Scanned() []*tcell.EventKey {
-	return self.keys[self.start:self.curr]
-}
-
-func (self *Scanner) Clear() {
-	self.keys = self.keys[self.curr:]
-	self.start = 0
-	self.curr = 0
-}
-
-func (self *Scanner) Reset() {
-	self.curr = 0
-	self.start = 0
-}
-
 func (self *Scanner) Scan() (Operation, ScanResult) {
-	if self.IsEnd() {
+	if self.isEnd() {
 		return nil, ScanStop
 	}
 	switch self.mode {
 	case NormalMode:
-		return self.ScanOperationGroup([]ScanOpFunc{
-			self.ScanGlobalOperations,
-			self.ScanCursorOperation,
-			self.ScanNormalOperation,
-			self.ScanCountOperation,
+		return self.scanOperationGroup([]ScanOpFunc{
+			self.scanGlobalOperations,
+			self.scanCursorOperation,
+			self.scanNormalOperation,
+			self.scanCountOperation,
 		})
 	case InsertMode:
-		return self.ScanOperationGroup([]ScanOpFunc{
-			self.ScanGlobalOperations,
-			self.ScanInsertOperation,
-			self.ScanTextInsertOperation,
+		return self.scanOperationGroup([]ScanOpFunc{
+			self.scanGlobalOperations,
+			self.scanInsertOperation,
+			self.scanTextInsertOperation,
 		})
 	case VisualMode:
-		return self.ScanOperationGroup([]ScanOpFunc{
-			self.ScanGlobalOperations,
-			self.ScanCursorOperation,
-			self.ScanVisualOperation,
-			self.ScanCountOperation,
+		return self.scanOperationGroup([]ScanOpFunc{
+			self.scanGlobalOperations,
+			self.scanCursorOperation,
+			self.scanVisualOperation,
+			self.scanCountOperation,
 		})
 	case TreeMode:
-		return self.ScanOperationGroup([]ScanOpFunc{
-			self.ScanGlobalOperations,
-			self.ScanTreeOperation,
-			self.ScanCountOperation,
+		return self.scanOperationGroup([]ScanOpFunc{
+			self.scanGlobalOperations,
+			self.scanTreeOperation,
+			self.scanCountOperation,
 		})
 	default:
-		return self.ScanGlobalOperations()
+		return self.scanGlobalOperations()
 	}
 }
 
 func (self *Scanner) Update(res ScanResult) {
 	switch res {
 	case ScanFull:
-		self.Clear()
+		self.clear()
 	case ScanNone:
-		if !self.IsEnd() {
-			self.Advance()
+		if !self.isEnd() {
+			self.advance()
 		}
-		self.Clear()
+		self.clear()
 	case ScanStop:
-		self.Reset()
+		self.reset()
 	}
 }
 
-func (self *Scanner) ScanOperationGroup(group []ScanOpFunc) (Operation, ScanResult) {
+func (self *Scanner) scanOperationGroup(group []ScanOpFunc) (Operation, ScanResult) {
 	for _, scan := range group {
 		op, res := scan()
 		if res != ScanNone {
@@ -125,23 +96,23 @@ func (self *Scanner) ScanOperationGroup(group []ScanOpFunc) (Operation, ScanResu
 	return nil, ScanNone
 }
 
-func (self *Scanner) ScanGlobalOperations() (Operation, ScanResult) {
+func (self *Scanner) scanGlobalOperations() (Operation, ScanResult) {
 	switch {
-	case self.ScanKey(tcell.KeyCtrlC) == ScanFull:
+	case self.scanKey(tcell.KeyCtrlC) == ScanFull:
 		return OpQuit{}, ScanFull
 	default:
 		return nil, ScanNone
 	}
 }
 
-func (self *Scanner) ScanCountOperation() (Operation, ScanResult) {
-	if self.ScanRune('0') == ScanFull {
+func (self *Scanner) scanCountOperation() (Operation, ScanResult) {
+	if self.scanRune('0') == ScanFull {
 		return nil, ScanNone
 	}
-	if res := self.ScanOneOrMore(self.ScanDigit); res != ScanFull {
+	if res := self.scanOneOrMore(self.scanDigit); res != ScanFull {
 		return nil, res
 	}
-	integer := EventKeysToInteger(self.Scanned())
+	integer := EventKeysToInteger(self.scanned())
 	self.start = self.curr
 	op, res := self.Scan()
 	if res == ScanFull {
@@ -150,7 +121,7 @@ func (self *Scanner) ScanCountOperation() (Operation, ScanResult) {
 	return nil, res
 }
 
-func (self *Scanner) ScanCursorOperation() (Operation, ScanResult) {
+func (self *Scanner) scanCursorOperation() (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
 		'j': OpCursorDown{},
 		'k': OpCursorUp{},
@@ -176,7 +147,7 @@ func (self *Scanner) ScanCursorOperation() (Operation, ScanResult) {
 	return MatchRuneOrKeysMap(self, runeOperations, keyOperations)
 }
 
-func (self *Scanner) ScanNormalOperation() (Operation, ScanResult) {
+func (self *Scanner) scanNormalOperation() (Operation, ScanResult) {
 	runeOperations := map[rune]Operation{
 		'd': OpEraseCursorLine{},
 		'y': OpCopyCursorLine{},
@@ -201,7 +172,7 @@ func (self *Scanner) ScanNormalOperation() (Operation, ScanResult) {
 }
 
 // TODO: Make erasing after insert continuous (single modification, single undo)
-func (self *Scanner) ScanInsertOperation() (Operation, ScanResult) {
+func (self *Scanner) scanInsertOperation() (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc:        OpNormal{},
 		tcell.KeyBackspace2: OpEraseRunePrev{},
@@ -212,15 +183,14 @@ func (self *Scanner) ScanInsertOperation() (Operation, ScanResult) {
 	return MatchKeyMap(self, keyOperations)
 }
 
-func (self *Scanner) ScanTextInsertOperation() (Operation, ScanResult) {
-	if self.ScanTextInput() == ScanFull {
-		self.ScanZeroOrMore(self.ScanTextInput)
-		return OpInsertInput{content: self.Scanned()}, ScanFull
+func (self *Scanner) scanTextInsertOperation() (Operation, ScanResult) {
+	if res := self.scanOneOrMore(self.scanTextInput); res == ScanNone {
+		return nil, res
 	}
-	return nil, ScanNone
+	return OpInsertInput{content: self.scanned()}, ScanFull
 }
 
-func (self *Scanner) ScanVisualOperation() (Operation, ScanResult) {
+func (self *Scanner) scanVisualOperation() (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc: OpNormal{},
 	}
@@ -236,7 +206,7 @@ func (self *Scanner) ScanVisualOperation() (Operation, ScanResult) {
 	return MatchRuneOrKeysMap(self, runeOperations, keyOperations)
 }
 
-func (self *Scanner) ScanTreeOperation() (Operation, ScanResult) {
+func (self *Scanner) scanTreeOperation() (Operation, ScanResult) {
 	keyOperations := map[tcell.Key]Operation{
 		tcell.KeyEsc:   OpNormal{},
 		tcell.KeyCtrlR: OpRedoChange{},
@@ -268,7 +238,7 @@ func (self *Scanner) ScanTreeOperation() (Operation, ScanResult) {
 
 func MatchRuneMap(scanner *Scanner, m map[rune]Operation) (Operation, ScanResult) {
 	for r, operation := range m {
-		res := scanner.ScanRune(r)
+		res := scanner.scanRune(r)
 		if res == ScanFull {
 			return operation, res
 		}
@@ -278,7 +248,7 @@ func MatchRuneMap(scanner *Scanner, m map[rune]Operation) (Operation, ScanResult
 
 func MatchKeyMap(scanner *Scanner, m map[tcell.Key]Operation) (Operation, ScanResult) {
 	for key, operation := range m {
-		res := scanner.ScanKey(key)
+		res := scanner.scanKey(key)
 		if res == ScanFull {
 			return operation, res
 		}
@@ -298,18 +268,18 @@ func MatchRuneOrKeysMap(
 	return op, result
 }
 
-func (self *Scanner) ScanWithCondition(cond func() bool) ScanResult {
-	if self.IsEnd() {
+func (self *Scanner) scanWithCondition(cond func() bool) ScanResult {
+	if self.isEnd() {
 		return ScanStop
 	} else if cond() {
-		self.Advance()
+		self.advance()
 		return ScanFull
 	} else {
 		return ScanNone
 	}
 }
 
-func (self *Scanner) ScanZeroOrMore(scan ScanFunc) ScanResult {
+func (self *Scanner) scanZeroOrMore(scan ScanFunc) ScanResult {
 	for {
 		switch scan() {
 		case ScanStop:
@@ -320,7 +290,7 @@ func (self *Scanner) ScanZeroOrMore(scan ScanFunc) ScanResult {
 	}
 }
 
-func (self *Scanner) ScanOneOrMore(scan ScanFunc) ScanResult {
+func (self *Scanner) scanOneOrMore(scan ScanFunc) ScanResult {
 	if scan() != ScanFull {
 		return ScanNone
 	}
@@ -334,26 +304,59 @@ func (self *Scanner) ScanOneOrMore(scan ScanFunc) ScanResult {
 	}
 }
 
-func (self *Scanner) ScanKey(key tcell.Key) ScanResult {
-	return self.ScanWithCondition(func() bool {
-		return self.Peek().Key() == key
+func (self *Scanner) scanKey(key tcell.Key) ScanResult {
+	return self.scanWithCondition(func() bool {
+		return self.peek().Key() == key
 	})
 }
 
-func (self *Scanner) ScanRune(r rune) ScanResult {
-	return self.ScanWithCondition(func() bool {
-		return self.Peek().Rune() == r
+func (self *Scanner) scanRune(r rune) ScanResult {
+	return self.scanWithCondition(func() bool {
+		return self.peek().Rune() == r
 	})
 }
 
-func (self *Scanner) ScanDigit() ScanResult {
-	return self.ScanWithCondition(func() bool {
-		return IsDigitKey(self.Peek())
+func (self *Scanner) scanDigit() ScanResult {
+	return self.scanWithCondition(func() bool {
+		return IsDigitKey(self.peek())
 	})
 }
 
-func (self *Scanner) ScanTextInput() ScanResult {
-	return self.ScanWithCondition(func() bool {
-		return IsTextInputKey(self.Peek())
+func (self *Scanner) scanTextInput() ScanResult {
+	return self.scanWithCondition(func() bool {
+		return IsTextInputKey(self.peek())
 	})
+}
+
+func (self *Scanner) peek() *tcell.EventKey {
+	return self.keys[self.curr]
+}
+
+func (self *Scanner) advance() *tcell.EventKey {
+	curr := self.peek()
+	self.curr++
+	return curr
+}
+
+func (self *Scanner) isEnd() bool {
+	return self.curr >= len(self.keys)
+}
+
+func (self *Scanner) Input() []*tcell.EventKey {
+	return self.keys
+}
+
+func (self *Scanner) scanned() []*tcell.EventKey {
+	return self.keys[self.start:self.curr]
+}
+
+func (self *Scanner) clear() {
+	self.keys = self.keys[self.curr:]
+	self.start = 0
+	self.curr = 0
+}
+
+func (self *Scanner) reset() {
+	self.curr = 0
+	self.start = 0
 }

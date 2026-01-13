@@ -4,11 +4,11 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-type CharacterViewCursor struct {
+type CharCursorView struct {
 	window *Window
 }
 
-func (self *CharacterViewCursor) Draw(ctx DrawContext) {
+func (self *CharCursorView) Draw(ctx DrawContext) {
 	pos := self.window.cursor.Pos()
 	offset := self.window.frame.TopLeft()
 	rel_pos := self.window.frame.RelativePosition(pos)
@@ -18,11 +18,11 @@ func (self *CharacterViewCursor) Draw(ctx DrawContext) {
 	ctx.screen.ShowCursor(screen_pos.col, screen_pos.row)
 }
 
-type IndexViewCursor struct {
+type EdgeCursorView struct {
 	window *Window
 }
 
-func (self *IndexViewCursor) Draw(ctx DrawContext) {
+func (self *EdgeCursorView) Draw(ctx DrawContext) {
 	pos := self.window.cursor.Pos()
 	offset := self.window.frame.TopLeft()
 	rel_pos := self.window.frame.RelativePosition(pos)
@@ -32,11 +32,11 @@ func (self *IndexViewCursor) Draw(ctx DrawContext) {
 	ctx.screen.ShowCursor(screen_pos.col, screen_pos.row)
 }
 
-type SelectionViewCursor struct {
+type RangeView struct {
 	window *Window
 }
 
-func (self *SelectionViewCursor) Draw(ctx DrawContext) {
+func (self *RangeView) Draw(ctx DrawContext) {
 	buffer := self.window.buffer
 	frame := self.window.frame
 
