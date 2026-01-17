@@ -782,7 +782,7 @@ func TestDrawPreview(t *testing.T) {
 		"                                                                                ",
 		"                                                                                ",
 		"                                                                                ",
-		"input:                                                                          ",
+		"                                                                                ",
 	})
 }
 

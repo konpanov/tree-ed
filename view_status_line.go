@@ -19,7 +19,7 @@ func (self StatusLineView) Draw(ctx DrawContext) {
 	input := self.inputDispaly()
 	percent := self.percentDisplay()
 
-	line1_left := fmt.Sprintf("%s %4s", mode, parse_state)
+	line1_left := fmt.Sprintf("%s %s", mode, parse_state)
 	line1_right := fmt.Sprintf("%s %s", pos, percent)
 	line1 := self.constructLine(ctx, line1_left, line1_right)
 	put_line(ctx.screen, ctx.roi.TopLeft(), string(line1), ctx.roi.right)
@@ -27,6 +27,9 @@ func (self StatusLineView) Draw(ctx DrawContext) {
 	mod := CombineMods([]StyleMod{ctx.theme.secondary, ctx.theme.secondary_bg})
 	for x := ctx.roi.left; x < ctx.roi.right; x++ {
 		apply_mod(ctx.screen, Pos{row: ctx.roi.top, col: x}, mod)
+	}
+	if ctx.roi.Height() < 2 {
+		return
 	}
 
 	line2_left := fmt.Sprintf("%s %s", filename, linebreak)
@@ -49,7 +52,8 @@ func (self StatusLineView) constructLine(ctx DrawContext, left string, right str
 
 	r := []rune(right)
 	for i, char := range r {
-		line[len(line)-len(r)+i] = char
+		pos := max(0, len(line)-len(r)+i)
+		line[pos] = char
 	}
 
 	return string(line)
@@ -98,7 +102,7 @@ func (self StatusLineView) positionDisplay() string {
 	curwin := self.editor.curwin
 	pos := curwin.cursor.Pos()
 	return fmt.Sprintf(
-		"%4.4s:%-4.4s",
+		"%s:%s",
 		strconv.Itoa(pos.row+1),
 		strconv.Itoa(pos.col+1),
 	)
@@ -135,5 +139,5 @@ func (self StatusLineView) percentDisplay() string {
 	line_cur := float32(self.editor.curwin.frame.bot)
 	percent := min(max(line_cur/line_max, 0), 1)
 	percent *= 100
-	return fmt.Sprintf("%4.0f%%", percent)
+	return fmt.Sprintf("%3.0f%%", percent)
 }

@@ -18,8 +18,8 @@ func TestEditorInsertNewLine(t *testing.T) {
 	assertScreenRunes(t, editor.screen, []string{
 		"1 ą       ",
 		"          ",
+		"[N1:1 100%",
 		"          ",
-		"file: , li",
 	})
 	OpSaveClipbaord{}.Execute(editor, 1)
 	OpPasteClipboard{}.Execute(editor, 1)
@@ -27,8 +27,8 @@ func TestEditorInsertNewLine(t *testing.T) {
 	assertScreenRunes(t, editor.screen, []string{
 		"1 ąą      ",
 		"          ",
+		"[N1:2 100%",
 		"          ",
-		"file: , li",
 	})
 }
 
