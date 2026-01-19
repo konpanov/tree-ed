@@ -1,6 +1,5 @@
 package main
 
-// aaąćźżółaaaaaaaaaaaaaaaaaa123456789012345678901234567890123456789012345678901234567890bbbbbbbbbbbbbbcccccccccccccccccccccccc
 import (
 	"log"
 	"os"
@@ -17,7 +16,7 @@ func main() {
 	panic_if_error(err)
 	defer f.Close()
 	log.SetOutput(f)
-	log.Println("Log file initiated.")
+	debug_logln("Log file initiated.")
 
 	if debug {
 		// Setup cpuprofile
@@ -25,7 +24,7 @@ func main() {
 		panic_if_error(err)
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-		log.Println("Cpu profile initiated")
+		debug_logln("Cpu profile initiated")
 	}
 
 	// Setup screen

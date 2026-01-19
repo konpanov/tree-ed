@@ -18,6 +18,17 @@ var (
 )
 var LineBreaks = [][]byte{LineBreakWindows, LineBreakPosix}
 
+func debug_logf(format string, v ...any){
+	if debug {
+		log.Printf(format, v...)
+	}
+}
+func debug_logln(v any) {
+	if debug {
+		log.Println(v)
+	}
+}
+
 func assert(is_valid bool, message string) {
 	if debug && !is_valid {
 		log.Panic(message)
@@ -173,7 +184,7 @@ func isLineBreakTerminated(content []byte) bool {
 
 func isIntersection(startA int, endA int, startB int, endB int) bool {
 	if debug && (startA > endA || startB > endB) {
-		log.Printf(
+		debug_logf(
 			"regions in isIntersection call should be ordered: [%d, %d] and [%d, %d]\n",
 			startA, endA, startB, endB,
 		)

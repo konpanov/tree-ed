@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strings"
@@ -66,8 +65,6 @@ func ParserLanguageByFileType(filetype string) *sitter.Language {
 	if err == nil {
 		return lang
 	}
-	log.Println(err)
-	log.Println("Searching for default parser.")
 
 	switch filetype {
 	case "go":

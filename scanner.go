@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"log"
 )
 
 type ScanResult int
@@ -32,7 +31,7 @@ func (self *Scanner) Push(ev tcell.Event) {
 	case *tcell.EventKey:
 		self.keys = append(self.keys, value)
 	default:
-		log.Printf("Scanner: ignoring non key event %+v\n", ev)
+		debug_logf("Scanner: ignoring non key event %+v\n", ev)
 	}
 }
 
@@ -187,7 +186,25 @@ func (self *Scanner) scanTextInsertOperation() (Operation, ScanResult) {
 	if res := self.scanOneOrMore(self.scanTextInput); res == ScanNone {
 		return nil, res
 	}
-	return OpInsertInput{content: self.scanned()}, ScanFull
+	keys := self.scanned()
+	lines := [][]byte{}
+	content := []byte{}
+	for _, ek := range keys {
+		if ek.Key() == tcell.KeyRune {
+			content = append(content, []byte(string(ek.Rune()))...)
+		} else if ek.Key() == tcell.KeyTab {
+			content = append(content, '\t')
+		} else if ek.Key() == tcell.KeyCR {
+			lines = append(lines, content)
+			content = []byte{}
+		} else if ek.Key() == tcell.KeyLF {
+			content = append(content, '\n')
+		} else {
+			break
+		}
+	}
+	lines = append(lines, content)
+	return OpInsertInput{lines: lines}, ScanFull
 }
 
 func (self *Scanner) scanVisualOperation() (Operation, ScanResult) {

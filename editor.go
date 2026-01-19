@@ -1,8 +1,6 @@
 package main
 
 import (
-	// "log"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,7 +18,7 @@ type Editor struct {
 	view    View
 	theme   Theme
 
-	is_quiting bool
+	running bool
 }
 
 func NewEditor(screen tcell.Screen) *Editor {
@@ -79,15 +77,14 @@ func (self *Editor) Start() {
 
 	go func() {
 		var ev tcell.Event
-		for do := true; do; do = ev != nil {
-			log.Println("Polling event")
+		for do := true; do && self.running; do = ev != nil {
 			ev = self.screen.PollEvent()
 			events <- ev
 		}
 	}()
 
 	got_new_event := true
-	for !self.is_quiting {
+	for self.running = true; self.running; {
 		if got_new_event {
 			self.Redraw()
 			got_new_event = false
@@ -97,11 +94,6 @@ func (self *Editor) Start() {
 		for waiting_for_event {
 			select {
 			case e := <-events:
-				log.Printf("Polled event: %+v\n", e)
-				switch v := e.(type) {
-				case *tcell.EventKey:
-					log.Printf(eventKeyToString(v))
-				}
 				self.scanner.Push(e)
 				got_new_event = true
 			case <-time.Tick(2 * time.Millisecond):
@@ -109,7 +101,7 @@ func (self *Editor) Start() {
 			}
 		}
 
-		for got_new_event && !self.is_quiting {
+		for got_new_event && self.running {
 			if self.curwin != nil {
 				self.scanner.UpdateMode(self.curwin.mode)
 			}

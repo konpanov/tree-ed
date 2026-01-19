@@ -5,7 +5,17 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	sitter "github.com/tree-sitter/go-tree-sitter"
 )
+
+func mkTestBufferWithParser(t *testing.T, content string, nl string, parser *sitter.Parser) IBuffer {
+	buffer, err := bufferFromContent([]byte(content), []byte(nl), parser)
+	if err != nil {
+		t.Fatalf("Failed to create test buffer")
+	}
+	return buffer
+}
 
 func mkTestBuffer(t *testing.T, content string, nl string) IBuffer {
 	buffer, err := bufferFromContent([]byte(content), []byte(nl), nil)

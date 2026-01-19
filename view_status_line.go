@@ -141,3 +141,17 @@ func (self StatusLineView) percentDisplay() string {
 	percent *= 100
 	return fmt.Sprintf("%3.0f%%", percent)
 }
+
+func (self StatusLineView) horizonDisplay() string {
+	if self.editor.curwin == nil {
+		return ""
+	}
+	if self.editor.curwin.mode != TreeMode {
+		return ""
+	}
+	line_max := float32(len(self.editor.curwin.buffer.Lines()))
+	line_cur := float32(self.editor.curwin.frame.bot)
+	percent := min(max(line_cur/line_max, 0), 1)
+	percent *= 100
+	return fmt.Sprintf("H%d", self.editor.curwin.originDepth)
+}

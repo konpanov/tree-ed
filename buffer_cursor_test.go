@@ -174,3 +174,203 @@ func TestBufferCursorNextRuneOnWindowsLineBreak(t *testing.T) {
 		t.Errorf("Cursor should be on index 5, but was on %d\n", cursor.Index())
 	}
 }
+
+func TestBufferCursorRuneClass(t *testing.T) {
+	content := "a.:1 *\t"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
+	if class, expected := cursor.Class(), RuneClassChar; class != expected {
+		t.Errorf("Expected rune class %+v, but got %+v", expected, class)
+	}
+	cursor = cursor.RuneNext()
+	if class, expected := cursor.Class(), RuneClassPunct; class != expected {
+		t.Errorf("Expected rune class %+v, but got %+v", expected, class)
+	}
+	cursor = cursor.RuneNext()
+	if class, expected := cursor.Class(), RuneClassPunct; class != expected {
+		t.Errorf("Expected rune class %+v, but got %+v", expected, class)
+	}
+	cursor = cursor.RuneNext()
+	if class, expected := cursor.Class(), RuneClassChar; class != expected {
+		t.Errorf("Expected rune class %+v, but got %+v", expected, class)
+	}
+	cursor = cursor.RuneNext()
+	if class, expected := cursor.Class(), RuneClassSpace; class != expected {
+		t.Errorf("Expected rune class %+v, but got %+v", expected, class)
+	}
+}
+
+func TestBufferCursorWordStartNext(t *testing.T) {
+	content := "abc (123)  !@\n    edf"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
+	cursor = cursor.WordStartNext()
+	if index, expected := cursor.Index(), 4; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartNext()
+	if index, expected := cursor.Index(), 5; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartNext()
+	if index, expected := cursor.Index(), 8; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartNext()
+	if index, expected := cursor.Index(), 11; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartNext()
+	if index, expected := cursor.Index(), 18; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+}
+
+func TestBufferCursorWordStartPrev(t *testing.T) {
+	content := "abc (123)  !@\n    edf"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar().ToIndex(20)
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 18; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 11; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 8; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 5; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 4; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordStartPrev()
+	if index, expected := cursor.Index(), 0; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+}
+
+func TestBufferCursorWordEndNext(t *testing.T) {
+	content := "abc (123)  !@\n    edf"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 2; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 4; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 7; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 8; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 12; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndNext()
+	if index, expected := cursor.Index(), 20; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+}
+
+func TestBufferCursorWordEndPrev(t *testing.T) {
+	content := "abc (123)  !@\n    edf"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar().ToIndex(20)
+	cursor = cursor.WordEndPrev()
+	if index, expected := cursor.Index(), 12; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndPrev()
+	if index, expected := cursor.Index(), 8; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndPrev()
+	if index, expected := cursor.Index(), 7; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndPrev()
+	if index, expected := cursor.Index(), 4; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.WordEndPrev()
+	if index, expected := cursor.Index(), 2; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+}
+
+func TestBufferCursorToLineEnd(t *testing.T) {
+	content := "abc\nedf\nzxc\njkl;"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
+	cursor = cursor.ToLineEnd()
+	if index, expected := cursor.Index(), 2; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(5)
+	cursor = cursor.ToLineEnd()
+	if index, expected := cursor.Index(), 6; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(10)
+	cursor = cursor.ToLineEnd()
+	if index, expected := cursor.Index(), 10; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(11)
+	cursor = cursor.ToLineEnd()
+	if index, expected := cursor.Index(), 10; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(12)
+	cursor = cursor.ToLineEnd()
+	if index, expected := cursor.Index(), 15; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+
+}
+
+func TestBufferCursorToLineStart(t *testing.T) {
+	content := "abc\nedf\n  zxc\njkl;"
+	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	assertNoErrors(t, err)
+	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
+	cursor = cursor.ToLineStart()
+	if index, expected := cursor.Index(), 0; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(5)
+	cursor = cursor.ToLineStart()
+	if index, expected := cursor.Index(), 4; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(10)
+	cursor = cursor.ToLineStart()
+	if index, expected := cursor.Index(), 8; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+	cursor = cursor.ToIndex(17)
+	cursor = cursor.ToLineStart()
+	if index, expected := cursor.Index(), 14; index != expected {
+		t.Errorf("Expected index %+v, but got %+v", expected, index)
+	}
+}

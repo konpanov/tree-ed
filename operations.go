@@ -1,11 +1,9 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/atotto/clipboard"
-	"github.com/gdamore/tcell/v2"
 )
 
 type Operation interface {
@@ -20,7 +18,7 @@ func (self OpNone) Execute(editor *Editor, count int) {
 type OpQuit struct{}
 
 func (self OpQuit) Execute(editor *Editor, count int) {
-	editor.is_quiting = true
+	editor.running = false
 }
 
 type OpCursorDown struct{}
@@ -219,7 +217,7 @@ func (self OpEraseRunePrev) Execute(editor *Editor, count int) {
 }
 
 type OpInsertInput struct {
-	content []*tcell.EventKey
+	lines [][]byte
 }
 
 func (self OpInsertInput) Execute(editor *Editor, count int) {
@@ -228,17 +226,10 @@ func (self OpInsertInput) Execute(editor *Editor, count int) {
 	}
 
 	content := []byte{}
-	for _, ek := range self.content {
-		if ek.Key() == tcell.KeyRune {
-			content = append(content, []byte(string(ek.Rune()))...)
-		} else if ek.Key() == tcell.KeyTab {
-			content = append(content, '\t')
-		} else if ek.Key() == tcell.KeyCR {
+	for i, line := range self.lines {
+		content = append(content, line...)
+		if i != len(self.lines)-1 {
 			content = append(content, editor.curwin.buffer.LineBreak()...)
-		} else if ek.Key() == tcell.KeyLF {
-			content = append(content, '\n')
-		} else {
-			break
 		}
 	}
 	editor.curwin.insertContent(content)
@@ -603,8 +594,7 @@ func (self OpDepthUp) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	editor.curwin.originDepth = min(editor.curwin.originDepth - 1)
-	log.Println(editor.curwin.originDepth)
+	editor.curwin.originDepth = max(0, editor.curwin.originDepth - count)
 }
 
 type OpDepthDown struct{}
@@ -613,8 +603,7 @@ func (self OpDepthDown) Execute(editor *Editor, count int) {
 	if editor.curwin == nil {
 		return
 	}
-	editor.curwin.originDepth = min(editor.curwin.originDepth + 1)
-	log.Println(editor.curwin.originDepth)
+	editor.curwin.originDepth = min(editor.curwin.originDepth + count)
 }
 
 type OpEraseWordBack struct{}

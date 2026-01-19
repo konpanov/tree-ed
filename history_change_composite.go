@@ -36,8 +36,6 @@ func NewSwapChange(win *Window, startA int, endA int, startB int, endB int) Comp
 		)
 		if debug {
 			log.Panic(msg)
-		} else {
-			log.Print(msg)
 		}
 	}
 	if startB < startA {

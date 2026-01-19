@@ -33,7 +33,7 @@ func (self *History) Back() Change {
 
 func (self *History) Forward() Change {
 	if self.current == len(self.states) {
-		return nil
+		return EmptyChange{}
 	}
 	self.current++
 	return self.states[self.current-1].change

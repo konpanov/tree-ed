@@ -62,6 +62,9 @@ func MinimalNodeDepth(node *sitter.Node, a uint, b uint, depth int) *sitter.Node
 }
 
 func NextSiblingOrCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	for node_depth := Depth(node); node_depth > depth; node_depth-- {
+		node = node.Parent()
+	}
 	cousin := NextSiblingOrCousin(node)
 	for cousin != nil && cousin.ChildCount() != 0 && Depth(cousin) < depth {
 		cousin = cousin.Child(0)
@@ -93,6 +96,9 @@ func NextSiblingOrCousin(node *sitter.Node) *sitter.Node {
 }
 
 func PrevSiblingOrCousinDepth(node *sitter.Node, depth int) *sitter.Node {
+	for node_depth := Depth(node); node_depth > depth; node_depth-- {
+		node = node.Parent()
+	}
 	prev := PrevSiblingOrCousin(node)
 	for prev != nil && prev.ChildCount() != 0 && Depth(prev) < depth {
 		prev = prev.Child(prev.ChildCount() - 1)
