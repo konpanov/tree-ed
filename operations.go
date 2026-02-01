@@ -564,6 +564,7 @@ func (self OpPasteClipboard) Execute(editor *Editor, count int) {
 			win.setCursor(win.cursor.ToIndex(line.next_start), false)
 			win.insertContent(content)
 		} else {
+			win.setCursor(win.cursor.RuneNext(), false)
 			win.insertContent(content)
 		}
 		win.continuousInsert = true

@@ -13,12 +13,18 @@ import (
 )
 
 var (
-	LineBreakWindows = []byte("\r\n")
-	LineBreakPosix   = []byte("\n")
+	CRLF = []byte("\r\n")
+	LF   = []byte("\n")
+	CR   = []byte("\r")
+	FF   = []byte("\f")
+	VT   = []byte{0x0B}
+	NL   = []byte{0x85}
+	LS   = []byte{0x20, 0x28}
+	PS   = []byte{0x20, 0x29}
 )
-var LineBreaks = [][]byte{LineBreakWindows, LineBreakPosix}
+var LineBreaks = [][]byte{CRLF, LF, CR, FF, VT}
 
-func debug_logf(format string, v ...any){
+func debug_logf(format string, v ...any) {
 	if debug {
 		log.Printf(format, v...)
 	}
@@ -44,9 +50,9 @@ func getContentLineBreak(content []byte) []byte {
 		}
 	}
 	if runtime.GOOS == "windows" {
-		return LineBreakWindows
+		return CRLF
 	}
-	return LineBreakPosix
+	return LF
 }
 
 func matchBytes(a []byte, b []byte) bool {

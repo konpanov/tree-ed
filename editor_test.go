@@ -11,7 +11,7 @@ import (
 )
 
 func TestEditorInsertNewLine(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	buffer := mkTestBuffer(t, "ą", string(nl))
 	screen := mkTestScreen(t, "")
 	screen.SetSize(10, 4)

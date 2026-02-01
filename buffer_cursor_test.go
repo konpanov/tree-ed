@@ -6,7 +6,7 @@ import (
 )
 
 func TestBufferCursorIndexAtTheBeginning(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	content := "line1"
 	buffer, err := bufferFromContent([]byte(content), nl, nil)
 	assertNoErrors(t, err)
@@ -16,7 +16,7 @@ func TestBufferCursorIndexAtTheBeginning(t *testing.T) {
 }
 
 func TestBufferCursorAfterMovementToTheNextByte(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	lines := []string{
 		"line1",
 		"line2",
@@ -31,7 +31,7 @@ func TestBufferCursorAfterMovementToTheNextByte(t *testing.T) {
 }
 
 func TestBufferCursorAfterMovementForwardAndBackward(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	lines := []string{
 		"line1",
 		"line2",
@@ -50,7 +50,7 @@ func TestBufferCursorAfterMovementForwardAndBackward(t *testing.T) {
 }
 
 func TestBufferCursorIsNewLine(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	lines := []string{
 		"line1",
 		"line2",
@@ -72,7 +72,7 @@ func TestBufferCursorIsNewLine(t *testing.T) {
 }
 
 func TestBufferSearchForward(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	lines := []string{
 		"line1",
 		"line2",
@@ -91,7 +91,7 @@ func TestBufferSearchForward(t *testing.T) {
 }
 
 func TestBufferSearchBackward(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	lines := []string{
 		"line1",
 		"line2",
@@ -112,7 +112,7 @@ func TestBufferSearchBackward(t *testing.T) {
 }
 
 func TestBufferCursorRunesForwardOnce(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	content := "aąłb"
 	buffer, err := bufferFromContent([]byte(content), nl, nil)
 	assertNoErrors(t, err)
@@ -125,7 +125,7 @@ func TestBufferCursorRunesForwardOnce(t *testing.T) {
 }
 
 func TestBufferCursorMultipleRunesForward(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	content := "aąłbźg"
 	buffer, err := bufferFromContent([]byte(content), nl, nil)
 	assertNoErrors(t, err)
@@ -139,7 +139,7 @@ func TestBufferCursorMultipleRunesForward(t *testing.T) {
 }
 
 func TestBufferCursorMultipleRunesBackward(t *testing.T) {
-	nl := LineBreakPosix
+	nl := LF
 	content := "aąłbźg"
 	buffer, err := bufferFromContent([]byte(content), nl, nil)
 	assertNoErrors(t, err)
@@ -155,7 +155,7 @@ func TestBufferCursorMultipleRunesBackward(t *testing.T) {
 
 func TestBufferCursorPrevRuneOnWindowsLineBreak(t *testing.T) {
 	content := "abc\r\nedf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakWindows, nil)
+	buffer, err := bufferFromContent([]byte(content), CRLF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 5}.AsEdge()
 	cursor = cursor.RunePrev()
@@ -166,7 +166,7 @@ func TestBufferCursorPrevRuneOnWindowsLineBreak(t *testing.T) {
 
 func TestBufferCursorNextRuneOnWindowsLineBreak(t *testing.T) {
 	content := "abc\r\nedf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakWindows, nil)
+	buffer, err := bufferFromContent([]byte(content), CRLF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 3}.AsEdge()
 	cursor = cursor.RuneNext()
@@ -177,7 +177,7 @@ func TestBufferCursorNextRuneOnWindowsLineBreak(t *testing.T) {
 
 func TestBufferCursorRuneClass(t *testing.T) {
 	content := "a.:1 *\t"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
 	if class, expected := cursor.Class(), RuneClassChar; class != expected {
@@ -203,7 +203,7 @@ func TestBufferCursorRuneClass(t *testing.T) {
 
 func TestBufferCursorWordStartNext(t *testing.T) {
 	content := "abc (123)  !@\n    edf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
 	cursor = cursor.WordStartNext()
@@ -230,7 +230,7 @@ func TestBufferCursorWordStartNext(t *testing.T) {
 
 func TestBufferCursorWordStartPrev(t *testing.T) {
 	content := "abc (123)  !@\n    edf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar().ToIndex(20)
 	cursor = cursor.WordStartPrev()
@@ -261,7 +261,7 @@ func TestBufferCursorWordStartPrev(t *testing.T) {
 
 func TestBufferCursorWordEndNext(t *testing.T) {
 	content := "abc (123)  !@\n    edf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
 	cursor = cursor.WordEndNext()
@@ -292,7 +292,7 @@ func TestBufferCursorWordEndNext(t *testing.T) {
 
 func TestBufferCursorWordEndPrev(t *testing.T) {
 	content := "abc (123)  !@\n    edf"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar().ToIndex(20)
 	cursor = cursor.WordEndPrev()
@@ -319,7 +319,7 @@ func TestBufferCursorWordEndPrev(t *testing.T) {
 
 func TestBufferCursorToLineEnd(t *testing.T) {
 	content := "abc\nedf\nzxc\njkl;"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
 	cursor = cursor.ToLineEnd()
@@ -351,7 +351,7 @@ func TestBufferCursorToLineEnd(t *testing.T) {
 
 func TestBufferCursorToLineStart(t *testing.T) {
 	content := "abc\nedf\n  zxc\njkl;"
-	buffer, err := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, err := bufferFromContent([]byte(content), LF, nil)
 	assertNoErrors(t, err)
 	cursor := BufferCursor{buffer: buffer, index: 0}.AsChar()
 	cursor = cursor.ToLineStart()

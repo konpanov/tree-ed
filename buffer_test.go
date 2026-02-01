@@ -307,7 +307,7 @@ func TestBufferLineInfoOnContentEndingOnNewLine(t *testing.T) {
 }
 
 func TestBufferLineInfoOnContentEndingOnNewLineWindowVersion(t *testing.T) {
-	nl := string(LineBreakWindows)
+	nl := string(CRLF)
 	content := ""
 	content += "abcde"
 	content += nl
@@ -553,7 +553,7 @@ func TestBufferCalculateLinesAfterDeletingEmptySecondLine(t *testing.T) {
 		"",
 		"whatever",
 	}, "\n")
-	buffer, _ := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, _ := bufferFromContent([]byte(content), LF, nil)
 	buffer.Edit(ReplacementInput{start: 12, end: 13, replacement: []byte{}})
 	lines := buffer.Lines()
 	if len(lines) != 2 {
@@ -571,13 +571,13 @@ func TestBufferCalculateLinesAfterInsertingNewlinAtTheEnd(t *testing.T) {
 		"",
 		"",
 	}, "\n")
-	buffer, _ := bufferFromContent([]byte(content), LineBreakPosix, nil)
+	buffer, _ := bufferFromContent([]byte(content), LF, nil)
 	input := []byte{'x', '\n'}
 	buffer.Edit(ReplacementInput{start: 7, end: 7, replacement: input})
 }
 
 func TestBufferRemoveUnicodeCharacter(t *testing.T) {
-	buffer, _ := bufferFromContent([]byte("Привет"), LineBreakPosix, nil)
+	buffer, _ := bufferFromContent([]byte("Привет"), LF, nil)
 	expected := []byte("Привет")
 	actual := buffer.Content()
 	if slices.Compare[[]byte](expected, actual) != 0 {
