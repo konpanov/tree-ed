@@ -1,4 +1,4 @@
-module tree-runner
+module tree-ed
 
 go 1.23
 
