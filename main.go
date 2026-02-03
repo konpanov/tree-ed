@@ -8,7 +8,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-var debug = true
+var debug = false
 
 func main() {
 	if debug {
