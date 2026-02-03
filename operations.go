@@ -732,7 +732,11 @@ func (self OpSaveFile) Execute(editor *Editor, count int) {
 	filename := editor.curwin.buffer.Filename()
 	info, err := os.Stat(filename)
 	panic_if_error(err)
-	os.WriteFile(filename, editor.curwin.buffer.Content(), info.Mode())
+	content := editor.curwin.buffer.Content()
+	if !isLineBreakTerminated(content) {
+		content = append(content, editor.curwin.buffer.LineBreak()...)
+	}
+	os.WriteFile(filename, content, info.Mode())
 }
 
 type OpStartNewLineBelow struct{}

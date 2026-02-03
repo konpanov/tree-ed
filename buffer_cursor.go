@@ -47,7 +47,8 @@ func (self BufferCursor) LineEnd(line Line) int {
 	if self.as_edge {
 		return line.end
 	} else {
-		return max(line.start, line.end-1)
+		_, width := utf8.DecodeLastRune(self.buffer.Content()[line.start:line.end])
+		return max(line.start, line.end-width)
 	}
 }
 

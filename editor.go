@@ -35,8 +35,16 @@ func NewEditor(screen tcell.Screen) *Editor {
 
 func (self *Editor) OpenFileInWindow(filename string) {
 	filename = filepath.Clean(filename)
-	content, err := os.ReadFile(filename)
-	panic_if_error(err)
+	var content []byte
+
+	if _, err := os.Stat(filename); err != nil {
+		file, err := os.Create(filename)
+		panic_if_error(err)
+		file.Read(content)
+	} else {
+		content, err = os.ReadFile(filename)
+		panic_if_error(err)
+	}
 
 	language := ParserLanguageByFileType(GetFiletype(filename))
 	var parser *sitter.Parser
