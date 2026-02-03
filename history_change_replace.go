@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"slices"
 	"unicode/utf8"
 )
@@ -62,7 +61,7 @@ func NewEraseLineChange(win *Window, row int) ReplaceChange {
 	buf := win.buffer
 	lines := buf.Lines()
 	if row < 0 || row >= len(lines) {
-		log.Panicf("Cannot erase nonexisting line %d. number of line: %d.", row, len(lines))
+		debug_logf("Cannot erase nonexisting line %d. number of line: %d.", row, len(lines))
 	}
 	line := lines[row]
 	end := len(buf.Content())

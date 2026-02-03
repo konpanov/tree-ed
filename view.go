@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math"
 
 	"github.com/gdamore/tcell/v2"
@@ -64,10 +63,10 @@ func view_pos_to_screen_pos(pos Pos, roi Rect) Pos {
 	row := pos.row + roi.top
 	screen_pos := Pos{col: col, row: row}
 	if row >= roi.bot || row < roi.top {
-		log.Panicf("View should not draw outside it's roi (horizontal).\nView roi: %+v.\nView height: %d\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Height(), screen_pos, pos)
+		debug_logf("View should not draw outside it's roi (horizontal).\nView roi: %+v.\nView height: %d\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Height(), screen_pos, pos)
 	}
 	if col >= roi.right || col < roi.left {
-		log.Panicf("View should not draw outside it's roi (vertical).\nView roi: %+v.\nView width: %d.\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Width(), screen_pos, pos)
+		debug_logf("View should not draw outside it's roi (vertical).\nView roi: %+v.\nView width: %d.\nScreen position: %+v.\nView position: %+v.\n", roi, roi.Width(), screen_pos, pos)
 	}
 	return screen_pos
 }
@@ -75,18 +74,18 @@ func view_pos_to_screen_pos(pos Pos, roi Rect) Pos {
 func text_pos_to_view_pos(pos Pos, text_offset Pos, roi Rect) Pos {
 	if debug {
 		if pos.col < 0 || pos.row < 0 {
-			log.Panicf("Text position should not be negative %+v", pos)
+			debug_logf("Text position should not be negative %+v", pos)
 		}
 		if pos.col < 0 || pos.row < 0 {
-			log.Panicf("Text position should not be negative %+v", pos)
+			debug_logf("Text position should not be negative %+v", pos)
 		} else if pos.col < text_offset.col {
-			log.Panicln("Text position is left of window frame.")
+			debug_logln("Text position is left of window frame.")
 		} else if pos.col >= text_offset.col+roi.Width() {
-			log.Panicln("Text position is right of window frame.")
+			debug_logln("Text position is right of window frame.")
 		} else if pos.row < text_offset.row {
-			log.Panicln("Text position is above window frame.")
+			debug_logln("Text position is above window frame.")
 		} else if pos.row >= text_offset.row+roi.Height() {
-			log.Panicln("Text position is below window frame.")
+			debug_logln("Text position is below window frame.")
 		}
 	}
 
@@ -95,7 +94,7 @@ func text_pos_to_view_pos(pos Pos, text_offset Pos, roi Rect) Pos {
 		row: min(pos.row-text_offset.row, roi.Height()-1),
 	}
 	if view_pos.row < 0 || view_pos.col < 0 {
-		log.Panicf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)
+		debug_logf("View position should not be negative. View pos: %+v, Text offset: %+v, Text pos: %+v", view_pos, text_offset, pos)
 	}
 	return view_pos
 }

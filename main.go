@@ -11,14 +11,15 @@ import (
 var debug = true
 
 func main() {
-	// Setup logging to file
-	f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	panic_if_error(err)
-	defer f.Close()
-	log.SetOutput(f)
-	debug_logln("Log file initiated.")
-
 	if debug {
+		// Setup logging to file
+		f, err := os.OpenFile("logfile", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		panic_if_error(err)
+		defer f.Close()
+		log.SetOutput(f)
+		debug_logln("Log file initiated.")
+
+
 		// Setup cpuprofile
 		f, err = os.Create("cpuprofile")
 		panic_if_error(err)
@@ -30,10 +31,10 @@ func main() {
 	// Setup screen
 	screen, err := tcell.NewScreen()
 	if err != nil {
-		log.Fatalf("%+v", err)
+		debug_logf("%+v", err)
 	}
 	if err := screen.Init(); err != nil {
-		log.Fatalf("%+v", err)
+		debug_logf("%+v", err)
 	}
 	defer quit(screen)
 

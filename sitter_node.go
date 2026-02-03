@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -17,7 +15,7 @@ func Depth(node *sitter.Node) int {
 
 func NodeLeaf(node *sitter.Node, index int) *sitter.Node {
 	if node == nil {
-		log.Panicln("Cannot find leaf from nil node")
+		debug_logln("Cannot find leaf from nil node")
 	}
 	if node.ChildCount() == 0 {
 		return node
